@@ -19,11 +19,17 @@ const toMinutes = (h, m) => {
 const fmtTime = (mins) =>
   mins == null ? "" : `${Math.floor(mins / 60)} h ${mins % 60} min`;
 
-// Returns normalized {lines, machines} data from a parsed backup, or null if invalid.
-const parseBackup = (j) =>
-  j && Array.isArray(j.lines)
-    ? { lines: j.lines, machines: Array.isArray(j.machines) ? j.machines : [] }
-    : null;
+// Returns normalized {lines, machines, logo?} data from a parsed backup, or null if invalid.
+const parseBackup = (j) => {
+  if (!j || !Array.isArray(j.lines)) return null;
+  const b = {
+    lines: j.lines,
+    machines: Array.isArray(j.machines) ? j.machines : [],
+  };
+  if (typeof j.logo == "string" && j.logo.startsWith("data:image/"))
+    b.logo = j.logo;
+  return b;
+};
 
 if (typeof module !== "undefined")
   module.exports = { id, esc, parseBackup, toMinutes, fmtTime };

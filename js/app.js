@@ -29,7 +29,14 @@ const add = (ph, a) =>
 const gal = (arr, k) =>
   `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
 
+// Company logo: one for all procedures, printed at the top of every PDF.
+const logoSec = () =>
+  `<h2>Company logo</h2><p class="m">Shown at the top of every PDF.</p>` +
+  (S.logo
+    ? `<img class="logo" src="${S.logo}" alt="Company logo"><div class="row" style="flex-wrap:wrap"><label class="b2">Change logo<input type="file" accept="image/*" hidden data-logo="1"></label><button class="b d" data-a="rmLogo">Remove logo</button></div>`
+    : `<label class="b2">＋ Add logo<input type="file" accept="image/*" hidden data-logo="1"></label>`);
 const bkp = () =>
+  logoSec() +
   `<h2>Backup</h2><p class="m">Save a copy of everything, or restore one.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 const TABS = () =>
   `<div class="tabs"><button class="${T == "p" ? "on" : ""}" data-a="tab" data-t="p">Products</button><button class="${T == "m" ? "on" : ""}" data-a="tab" data-t="m">Machines</button></div>`;
@@ -106,18 +113,19 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
   if (!keep) window.scrollTo(0, 0);
 }
 
-const comp = (f) =>
+// Shrink an image file to fit max px. PNG keeps transparency (used for the logo).
+const comp = (f, png = false, max = 900) =>
   new Promise((r) => {
     const u = URL.createObjectURL(f),
       i = new Image();
     i.onload = () => {
-      const k = Math.min(1, 900 / Math.max(i.width, i.height)),
+      const k = Math.min(1, max / Math.max(i.width, i.height)),
         c = document.createElement("canvas");
       c.width = i.width * k;
       c.height = i.height * k;
       c.getContext("2d").drawImage(i, 0, 0, c.width, c.height);
       URL.revokeObjectURL(u);
-      r(c.toDataURL("image/jpeg", 0.7));
+      r(png ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.7));
     };
     i.src = u;
   });
@@ -184,6 +192,9 @@ document.addEventListener("click", (e) => {
   } else if (a == "dn" && i < P().steps.length - 1) {
     const s = P().steps;
     [s[i + 1], s[i]] = [s[i], s[i + 1]];
+  } else if (a == "rmLogo") {
+    if (!confirm("Remove the company logo?")) return;
+    delete S.logo;
   } else if (a == "tab") {
     T = t.dataset.t;
     MID = null;
@@ -243,6 +254,14 @@ document.addEventListener("input", (e) => {
 
 document.addEventListener("change", async (e) => {
   const t = e.target;
+  if (t.dataset.logo) {
+    const f = t.files[0];
+    if (!f) return;
+    S.logo = await comp(f, true, 600);
+    save();
+    R(true);
+    return;
+  }
   if (t.dataset.imp) {
     const f = t.files[0];
     if (!f) return;
@@ -381,9 +400,16 @@ async function mkPdf() {
   d.setFontSize(9);
   tc(G);
   d.text("Setup procedure", M, y + 3);
+  // Company logo at the top right; the title wraps before reaching it.
+  let lw = 0,
+    lh = 0;
+  if (S.logo) {
+    [lw, lh] = fit(S.logo, 45, 18);
+    d.addImage(S.logo, "PNG", W - M - lw, M, lw, lh);
+  }
   y += 8;
-  para(p.name || "Untitled", M, CW, 20, 1);
-  y += 4;
+  para(p.name || "Untitled", M, CW - (lw ? lw + 6 : 0), 20, 1);
+  y = Math.max(y + 4, M + lh + 4);
   const mm = T == "m",
     meta = [
       mm ? ["Type", "Machine"] : ["Line", L().name],

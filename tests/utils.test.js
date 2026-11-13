@@ -38,4 +38,6 @@ test('parseBackup accepts valid backups and rejects others', () => {
   assert.equal(parseBackup(null), null);
   assert.equal(parseBackup({}), null);
   assert.equal(parseBackup({ lines: 'nope' }), null);
+  assert.equal(parseBackup({ lines: [], logo: 'data:image/png;base64,AAA' }).logo, 'data:image/png;base64,AAA');
+  assert.equal('logo' in parseBackup({ lines: [], logo: 'javascript:alert(1)' }), false);
 });
