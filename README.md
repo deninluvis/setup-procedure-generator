@@ -48,7 +48,9 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
    remove departments later.
 3. **Products:** add a product line (for example "Line 1"), then add a product to it.
    **Machines:** add a machine.
-4. Pick the **Department**, then fill in the code or asset number, the revision and photos.
+4. On a product or machine page, the **How to fill in this product/machine** panel
+   explains each part (it can be closed, and stays closed until opened again).
+   Pick the **Department**, then fill in the code or asset number, the revision and photos.
 5. Add steps. Each step has an optional headline, a description and an optional photo.
    Use ↑ ↓ to reorder.
 6. In **Sign-off**, fill in Time required and Technicians required (or leave them
@@ -117,7 +119,16 @@ photos/Line 1/Widget A/step-2.jpg
 photos/Machines/Press 3/panel-1.jpg
 ```
 
-You can replace a photo inside the ZIP with a better one (keep the same file name).
+Every export also contains a `READ ME.txt` with these rules:
+
+- **Keep the exported file as it is.** Do not rename, move or delete files or folders
+  inside the `.zip`, do not change file extensions, and do not edit `data.json`: the
+  app finds every photo by its exact folder and file name. A changed name means a
+  missing photo; a damaged `data.json` cannot be imported at all.
+- **The only safe change is replacing a photo:** save the new photo with exactly the
+  same file name, in the same folder. If you unzip to do that, zip it again with
+  `data.json` and the `photos` folder inside, keeping every folder as it was.
+
 A ZIP re-saved by Windows, macOS or other tools, even inside an extra folder, still
 imports. Older `.json` backups still import.
 

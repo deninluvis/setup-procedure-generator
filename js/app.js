@@ -10,7 +10,7 @@ let S = { lines: [], machines: [] },
   GRP = "line",
   XF = "",
   HS = "", // home page search text
-  HELP = true, // help panel open on the Export & import page
+  HELPS = { x: true, item: true }, // help panels open? x = Export & import, item = product/machine page
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -172,7 +172,7 @@ function R(keep) {
       (mm
         ? `<button class="lk" data-a="mhome">← All machines</button>`
         : `<button class="lk" data-a="openL" data-id="${V.l}">← ${esc(L().name)}</button>`) +
-      `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>
+      `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>${itemHelp(mm)}
 <label class="f">${mm ? "Machine name" : "Product name"}<input data-f="name" value="${esc(p.name)}"></label>
 ${deptSel(p)}
 <div class="two"><label class="f">${mm ? "Machine ID / asset no." : "Product code"}<input data-f="code" value="${esc(p.code)}"></label><label class="f">Revision<input data-f="rev" value="${esc(p.rev)}"></label></div>
@@ -641,6 +641,10 @@ async function exportZip(plan, name, btn, done) {
     ];
     for (const [p, d] of plan.files)
       files.push({ name: p, data: dataToBytes(d) });
+    files.push({
+      name: "READ ME.txt",
+      data: new TextEncoder().encode(README_TXT()),
+    });
     await dl(name, Zip.make(files));
     if (done) done();
   } catch (e) {
@@ -742,7 +746,10 @@ function loadView() {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "{}");
     if (v.grp == "line" || v.grp == "dept") GRP = v.grp;
-    if (typeof v.help == "boolean") HELP = v.help;
+    if (typeof v.help == "boolean") HELPS.x = v.help; // older setting
+    if (v.helps && typeof v.helps == "object")
+      for (const k in HELPS)
+        if (typeof v.helps[k] == "boolean") HELPS[k] = v.helps[k];
     if (Array.isArray(v.col))
       COL = new Set(v.col.filter((x) => typeof x == "string").slice(0, 500));
   } catch (e) {}
@@ -751,7 +758,7 @@ function saveView() {
   try {
     localStorage.setItem(
       VIEW_KEY,
-      JSON.stringify({ grp: GRP, col: [...COL], help: HELP }),
+      JSON.stringify({ grp: GRP, col: [...COL], helps: HELPS }),
     );
   } catch (e) {}
 }
@@ -980,12 +987,61 @@ function tree(nodes, mode, sel, groupFn, disabled) {
     : "";
 }
 
-// Step-by-step help at the top of the Export & import page. Open or closed is
-// remembered with the other view settings.
-const helpPanel =
-  () => `<details class="help" data-help="1"${HELP ? " open" : ""}>
-<summary>How export and import work</summary>
-<h3>Export: save or share</h3>
+// Help panels: <details> boxes that open and close; the state is remembered
+// with the other view settings. id: "x" (Export & import) or "item".
+const helpBox = (id, title, body) =>
+  `<details class="help" data-help="${id}"${HELPS[id] ? " open" : ""}><summary>${title}</summary>${body}</details>`;
+
+// Remember whether a help panel is open ("toggle" does not bubble, so capture it).
+document.addEventListener(
+  "toggle",
+  (e) => {
+    const id = e.target.dataset && e.target.dataset.help;
+    if (id && id in HELPS) {
+      HELPS[id] = e.target.open;
+      saveView();
+    }
+  },
+  true,
+);
+
+// Rules about the export file, shared by the page help and READ ME.txt.
+const KEEP_RULES = [
+  "Do not rename, move or delete any file or folder inside the .zip.",
+  "Do not edit data.json. It lists every photo by its exact folder and file name.",
+  "Do not add, remove or rename folders, and do not change file extensions (.jpg, .png).",
+  "If a name or folder changes, that photo is missing after import. A damaged data.json cannot be imported at all.",
+];
+
+// Text file added to every export.
+const README_TXT = () =>
+  [
+    "SETUP PROCEDURES EXPORT",
+    `Exported on ${dateStamp()} from the Setup Procedure Generator.`,
+    "",
+    "TO IMPORT",
+    "Open the app, go to Export & import, press Choose files and pick this .zip file.",
+    "",
+    "PLEASE KEEP THIS FILE AS IT IS",
+    ...KEEP_RULES.map((r) => "- " + r),
+    "",
+    "YOU MAY",
+    "- Open the photos to look at them, or copy them somewhere else.",
+    "- Replace a photo with a better one: save the new photo with EXACTLY the same",
+    "  file name, in the same folder, over the old one.",
+    "- If you unzip the file to do that, zip it again with data.json and the photos",
+    "  folder inside, keeping every folder exactly as it was.",
+    "",
+    "This READ ME file is ignored when importing.",
+    "",
+  ].join("\r\n");
+
+// Help at the top of the Export & import page.
+const xHelp = () =>
+  helpBox(
+    "x",
+    "How export and import work",
+    `<h3>Export: save or share</h3>
 <ol>
 <li>Tick what you want in the <b>Export</b> list below. Ticking a group ticks everything in it. Use <b>Group by</b> to list by product line or by department, and the <b>filter</b> box to find items.</li>
 <li>Press the button under the list:
@@ -993,12 +1049,15 @@ const helpPanel =
 <li><b>Everything ticked → Export full backup.</b> A complete copy of all your data, named <code>setup-procedures-backup-DATE.zip</code>. Keep it somewhere safe, such as a USB drive or a company network folder.</li>
 <li><b>Some items ticked → Export selected.</b> A file with just those items, to share with a colleague.</li>
 </ul></li>
-<li>The <code>.zip</code> file downloads. Inside are <code>data.json</code> (all the text) and your photos as normal image files in folders named after your lines, products and machines.</li>
+<li>The <code>.zip</code> file downloads. Inside are <code>data.json</code> (all the text), your photos as normal image files in folders named after your lines, products and machines, and a <code>READ ME.txt</code>.</li>
 </ol>
+<h3>Keep the export file as it is</h3>
+<ul>${KEEP_RULES.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+<p><b>The only safe change: replacing a photo.</b> Save the new photo with <b>exactly the same file name, in the same folder</b>, over the old one. If you unzip the file to do that, zip it again with <code>data.json</code> and the <code>photos</code> folder inside, keeping every folder as it was. If something goes wrong, import the original file you exported.</p>
 <h3>Import: restore or add</h3>
 <ol>
 <li>Under <b>Import</b>, press <b>Choose files</b> and pick one or more <code>.zip</code> files. Older <code>.json</code> backups work too.</li>
-<li>Check the list of what is inside. Each item is marked <span class="bd new">new</span> or <span class="bd">already exists</span>.</li>
+<li>Check the list of what is inside. Each item is marked <span class="bd new">new</span> or <span class="bd">already exists</span>. If photos are missing, the page tells you how many.</li>
 <li>For a <b>full backup</b>, choose <b>Replace all current data</b> (restore everything, for example on a new computer) or <b>Add only what I tick</b>.</li>
 <li>Tick what to import. For items that already exist, choose <b>Replace it</b> or <b>Keep both</b>.</li>
 <li>Press <b>Import selected</b> (or <b>Replace all data</b>). A message confirms what was imported.</li>
@@ -1007,24 +1066,39 @@ const helpPanel =
 <ul>
 <li>Your data is stored only in this browser. Export a full backup regularly; the home page reminds you after 7 days.</li>
 <li><b>Moving to another computer or browser:</b> export a full backup here. On the other one, press <b>Import backup</b> on the Welcome screen, choose the file and keep <b>Replace all current data</b>.</li>
-<li><b>Swapping a photo:</b> open the <code>.zip</code>, replace the photo with a new one using the same file name, then import the file.</li>
 <li>Imported products go into the product line with the same name. Missing lines and departments are created.</li>
 <li>Company details and logo change only if you tick them when importing.</li>
 <li>Nothing changes until you press the import button. <b>Cancel</b> leaves everything as it was.</li>
-</ul>
-</details>`;
+</ul>`,
+  );
 
-// Remember whether the help panel is open ("toggle" does not bubble, so capture it).
-document.addEventListener(
-  "toggle",
-  (e) => {
-    if (e.target.dataset && e.target.dataset.help) {
-      HELP = e.target.open;
-      saveView();
-    }
-  },
-  true,
-);
+// Help at the top of a product or machine page.
+const itemHelp = (mm) => {
+  const it = mm ? "machine" : "product";
+  return helpBox(
+    "item",
+    `How to fill in this ${it}`,
+    `<ol>
+<li><b>Details.</b> Enter the ${it} name, pick the <b>Department</b>, and fill in the ${mm ? "machine ID / asset number" : "product code"}. Raise the <b>Revision</b> number whenever you change the procedure, so printed copies can be told apart.</li>
+<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it.</li>
+<li><b>Steps.</b> Write one step per action, in order:
+<ul>
+<li>A short <b>headline</b> (optional) is printed in bold, for example "Install the fixture".</li>
+<li>The <b>description</b> says exactly what to do, with values such as torque, speed or program number.</li>
+<li><b>＋ Add photo</b> adds one photo to the step, for example the part or the control panel.</li>
+<li><b>↑ ↓</b> move a step, <b>✕</b> deletes it, <b>＋ Add step</b> adds a new one at the end.</li>
+</ul></li>
+<li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
+<li><b>Download PDF.</b> The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
+</ol>
+<h3>Good to know</h3>
+<ul>
+<li>Everything is saved automatically as you type. There is no Save button.</li>
+<li><b>Export this ${it}</b> makes a file to share this one ${it} with a colleague (see <b>Export &amp; import</b> on the home page).</li>
+<li><b>Delete ${it}</b> removes it for good. Export it or make a backup first if you might need it again.</li>
+</ul>`,
+  );
+};
 
 // Filter box and "Group by" switch; they apply to both trees on the page.
 function toolbar() {
@@ -1056,14 +1130,15 @@ function XV() {
     ].filter(Boolean);
   let h =
     `<button class="lk" data-a="goHome">← Home</button><h1>Export &amp; import</h1>` +
-    helpPanel() +
+    xHelp() +
     (XMSG ? `<p class="ok" role="status">${XMSG}</p>` : "") +
     `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
     toolbar() +
     (tree(treeNodes("x"), "x", EXS, exGroup, false) ||
       `<p class="m">Nothing matches the filter.</p>`) +
     `<p class="m" role="status">${picked.length ? `Selected: ${picked.join(", ")}${all ? " (full backup)" : ""} · about ${fmtBytes(bytes + 2048)}` : "Nothing selected."}</p>
-<div class="row"><button class="b" data-a="xExport"${picked.length ? "" : " disabled"}>${all ? "Export full backup" : "Export selected"}</button></div>`;
+<div class="row"><button class="b" data-a="xExport"${picked.length ? "" : " disabled"}>${all ? "Export full backup" : "Export selected"}</button></div>
+<p class="warn"><b>Keep the exported file as it is.</b> Do not rename, move or delete files or folders inside the .zip, and do not edit <code>data.json</code>: the app finds every photo by its exact folder and file name. Each export also contains a <code>READ ME.txt</code> with these rules.</p>`;
 
   h += `<h2 id="imp">Import</h2>`;
   if (!IMP) {

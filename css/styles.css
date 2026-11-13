@@ -453,3 +453,13 @@ input[type="radio"] {
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+.warn {
+  border-left: 4px solid var(--dg);
+  padding: 8px 12px;
+  margin: 8px 0 12px;
+  font-size: 14px;
+}
+.warn code,
+.help p code {
+  font-size: 13px;
+}
