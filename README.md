@@ -51,7 +51,11 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 4. On a product or machine page, the **How to fill in this product/machine** panel
    explains each part (closed at first: click it to open; it stays as you left it).
    Pick the **Department**, then fill in the code or asset number, the revision and photos.
-5. Add steps. Each step has an optional headline, a description and an optional photo.
+5. Under **Tools required**, press **＋ Add tool** and enter each tool with its size or
+   specification and quantity (Enter adds the next row; names you used before are
+   suggested). In the PDF they print as a table before the procedure, with a box to
+   tick for each tool.
+6. Add steps. Each step has an optional headline, a description and an optional photo.
    - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
      at the end. Steps renumber automatically.
    - **↑ ↓** move a step up or down.
@@ -64,13 +68,13 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
      orange) or **Note** (useful tip, blue). In the PDF it prints in a box with the same
      colour edge, a symbol, and WARNING / CAUTION / NOTE next to it, followed by the
      description.
-6. In **Sign-off**, fill in Time required and Technicians required (or leave them
+7. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
-7. Optionally tick **Add watermark to the PDF**: the company name and the item's
+8. Optionally tick **Add watermark to the PDF**: the company name and the item's
    department are printed large, faint and diagonally across every page. The choice is
    remembered in this browser.
-8. Press **Download PDF**.
-9. Use **Export backup** on the home page regularly. Data lives only in this browser.
+9. Press **Download PDF**.
+10. Use **Export backup** on the home page regularly. Data lives only in this browser.
 
 **Undo:** after removing or replacing something (a step, sub-step, warning or note,
 photo, product, machine, line, department, the logo, an import, or clearing all data), a

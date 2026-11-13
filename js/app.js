@@ -195,6 +195,32 @@ ${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" 
 <div class="row" style="flex-wrap:wrap">${s.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}">⚠ Add warning or note</button>` : ""}<button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
 };
 
+// "Tools required" list on the product/machine page. p.tools = [{ n, s, q }]
+// (name, size / specification, quantity).
+function toolsHtml(p) {
+  const tools = p.tools || [],
+    names = [
+      ...new Set(
+        [...S.lines.flatMap((l) => l.products), ...S.machines]
+          .flatMap((x) => (x.tools || []).map((t) => t.n.trim()))
+          .filter(Boolean),
+      ),
+    ].sort();
+  return (
+    `<h2>Tools required</h2><p class="m">List the tools needed for this setup. They print as a checklist before the procedure.</p>` +
+    (tools.length
+      ? `<div class="tl tlh" aria-hidden="true"><span>Tool</span><span>Size / specification</span><span>Qty</span><span></span></div>`
+      : "") +
+    tools
+      .map(
+        (t, i) =>
+          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><input class="tq" data-tool="${i}" data-tk="q" type="number" min="1" inputmode="numeric" value="${esc(t.q)}" aria-label="Tool ${i + 1} quantity"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">✕</button></div>`,
+      )
+      .join("") +
+    `<button class="b2" data-a="addTool">＋ Add tool</button><datalist id="toolNames">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`
+  );
+}
+
 const MV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
   S.machines
@@ -275,6 +301,7 @@ ${deptSel(p)}
 <div class="two"><label class="f">${mm ? "Machine ID / asset no." : "Product code"}<input data-f="code" value="${esc(p.code)}"></label><label class="f">Revision<input data-f="rev" value="${esc(p.rev)}"></label></div>
 <h2>${mm ? "Machine photos" : "Product photos"}</h2>${gal(p.prod, "prod")}
 <h2>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</h2>${gal(p.pack, "pack")}
+${toolsHtml(p)}
 <h2>Steps</h2>` +
       p.steps.map((s, i) => stepHtml(s, i)).join("") +
       `<button class="b2" data-a="addS">＋ Add step</button>
@@ -483,6 +510,15 @@ document.addEventListener("click", (e) => {
   } else if (a == "rmPh") {
     remember("Photo removed");
     P()[t.dataset.k].splice(i, 1);
+  } else if (a == "addTool") {
+    const p = P();
+    p.tools = p.tools || [];
+    p.tools.push({ n: "", s: "", q: "" });
+    focus = `[data-tool="${p.tools.length - 1}"][data-tk="n"]`;
+  } else if (a == "rmTool") {
+    const tl = P().tools[i];
+    remember(`Tool${tl.n.trim() ? ` "${tl.n.trim()}"` : ""} removed`);
+    P().tools.splice(i, 1);
   } else if (a == "addS") {
     P().steps.push({ t: "", img: "" });
     focus = `[data-h="${P().steps.length - 1}"]`;
@@ -706,7 +742,7 @@ document.addEventListener("click", (e) => {
   }
   save();
   R(
-    /^(rmPh|addS|insS|rmS|rmSI|up|dn|addSub|rmSub|rmSubI|subUp|subDn|addW|rmW)$/.test(
+    /^(rmPh|addS|insS|rmS|rmSI|up|dn|addSub|rmSub|rmSubI|subUp|subDn|addW|rmW|addTool|rmTool)$/.test(
       a,
     ),
   );
@@ -746,6 +782,8 @@ document.addEventListener("input", (e) => {
   else if (t.dataset.h !== undefined) p.steps[+t.dataset.h].h = t.value;
   else if (t.dataset.w !== undefined)
     stepOrSub(+t.dataset.w, +t.dataset.wj).warn = t.value;
+  else if (t.dataset.tool !== undefined)
+    p.tools[+t.dataset.tool][t.dataset.tk] = t.value;
   else if (t.dataset.ss !== undefined)
     p.steps[+t.dataset.ss].subs[+t.dataset.sj].t = t.value;
   else return;
@@ -1008,6 +1046,18 @@ function homeResults() {
 
 // Enter in the home search opens the first match.
 document.addEventListener("keydown", (e) => {
+  if (
+    e.key == "Enter" &&
+    e.target.dataset &&
+    e.target.dataset.tool !== undefined
+  ) {
+    e.preventDefault();
+    const i = +e.target.dataset.tool,
+      next = $(`[data-tool="${i + 1}"][data-tk="n"]`);
+    if (next) next.focus();
+    else $("[data-a=addTool]").click();
+    return;
+  }
   if (e.key == "Enter" && e.target.dataset && e.target.dataset.hs) {
     const first = $("#hres .hit");
     if (first) {
@@ -1368,6 +1418,7 @@ const itemHelp = (mm) => {
     `<ol>
 <li><b>Details.</b> Enter the ${it} name, pick the <b>Department</b>, and fill in the ${mm ? "machine ID / asset number" : "product code"}. Raise the <b>Revision</b> number whenever you change the procedure, so printed copies can be told apart.</li>
 <li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it.</li>
+<li><b>Tools required.</b> Press <b>＋ Add tool</b> and enter the tool, its size or specification and the quantity. Press Enter to add the next one. Tool names you used before are suggested. In the PDF they print as a checklist with a box to tick before the procedure.</li>
 <li><b>Steps.</b> Write one step per action, in order:
 <ul>
 <li>A short <b>headline</b> (optional) is printed in bold, for example "Install the fixture".</li>
@@ -1861,6 +1912,65 @@ async function mkPdf() {
   if (p.pack.length) {
     sec(mm ? "Control panel / nameplate photos" : "Packaging photos");
     gal(p.pack);
+  }
+  // Tools required: a table with an empty box to tick for each tool.
+  const tools = (p.tools || []).filter((t) => String(t.n || "").trim());
+  if (tools.length) {
+    sec("Tools required");
+    const cols = [CW - 90, 60, 16, 14],
+      heads = ["Tool", "Size / specification", "Qty", "Ready"],
+      hh = 8;
+    const header = () => {
+      let x = M;
+      d.setDrawColor(...K);
+      d.setLineWidth(0.3);
+      d.setFont("helvetica", "bold");
+      d.setFontSize(9);
+      tc(K);
+      heads.forEach((t, c) => {
+        d.rect(x, y, cols[c], hh);
+        d.text(t, x + 2, y + 5.4);
+        x += cols[c];
+      });
+      y += hh;
+    };
+    need(hh + 9 + 2);
+    header();
+    tools.forEach((t) => {
+      d.setFont("helvetica", "normal");
+      d.setFontSize(10);
+      const a = d.splitTextToSize(String(t.n).trim(), cols[0] - 4),
+        b = d.splitTextToSize(String(t.s || "").trim(), cols[1] - 4),
+        rh = Math.max(9, Math.max(a.length, b.length || 1) * 4.6 + 4.4);
+      if (y + rh > B) {
+        d.addPage();
+        y = M + 4;
+        header();
+      }
+      let x = M;
+      d.setDrawColor(...K);
+      d.setLineWidth(0.3);
+      cols.forEach((w) => {
+        d.rect(x, y, w, rh);
+        x += w;
+      });
+      d.setFont("helvetica", "normal");
+      d.setFontSize(10);
+      tc(K);
+      a.forEach((l, k) => d.text(l, M + 2, y + 5.8 + k * 4.6));
+      b.forEach((l, k) => d.text(l, M + cols[0] + 2, y + 5.8 + k * 4.6));
+      const q = String(t.q || "").trim();
+      if (q)
+        d.text(q, M + cols[0] + cols[1] + cols[2] / 2, y + 5.8, {
+          align: "center",
+        });
+      // empty box to tick by pen
+      const bx = M + cols[0] + cols[1] + cols[2] + (cols[3] - 5) / 2;
+      d.setLineWidth(0.4);
+      d.rect(bx, y + (rh - 5) / 2, 5, 5);
+      y += rh;
+    });
+    y += 4;
   }
   sec("Procedure");
   // Height of wrapped text, matching para() below.
