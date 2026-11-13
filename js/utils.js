@@ -184,34 +184,106 @@ const planBackup = (S) => {
   return { data, files: pl.files };
 };
 
-// One product or machine -> { data, files }, to share with another app.
-const planItem = (p, kind, lineName, dept) => {
+// Products and machines -> { data, files }, to share with another app.
+// list: [{ p, kind: "product" | "machine", line, dept }] (line and dept are names).
+const planItems = (list) => {
   const pl = imgPlanner();
   return {
     data: {
-      format: "setup-procedures-item",
+      format: "setup-procedures-items",
       version: 1,
       exported: dateStamp(),
-      kind,
-      line: lineName || "",
-      dept: dept || "",
-      item: pl.item(
-        p,
-        `photos/${safeName(p.name, kind == "machine" ? "Machine" : "Product")}`,
-        kind == "machine" ? MACH_KINDS : PROD_KINDS,
-      ),
+      items: list.map(({ p, kind, line, dept }) => ({
+        kind,
+        line: line || "",
+        dept: dept || "",
+        item:
+          kind == "machine"
+            ? pl.item(
+                p,
+                `photos/Machines/${safeName(p.name, "Machine")}`,
+                MACH_KINDS,
+              )
+            : pl.item(
+                p,
+                `photos/${safeName(line, "Products")}/${safeName(p.name, "Product")}`,
+                PROD_KINDS,
+              ),
+      })),
     },
     files: pl.files,
   };
 };
 
+// Items in a shared file as [{ kind, line, dept, item }], or null if the file
+// is not a product/machine export. Reads both the list format and the older
+// single-item format.
+const itemPacks = (data) => {
+  if (!data || typeof data != "object") return null;
+  const ok = (x) => x && x.item && typeof x.item == "object";
+  const norm = (x) => ({
+    ...x,
+    kind: x.kind == "machine" ? "machine" : "product",
+  });
+  if (data.format == "setup-procedures-item")
+    return ok(data) ? [norm(data)] : null;
+  if (data.format == "setup-procedures-items" && Array.isArray(data.items)) {
+    const items = data.items.filter(ok).map(norm);
+    return items.length ? items : null;
+  }
+  return null;
+};
+
+// Every product and machine in a department, or in a product line, ready for planItems().
+const itemsWhere = (S, keep) =>
+  [
+    ...S.lines.flatMap((l) =>
+      l.products.map((p) => ({
+        p,
+        kind: "product",
+        line: l.name,
+        dept: deptName(deptOf(p, S.co), S.co),
+      })),
+    ),
+    ...S.machines.map((p) => ({
+      p,
+      kind: "machine",
+      line: "",
+      dept: deptName(deptOf(p, S.co), S.co),
+    })),
+  ].filter(keep);
+const deptItems = (S, deptId) =>
+  itemsWhere(S, (x) => deptOf(x.p, S.co) == deptId);
+const lineItems = (S, lineId) => {
+  const l = S.lines.find((x) => x.id == lineId);
+  return l
+    ? itemsWhere(S, (x) => x.kind == "product" && l.products.includes(x.p))
+    : [];
+};
+
+// Image fields of a whole backup, or of each item in a shared file, through fn.
+const mapFileImgs = (data, test, fn) => {
+  const packs = itemPacks(data);
+  if (!packs) return mapImgs(data, test, fn);
+  const items = mapImgs(
+    { machines: packs.map((x) => x.item) },
+    test,
+    fn,
+  ).machines;
+  return data.format == "setup-procedures-item"
+    ? { ...data, item: items[0] }
+    : {
+        ...data,
+        items: data.items
+          .filter((x) => x && x.item)
+          .map((x, i) => ({ ...x, item: items[i] })),
+      };
+};
+
 // The image paths a data.json refers to.
 const imgPaths = (data) => {
-  const want = new Set(),
-    add = (v) => (want.add(v), v);
-  if (data && data.format == "setup-procedures-item")
-    mapImgs({ machines: [data.item || {}] }, isImgPath, add);
-  else if (data) mapImgs(data, isImgPath, add);
+  const want = new Set();
+  if (data) mapFileImgs(data, isImgPath, (v) => (want.add(v), v));
   return want;
 };
 
@@ -219,21 +291,32 @@ const imgPaths = (data) => {
 // Returns { data, missing } where missing counts images not found.
 const restoreImgs = (data, imgs) => {
   let missing = 0;
-  const get = (v) => {
+  const out = mapFileImgs(data, isImgPath, (v) => {
     const d = imgs.get(v);
     if (!d) missing++;
     return d || "";
-  };
-  const out =
-    data.format == "setup-procedures-item"
-      ? {
-          ...data,
-          item: mapImgs({ machines: [data.item || {}] }, isImgPath, get)
-            .machines[0],
-        }
-      : mapImgs(data, isImgPath, get);
+  });
   return { data: out, missing };
 };
+
+// Backup reminder: whole days since a time, and whether a backup is due.
+const DAY = 24 * 60 * 60 * 1000;
+const daysSince = (ts, now = Date.now()) => {
+  const a = new Date(ts),
+    b = new Date(now);
+  a.setHours(0, 0, 0, 0);
+  b.setHours(0, 0, 0, 0);
+  return Math.round((b - a) / DAY);
+};
+const agoText = (ts, now = Date.now()) => {
+  if (!ts) return "never";
+  const d = daysSince(ts, now);
+  return d <= 0 ? "today" : d == 1 ? "yesterday" : `${d} days ago`;
+};
+const hasItems = (S) =>
+  S.machines.length > 0 || S.lines.some((l) => l.products.length > 0);
+const backupDue = (S, now = Date.now(), days = 7) =>
+  hasItems(S) && (!S.lastBackup || daysSince(S.lastBackup, now) >= days);
 
 // Add an imported product or machine to S (changes S). The department and
 // product line are matched by name and created if missing. If an item with
@@ -302,7 +385,13 @@ if (typeof module !== "undefined")
     safeName,
     imgExt,
     planBackup,
-    planItem,
+    planItems,
+    itemPacks,
+    deptItems,
+    lineItems,
+    daysSince,
+    agoText,
+    backupDue,
     imgPaths,
     restoreImgs,
     addItem,

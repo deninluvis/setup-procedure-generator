@@ -90,10 +90,21 @@ const nProducts = () => S.lines.reduce((a, l) => a + l.products.length, 0);
 const HomeV = () =>
   `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div>
 <button class="lk" data-a="editCo">Edit company details</button>
+${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was ${agoText(S.lastBackup)}.` : "You have not exported a backup yet."}</b> Your data is only stored in this browser. Export a backup and keep it somewhere safe.</p><button class="b" data-a="bk">Export backup</button></div>` : ""}
 <h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
-<h2>Backup</h2><p class="m">Export saves everything, photos included, as one .zip file. Import restores a backup, or adds a single product or machine someone shared with you.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import<input type="file" accept=".zip,.json,application/zip,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
+<h2>Backup</h2><p class="m">Export saves everything, photos included, as one .zip file. Last backup: <b>${agoText(S.lastBackup)}</b>.</p><p class="m">Import restores a backup, or adds products and machines someone shared with you. You can pick several shared files at once.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import<input type="file" accept=".zip,.json,application/zip,application/json" multiple hidden data-imp="1"></label></div>
+${
+  S.co.depts.some((d) => d.name.trim())
+    ? `<h2>Share a department</h2><p class="m">Export every product and machine in one department as one file.</p><div class="row"><select id="exDept" aria-label="Department to export">${S.co.depts
+        .filter((d) => d.name.trim())
+        .map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`)
+        .join(
+          "",
+        )}</select><button class="b2" data-a="exDept" style="white-space:nowrap">Export department</button></div>`
+    : ""
+}<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
   [p.code, deptName(deptOf(p, S.co), S.co)]
@@ -149,7 +160,7 @@ function R(keep) {
         )
         .join("") +
       add("Product name", "addP") +
-      `<button class="b d" data-a="delL">Delete this line</button>`;
+      `<div class="row" style="flex-wrap:wrap"><button class="b2" data-a="exLine">Export this line</button><button class="b d" data-a="delL">Delete this line</button></div>`;
   } else {
     const p = P(),
       mm = T == "m";
@@ -372,18 +383,50 @@ document.addEventListener("click", (e) => {
     S.machines.push(m);
     MID = m.id;
   } else if (a == "bk") {
-    exportZip(planBackup(S), `setup-procedures-backup-${dateStamp()}.zip`, t);
+    exportZip(
+      planBackup(S),
+      `setup-procedures-backup-${dateStamp()}.zip`,
+      t,
+      () => {
+        S.lastBackup = Date.now();
+        save();
+        if (T == "h") R(true);
+      },
+    );
+    return;
+  } else if (a == "exLine") {
+    const l = L(),
+      list = lineItems(S, l.id);
+    if (!list.length) return alert("This line has no products yet.");
+    exportZip(
+      planItems(list),
+      `${safeName(l.name, "Line")} - line - ${dateStamp()}.zip`,
+      t,
+    );
+    return;
+  } else if (a == "exDept") {
+    const d = S.co.depts.find((x) => x.id == $("#exDept").value),
+      list = d ? deptItems(S, d.id) : [];
+    if (!list.length)
+      return alert("There are no products or machines in this department yet.");
+    exportZip(
+      planItems(list),
+      `${safeName(d.name, "Department")} - department - ${dateStamp()}.zip`,
+      t,
+    );
     return;
   } else if (a == "exItem") {
     const p = P(),
       kind = T == "m" ? "machine" : "product";
     exportZip(
-      planItem(
-        p,
-        kind,
-        kind == "product" ? L().name : "",
-        deptName(deptOf(p, S.co), S.co),
-      ),
+      planItems([
+        {
+          p,
+          kind,
+          line: kind == "product" ? L().name : "",
+          dept: deptName(deptOf(p, S.co), S.co),
+        },
+      ]),
       `${safeName(p.name, kind)} - ${kind} - ${dateStamp()}.zip`,
       t,
     );
@@ -446,9 +489,9 @@ document.addEventListener("change", async (e) => {
     return;
   }
   if (t.dataset.imp) {
-    const f = t.files[0];
+    const files = [...t.files];
     t.value = "";
-    if (f) await importFile(f);
+    if (files.length) await importFiles(files);
     return;
   }
   if (!t.dataset.up) return;
@@ -507,8 +550,8 @@ const sniff = (b) =>
             ? "image/svg+xml"
             : "";
 
-// plan: { data, files } from planBackup() or planItem().
-async function exportZip(plan, name, btn) {
+// plan: { data, files } from planBackup() or planItems().
+async function exportZip(plan, name, btn, done) {
   const label = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Exporting…";
@@ -522,6 +565,7 @@ async function exportZip(plan, name, btn) {
     for (const [p, d] of plan.files)
       files.push({ name: p, data: dataToBytes(d) });
     await dl(name, Zip.make(files));
+    if (done) done();
   } catch (e) {
     alert("Could not create the export file.");
   } finally {
@@ -530,10 +574,10 @@ async function exportZip(plan, name, btn) {
   }
 }
 
-async function importFile(f) {
-  let data,
+// Read one .zip or .json file -> { data, missing } (data null if unreadable).
+async function readFile(f) {
+  let data = null,
     missing = 0;
-  document.body.style.cursor = "progress";
   try {
     const buf = await f.arrayBuffer();
     if (Zip.isZip(buf)) {
@@ -564,50 +608,112 @@ async function importFile(f) {
     } else data = JSON.parse(new TextDecoder().decode(buf));
   } catch (e) {
     data = null;
+  }
+  return { data, missing };
+}
+
+const plural = (n, one, many) => `${n} ${n == 1 ? one : many}`;
+
+// Import one or more files. A full backup replaces everything (one file at a
+// time); shared products and machines are added to the current data.
+async function importFiles(files) {
+  document.body.style.cursor = "progress";
+  const read = [];
+  try {
+    for (const f of files) read.push({ name: f.name, ...(await readFile(f)) });
   } finally {
     document.body.style.cursor = "";
   }
-  const note = missing
-    ? `\n\n${missing} photo${missing == 1 ? " was" : "s were"} not found in the file and ${missing == 1 ? "was" : "were"} left empty.`
-    : "";
-
-  // A single product or machine: add it to the current data.
-  if (data && data.format == "setup-procedures-item" && data.item) {
-    const kind = data.kind == "machine" ? "machine" : "product";
-    if (
-      !confirm(
-        `Add the ${kind} "${data.item.name}"${kind == "product" ? ` to the line "${data.line || "Imported"}"` : ""}?` +
-          note,
-      )
-    )
-      return;
-    const r = addItem(S, { ...data, kind }, (name, where) =>
-      confirm(
-        `"${name}" already exists in ${where}.\n\nOK = replace it with the imported one\nCancel = keep both`,
-      ),
+  const packs = [],
+    fulls = [],
+    bad = [];
+  let missing = 0;
+  for (const r of read) {
+    const items = itemPacks(r.data);
+    if (items) {
+      packs.push(...items);
+      missing += r.missing;
+    } else if (parseBackup(r.data)) fulls.push(r);
+    else bad.push(r.name);
+  }
+  const notes = [];
+  if (bad.length) notes.push(`Not a valid backup or export: ${bad.join(", ")}`);
+  if (fulls.length && read.length > 1) {
+    notes.push(
+      `Full backups must be imported on their own, so these were skipped: ${fulls.map((r) => r.name).join(", ")}`,
     );
-    if (!(await writeNow())) return;
-    if (kind == "machine") {
-      T = "m";
-      MID = r.item.id;
-    } else {
-      T = "p";
-      V = { l: r.lineId, p: r.item.id };
-    }
+    fulls.length = 0;
+  }
+
+  // A full backup: replace everything.
+  if (fulls.length) {
+    const r = fulls[0],
+      b = parseBackup(r.data),
+      note = r.missing
+        ? `\n\n${plural(r.missing, "photo was", "photos were")} not found in the file and left empty.`
+        : "";
+    if (!confirm("Replace all current data with this backup?" + note)) return;
+    S = b;
+    S.lastBackup = Date.now(); // this data is already in a backup file
+    await writeNow();
+    T = S.co.done ? "h" : "co";
+    MID = null;
+    V = { l: null, p: null };
     R();
     return;
   }
 
-  // A full backup: replace everything.
-  const b = parseBackup(data);
-  if (!b) return alert("That file is not a valid backup or export.");
-  if (!confirm("Replace all current data with this backup?" + note)) return;
-  S = b;
-  await writeNow();
-  T = S.co.done ? "h" : "co";
-  MID = null;
-  V = { l: null, p: null };
-  R();
+  // Shared products and machines: add them.
+  if (packs.length) {
+    const list = packs
+      .slice(0, 12)
+      .map(
+        (x) =>
+          `• ${x.item.name} (${x.kind == "machine" ? "machine" : `product, line "${x.line || "Imported"}"`})`,
+      )
+      .join("\n");
+    const more = packs.length > 12 ? `\n…and ${packs.length - 12} more` : "",
+      note = missing
+        ? `\n\n${plural(missing, "photo was", "photos were")} not found and will be left empty.`
+        : "";
+    if (
+      !confirm(
+        `Add ${plural(packs.length, "item", "items")}?\n\n${list}${more}${note}`,
+      )
+    ) {
+      if (notes.length) alert(notes.join("\n\n"));
+      return;
+    }
+    const res = packs.map((pk) =>
+      addItem(S, pk, (name, where) =>
+        confirm(
+          `"${name}" already exists in ${where}.\n\nOK = replace it with the imported one\nCancel = keep both`,
+        ),
+      ),
+    );
+    if (!(await writeNow())) return;
+    if (res.length == 1) {
+      const r = res[0];
+      if (r.kind == "machine") {
+        T = "m";
+        MID = r.item.id;
+      } else {
+        T = "p";
+        V = { l: r.lineId, p: r.item.id };
+      }
+    } else {
+      const rep = res.filter((r) => r.replaced).length;
+      notes.unshift(
+        `Added ${plural(res.length - rep, "item", "items")}` +
+          (rep ? `, replaced ${rep}.` : "."),
+      );
+      T = "h";
+      MID = null;
+      V = { l: null, p: null };
+    }
+    R();
+  }
+  if (notes.length) alert(notes.join("\n\n"));
 }
 
 async function dl(name, data) {

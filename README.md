@@ -7,7 +7,8 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
 - Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import backups as .zip files with photos as normal image files
-- Export a single product or machine and import it into someone else's app
+- Share a product, machine, product line or department as a file; import several at once
+- Backup reminder after 7 days without a backup
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 
 ## Project structure
@@ -88,14 +89,27 @@ photo back in place and replaces all current data (after asking).
   still imports.
 - Older `.json` backups still import.
 
-**Share one product or machine:** on its page press **Export this product** (or
-machine). You get `Widget A - product - YYYY-MM-DD.zip`. In the other app, press
-**Import** on the home page. It is **added** to the existing data, not replacing it:
+**Backup reminder:** the home page shows when you last exported a backup. If it
+was 7 or more days ago (or never), a reminder box with an **Export backup** button
+appears at the top.
+
+**Share products and machines:** export them as a file another person can import.
+
+| What | Where | File name |
+|---|---|---|
+| One product or machine | its page: **Export this product / machine** | `Widget A - product - YYYY-MM-DD.zip` |
+| A whole product line | the line's page: **Export this line** | `Line 1 - line - YYYY-MM-DD.zip` |
+| A whole department | home page: **Share a department** | `Press Shop - department - YYYY-MM-DD.zip` |
+
+In the other app, press **Import** on the home page. You can select **several files
+at once**. Shared items are **added** to the existing data, not replacing it:
 
 - Products go into the product line with the same name; it is created if missing.
 - The department is matched by name, and added to the company details if missing.
 - If one with the same name already exists there, you choose: replace it, or keep both
   (the new one gets "(imported)").
+- A full backup must be imported on its own; if it is selected together with other
+  files, it is skipped and you are told.
 
 ## Tests
 

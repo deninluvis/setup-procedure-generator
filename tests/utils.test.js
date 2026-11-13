@@ -73,7 +73,7 @@ test('fmtBytes shows KB, MB and GB', () => {
   assert.equal(fmtBytes(1.5 * 1024 ** 3), '1.5 GB');
 });
 
-const { dateStamp, safeName, imgExt, planBackup, planItem, imgPaths, restoreImgs, addItem } = require('../js/utils.js');
+const { dateStamp, safeName, imgExt, planBackup, planItems, itemPacks, deptItems, lineItems, imgPaths, restoreImgs, addItem, daysSince, agoText, backupDue } = require('../js/utils.js');
 const JPG = 'data:image/jpeg;base64,AAAA', JPG2 = 'data:image/jpeg;base64,BBBB', PNG = 'data:image/png;base64,CCCC';
 const sample = () => ({
   co: { name: 'ACME', depts: [{ id: 'a', name: 'Assembly' }], done: true },
@@ -128,13 +128,59 @@ test('backup round trip: paths back to images, missing ones counted', () => {
   assert.equal('logo' in some.data, false);
 });
 
-test('planItem and restore for a single machine', () => {
-  const S = sample(), { data, files } = planItem(S.machines[0], 'machine', '', 'Assembly');
-  assert.equal(data.format, 'setup-procedures-item');
-  assert.equal(data.kind, 'machine');
-  assert.deepEqual(data.item.pack, ['photos/Press 3 4/panel-1.jpg']);
-  const r = restoreImgs(JSON.parse(JSON.stringify(data)), new Map(files));
-  assert.deepEqual(r.data.item, S.machines[0]);
+test('planItems and restore for several items', () => {
+  const S = sample();
+  const list = [
+    { p: S.machines[0], kind: 'machine', line: '', dept: 'Assembly' },
+    { p: S.lines[0].products[0], kind: 'product', line: 'Line 1', dept: 'Assembly' },
+  ];
+  const { data, files } = planItems(list);
+  assert.equal(data.format, 'setup-procedures-items');
+  assert.deepEqual(data.items[0].item.pack, ['photos/Machines/Press 3 4/panel-1.jpg']);
+  assert.deepEqual(data.items[1].item.prod, ['photos/Line 1/Widget A/product-1.jpg']);
+  assert.equal(data.items[1].line, 'Line 1');
+  const back = restoreImgs(JSON.parse(JSON.stringify(data)), new Map(files));
+  assert.equal(back.missing, 0);
+  assert.deepEqual(back.data.items.map((x) => x.item), [S.machines[0], S.lines[0].products[0]]);
+  assert.deepEqual(itemPacks(back.data).map((x) => x.kind), ['machine', 'product']);
+});
+
+test('itemPacks reads the older single-item format and rejects backups', () => {
+  const old = { format: 'setup-procedures-item', kind: 'machine', item: { name: 'M' } };
+  assert.deepEqual(itemPacks(old), [{ ...old, kind: 'machine' }]);
+  const r = restoreImgs({ ...old, item: { name: 'M', prod: ['photos/M/machine-1.jpg'], pack: [], steps: [] } }, new Map([['photos/M/machine-1.jpg', JPG]]));
+  assert.deepEqual(r.data.item.prod, [JPG]);
+  assert.equal(itemPacks({ lines: [] }), null);
+  assert.equal(itemPacks({ format: 'setup-procedures-items', items: [] }), null);
+  assert.equal(itemPacks(null), null);
+});
+
+test('deptItems and lineItems pick the right products and machines', () => {
+  const S = sample();
+  S.machines[0].dept = 'a';
+  // p1 has dept 'a'; p2 has no dept field, so it uses the first department ('a') too
+  assert.deepEqual(deptItems(S, 'a').map((x) => [x.kind, x.p.id, x.line, x.dept]),
+    [['product', 'p1', 'Line 1', 'Assembly'], ['product', 'p2', 'Line 1', 'Assembly'], ['machine', 'm1', '', 'Assembly']]);
+  S.lines[0].products[1].dept = '';
+  assert.equal(deptItems(S, 'a').length, 2);
+  assert.deepEqual(lineItems(S, 'l1').map((x) => x.p.id), ['p1', 'p2']);
+  assert.deepEqual(lineItems(S, 'nope'), []);
+});
+
+test('backup reminder after 7 days, only when there is something to lose', () => {
+  const now = new Date(2026, 10, 13, 9).getTime(), day = 864e5;
+  assert.equal(daysSince(new Date(2026, 10, 12, 23).getTime(), now), 1);
+  assert.equal(agoText(null, now), 'never');
+  assert.equal(agoText(now - 3600e3, now), 'today');
+  assert.equal(agoText(now - day, now), 'yesterday');
+  assert.equal(agoText(now - 9 * day, now), '9 days ago');
+  const S = sample();
+  assert.equal(backupDue(S, now), true); // never backed up
+  S.lastBackup = now - 6 * day;
+  assert.equal(backupDue(S, now), false);
+  S.lastBackup = now - 7 * day;
+  assert.equal(backupDue(S, now), true);
+  assert.equal(backupDue({ lines: [{ products: [] }], machines: [] }, now), false); // nothing yet
 });
 
 test('addItem places products by line and department name', () => {
