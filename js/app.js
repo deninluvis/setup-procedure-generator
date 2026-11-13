@@ -8,8 +8,10 @@ try {
 } catch (e) {}
 S.machines = S.machines || [];
 S.lines = S.lines || [];
+S.co = S.co || { name: "", dept: "" };
+// Screens: T = "co" company setup, "h" home, "p" products, "m" machines.
 let V = { l: null, p: null },
-  T = "p",
+  T = S.co.done ? "h" : "co",
   MID = null;
 const save = () => {
   try {
@@ -29,44 +31,60 @@ const add = (ph, a) =>
 const gal = (arr, k) =>
   `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
 
-// Company logo: one for all procedures, printed at the top of every PDF.
-const logoSec = () =>
-  `<h2>Company logo</h2><p class="m">Shown at the top of every PDF.</p>` +
-  (S.logo
+// Company details (logo, name, department): set once, printed on every PDF.
+const logoField = () =>
+  S.logo
     ? `<img class="logo" src="${S.logo}" alt="Company logo"><div class="row" style="flex-wrap:wrap"><label class="b2">Change logo<input type="file" accept="image/*" hidden data-logo="1"></label><button class="b d" data-a="rmLogo">Remove logo</button></div>`
-    : `<label class="b2">＋ Add logo<input type="file" accept="image/*" hidden data-logo="1"></label>`);
-const bkp = () =>
-  logoSec() +
-  `<h2>Backup</h2><p class="m">Save a copy of everything, or restore one.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
-const TABS = () =>
-  `<div class="tabs"><button class="${T == "p" ? "on" : ""}" data-a="tab" data-t="p">Products</button><button class="${T == "m" ? "on" : ""}" data-a="tab" data-t="m">Machines</button></div>`;
+    : `<label class="b2">＋ Add logo<input type="file" accept="image/*" hidden data-logo="1"></label>`;
+// Company setup screen. First visit: "Welcome" + Continue. Later: edit details.
+const CoV = () => {
+  const first = !S.co.done;
+  return (
+    (first ? "" : `<button class="lk" data-a="goHome">← Home</button>`) +
+    `<h1>${first ? "Welcome" : "Company details"}</h1><p class="m">${first ? "Set up your company first. These details appear on every PDF." : "These details appear on every PDF."}</p>
+<h2>Company logo</h2>${logoField()}
+<label class="f">Company name<input data-co="name" value="${esc(S.co.name)}" placeholder="e.g. ACME Manufacturing"></label>
+<label class="f">Department name<input data-co="dept" value="${esc(S.co.dept)}" placeholder="e.g. Assembly"></label>
+<p class="err" id="coErr" hidden>Enter the company name to continue.</p>
+<div class="row"><button class="b" data-a="coDone">${first ? "Continue" : "Save"}</button></div>
+${first ? `<p class="m">Moving from another computer? <label class="lk">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></p>` : ""}`
+  );
+};
+// Home page: company header, then pick Products or Machines.
+const nProducts = () => S.lines.reduce((a, l) => a + l.products.length, 0);
+const HomeV = () =>
+  `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.dept ? `<p class="m">${esc(S.co.dept)}</p>` : ""}</div></div>
+<button class="lk" data-a="editCo">Edit company details</button>
+<h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
+<div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
+<h2>Backup</h2><p class="m">Save a copy of everything, or restore one.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 const MV = () =>
-  TABS() +
-  `<h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
+  `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
   S.machines
     .map(
       (m) =>
         `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)}</b><span class="m">${esc(m.code)} · ${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
     )
     .join("") +
-  add("Machine name", "addM") +
-  bkp();
+  add("Machine name", "addM");
 function R(keep) {
   let h = "";
-  if (T == "m" && !MID) {
+  if (T == "co") {
+    h = CoV();
+  } else if (T == "h") {
+    h = HomeV();
+  } else if (T == "m" && !MID) {
     h = MV();
   } else if (T == "p" && !V.l) {
     h =
-      TABS() +
-      `<h1>Setup procedures</h1><p class="m">Pick a product line, or add one.</p>` +
+      `<button class="lk" data-a="goHome">← Home</button><h1>Products</h1><p class="m">Pick a product line, or add one.</p>` +
       S.lines
         .map(
           (l) =>
             `<div class="card" data-a="openL" data-id="${l.id}"><b>${esc(l.name)}</b><span class="m">${l.products.length} product${l.products.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Line name, e.g. Line 1", "addL") +
-      bkp();
+      add("Line name, e.g. Line 1", "addL");
   } else if (T == "p" && !V.p) {
     const l = L();
     h =
@@ -198,6 +216,21 @@ document.addEventListener("click", (e) => {
   } else if (a == "tab") {
     T = t.dataset.t;
     MID = null;
+    V = { l: null, p: null };
+  } else if (a == "goHome") {
+    T = S.co.done ? "h" : "co";
+    MID = null;
+    V = { l: null, p: null };
+  } else if (a == "editCo") {
+    T = "co";
+  } else if (a == "coDone") {
+    if (!S.co.name.trim()) {
+      $("#coErr").hidden = false;
+      $("[data-co=name]").focus();
+      return;
+    }
+    S.co.done = true;
+    T = "h";
   } else if (a == "mhome") {
     MID = null;
   } else if (a == "openM") {
@@ -228,7 +261,8 @@ document.addEventListener("click", (e) => {
       )
     )
       return;
-    S = { lines: [], machines: [] };
+    S = { lines: [], machines: [], co: { name: "", dept: "" } };
+    T = "co";
     MID = null;
     try {
       localStorage.removeItem("sp");
@@ -242,8 +276,13 @@ document.addEventListener("click", (e) => {
 });
 
 document.addEventListener("input", (e) => {
-  const t = e.target,
-    p = P();
+  const t = e.target;
+  if (t.dataset.co) {
+    S.co[t.dataset.co] = t.value;
+    save();
+    return;
+  }
+  const p = P();
   if (!p) return;
   if (t.dataset.f) p[t.dataset.f] = t.value;
   else if (t.dataset.s !== undefined) p.steps[+t.dataset.s].t = t.value;
@@ -272,6 +311,8 @@ document.addEventListener("change", async (e) => {
       if (!confirm("Replace all current data with this backup?")) return;
       S = b;
       save();
+      T = S.co.done ? "h" : "co";
+      MID = null;
       V = { l: null, p: null };
       R();
     } catch (x) {
@@ -399,7 +440,6 @@ async function mkPdf() {
   d.setFont("helvetica", "normal");
   d.setFontSize(9);
   tc(G);
-  d.text("Setup procedure", M, y + 3);
   // Company logo at the top right; the title wraps before reaching it.
   let lw = 0,
     lh = 0;
@@ -407,6 +447,12 @@ async function mkPdf() {
     [lw, lh] = fit(S.logo, 45, 18);
     d.addImage(S.logo, "PNG", W - M - lw, M, lw, lh);
   }
+  // Top line: company · department · Setup procedure
+  const top = [S.co.name, S.co.dept, "Setup procedure"]
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .join("  ·  ");
+  d.text(d.splitTextToSize(top, CW - (lw ? lw + 6 : 0))[0], M, y + 3);
   y += 8;
   para(p.name || "Untitled", M, CW - (lw ? lw + 6 : 0), 20, 1);
   y = Math.max(y + 4, M + lh + 4);

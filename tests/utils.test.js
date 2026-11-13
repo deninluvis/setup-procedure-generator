@@ -32,9 +32,12 @@ test('fmtTime shows hours and minutes', () => {
 });
 
 test('parseBackup accepts valid backups and rejects others', () => {
-  assert.deepEqual(parseBackup({ lines: [] }), { lines: [], machines: [] });
-  assert.deepEqual(parseBackup({ lines: [1], machines: [2] }), { lines: [1], machines: [2] });
-  assert.deepEqual(parseBackup({ lines: [], machines: 'bad' }), { lines: [], machines: [] });
+  const noCo = { name: '', dept: '' };
+  assert.deepEqual(parseBackup({ lines: [] }), { lines: [], machines: [], co: noCo });
+  assert.deepEqual(parseBackup({ lines: [1], machines: [2] }), { lines: [1], machines: [2], co: noCo });
+  assert.deepEqual(parseBackup({ lines: [], machines: 'bad' }), { lines: [], machines: [], co: noCo });
+  assert.deepEqual(parseBackup({ lines: [], co: { name: 'ACME', dept: 'Assembly', done: true } }).co, { name: 'ACME', dept: 'Assembly', done: true });
+  assert.equal(parseBackup({ lines: [], co: { name: ' ', done: true } }).co.done, undefined);
   assert.equal(parseBackup(null), null);
   assert.equal(parseBackup({}), null);
   assert.equal(parseBackup({ lines: 'nope' }), null);

@@ -5,7 +5,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Photos of the product/machine and packaging or control panel
 - Step-by-step guides, each with an optional headline and photo
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
-- Company logo at the top of every PDF (set once on the home screen)
+- Company logo, company name and department, set once on first visit and printed on every PDF
 - Data is stored in the browser (localStorage); export and import a JSON backup
 
 ## Project structure
@@ -33,13 +33,20 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 
 ## How to use
 
-1. On **Products**, add a product line (for example "Line 1"), then add a product to it.
-   Or switch to **Machines** and add a machine.
-2. Fill in the code or asset number, the revision and photos.
-3. Add steps. Each step has an optional headline, a description and an optional photo.
+1. **First visit:** the Welcome screen asks for your company logo, company name
+   and department name. Press **Continue**. (Moving from another computer? Use
+   **Import backup** on that screen instead.)
+2. **Home page:** shows your company and two options, **Products** and **Machines**.
+   Use **Edit company details** to change the logo, name or department later.
+3. **Products:** add a product line (for example "Line 1"), then add a product to it.
+   **Machines:** add a machine.
+4. Fill in the code or asset number, the revision and photos.
+5. Add steps. Each step has an optional headline, a description and an optional photo.
    Use ↑ ↓ to reorder.
-4. Enter **Prepared by** and **Approved by**, then press **Download PDF**.
-5. Use **Export backup** regularly. Data lives only in this browser.
+6. In **Sign-off**, fill in Time required and Technicians required (or leave them
+   empty to write in by pen), then Prepared by and Approved by.
+7. Press **Download PDF**.
+8. Use **Export backup** on the home page regularly. Data lives only in this browser.
 
 ## Tests
 
