@@ -1,0 +1,257 @@
+/* Setup Procedures styles. Black and white theme with light and dark mode. */
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #fff;
+  --card: #fff;
+  --tx: #000;
+  --mut: #555;
+  --ac: #000;
+  --act: #fff;
+  --bd: #cfcfcf;
+  --dg: #b00020;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #000;
+    --card: #000;
+    --tx: #fff;
+    --mut: #aaa;
+    --ac: #fff;
+    --act: #000;
+    --bd: #3a3a3a;
+    --dg: #ff8a80;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #000;
+  --card: #000;
+  --tx: #fff;
+  --mut: #aaa;
+  --ac: #fff;
+  --act: #000;
+  --bd: #3a3a3a;
+  --dg: #ff8a80;
+}
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--tx);
+  font:
+    16px/1.5 "IBM Plex Sans",
+    system-ui,
+    sans-serif;
+}
+#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 16px 64px;
+}
+h1 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 8px 0 4px;
+}
+h2 {
+  font-size: 18px;
+  margin: 28px 0 8px;
+}
+.m {
+  color: var(--mut);
+  font-size: 14px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 8px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+}
+.box {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+}
+input,
+textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--tx);
+  background: var(--bg);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 4px 0;
+}
+textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+label.f {
+  display: block;
+  font-size: 14px;
+  color: var(--mut);
+  margin-top: 8px;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.row input {
+  margin: 0;
+}
+.b,
+.b2,
+.lk {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--ac);
+  background: var(--ac);
+  color: var(--act);
+  cursor: pointer;
+  display: inline-block;
+}
+.b2 {
+  background: transparent;
+  color: var(--ac);
+}
+.b.d {
+  background: transparent;
+  color: var(--dg);
+  border-color: var(--dg);
+}
+.lk {
+  background: none;
+  border: 0;
+  color: var(--ac);
+  padding: 6px 0;
+}
+.g {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.th {
+  position: relative;
+}
+.th img {
+  width: 104px;
+  height: 104px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--bd);
+  display: block;
+}
+.th button,
+.sm {
+  font: inherit;
+  cursor: pointer;
+}
+.th button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: 0;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+}
+.sh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.n {
+  background: var(--ac);
+  color: var(--act);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  flex: none;
+}
+.sm {
+  border: 1px solid var(--bd);
+  background: var(--card);
+  color: var(--tx);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.sp {
+  flex: 1;
+}
+.rw {
+  display: grid;
+  grid-template-columns: 1fr 62px 72px 34px;
+  gap: 6px;
+  align-items: center;
+}
+.rw input {
+  margin: 2px 0;
+  padding: 8px;
+}
+.rwh {
+  font-size: 12px;
+  color: var(--mut);
+}
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--bd);
+  margin: 4px 0 14px;
+}
+.tabs button {
+  flex: 1;
+  font: inherit;
+  font-weight: 600;
+  padding: 12px;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--mut);
+  cursor: pointer;
+}
+.tabs button.on {
+  color: var(--tx);
+  border-bottom-color: var(--ac);
+}
+.simg {
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 6px;
+  border: 1px solid var(--bd);
+  margin-top: 6px;
+  display: block;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+:focus-visible {
+  outline: 3px solid var(--ac);
+  outline-offset: 2px;
+}
