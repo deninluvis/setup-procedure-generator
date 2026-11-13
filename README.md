@@ -42,6 +42,8 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
    and departments (use **+ Add department** for each one). Press **Continue**. (Moving from another computer? Use
    **Import backup** on that screen instead.)
 2. **Home page:** shows your company and two options, **Products** and **Machines**.
+   Type in the search box to find a product or machine by name, code, product line or
+   department; click a result (or press Enter for the first one) to open it.
    Use **Edit company details** to change the logo or name, or to add, rename or
    remove departments later.
 3. **Products:** add a product line (for example "Line 1"), then add a product to it.
@@ -94,6 +96,7 @@ A tree lists everything, each with a tick box:
 - **Filter:** type in the filter box to show only items whose name, code, product line
   or department matches. Ticking a group then ticks only the items shown; hidden items
   keep their ticks. The grouping and filter apply to the import list too.
+- The *Group by* choice and collapsed groups are remembered in this browser.
 - ▾ / ▸ collapses or expands a group.
 - The page shows what is selected and the approximate file size.
 - With **everything** ticked you get a full backup:

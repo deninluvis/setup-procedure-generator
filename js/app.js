@@ -9,6 +9,7 @@ let S = { lines: [], machines: [] },
   // Export & import page: tree grouping ("line" or "dept") and filter text
   GRP = "line",
   XF = "",
+  HS = "", // home page search text
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -100,7 +101,7 @@ const HomeV = () =>
   `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div>
 <button class="lk" data-a="editCo">Edit company details</button>
 ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was ${agoText(S.lastBackup)}.` : "You have not exported a backup yet."}</b> Your data is only stored in this browser. Export a backup and keep it somewhere safe.</p><button class="b" data-a="bk">Export backup</button></div>` : ""}
-<h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
+<h2>Setup procedures</h2><input type="search" data-hs="1" value="${esc(HS)}" placeholder="Find a product or machine: name, code, line or department" aria-label="Find a product or machine" aria-controls="hres"><div id="hres" aria-live="polite">${homeResults()}</div><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
@@ -417,9 +418,21 @@ document.addEventListener("click", (e) => {
     XF = "";
   } else if (a == "tgl") {
     COL.has(t.dataset.g) ? COL.delete(t.dataset.g) : COL.add(t.dataset.g);
+    saveView();
     R(true);
     $(`[data-a=tgl][data-g="${CSS.escape(t.dataset.g)}"]`).focus();
     return;
+  } else if (a == "openHit") {
+    const [kind, hid] = t.dataset.k.split(":");
+    if (kind == "m") {
+      T = "m";
+      MID = hid;
+    } else {
+      const l = S.lines.find((x) => x.products.some((p) => p.id == hid));
+      if (!l) return;
+      T = "p";
+      V = { l: l.id, p: hid };
+    }
   } else if (a == "xfClear") {
     XF = "";
     R(true);
@@ -475,6 +488,11 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("input", (e) => {
   const t = e.target;
+  if (t.dataset.hs) {
+    HS = t.value;
+    $("#hres").innerHTML = homeResults();
+    return;
+  }
   if (t.dataset.xf) {
     XF = t.value;
     const pos = t.selectionStart;
@@ -541,6 +559,7 @@ document.addEventListener("change", async (e) => {
   }
   if (t.name == "grp") {
     GRP = t.value;
+    saveView();
     R(true);
     $(`input[name="grp"][value="${t.value}"]`).focus();
     return;
@@ -667,6 +686,69 @@ async function readFile(f) {
     data = null;
   }
   return { data, missing };
+}
+
+// ---------- Home page search ----------
+
+// Matching products and machines as buttons that open them. Up to 50 shown.
+function homeResults() {
+  const q = HS.trim().toLowerCase();
+  if (!q) return "";
+  const hits = exItems().filter((it) =>
+    [it.p.name, it.p.code, it.line, it.dept].some((v) =>
+      String(v || "")
+        .toLowerCase()
+        .includes(q),
+    ),
+  );
+  if (!hits.length)
+    return `<p class="m">No product or machine matches "${esc(HS.trim())}".</p>`;
+  return (
+    `<p class="m">${count(hits.length, "match", "matches")}${hits.length > 50 ? ", showing the first 50" : ""}. Press Enter to open the first one.</p>` +
+    hits
+      .slice(0, 50)
+      .map(
+        (it) =>
+          `<button class="card hit" data-a="openHit" data-k="${it.key}"><b>${esc(it.p.name || "Untitled")}</b><span class="m">${[
+            it.kind == "machine" ? "Machine" : "Product · " + it.line,
+            it.p.code,
+            it.dept,
+          ]
+            .filter((x) => String(x || "").trim())
+            .map(esc)
+            .join(" · ")}</span></button>`,
+      )
+      .join("")
+  );
+}
+
+// Enter in the home search opens the first match.
+document.addEventListener("keydown", (e) => {
+  if (e.key == "Enter" && e.target.dataset && e.target.dataset.hs) {
+    const first = $("#hres .hit");
+    if (first) {
+      e.preventDefault();
+      first.click();
+    }
+  }
+});
+
+// ---------- View settings ----------
+// "Group by" and collapsed groups on the Export & import page are remembered
+// in this browser only (a convenience, not part of your data or backups).
+const VIEW_KEY = "sp-view";
+function loadView() {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "{}");
+    if (v.grp == "line" || v.grp == "dept") GRP = v.grp;
+    if (Array.isArray(v.col))
+      COL = new Set(v.col.filter((x) => typeof x == "string").slice(0, 500));
+  } catch (e) {}
+}
+function saveView() {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({ grp: GRP, col: [...COL] }));
+  } catch (e) {}
 }
 
 // ---------- Export & import page ----------
@@ -926,7 +1008,8 @@ function XV() {
     (XMSG ? `<p class="ok" role="status">${XMSG}</p>` : "") +
     `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
     toolbar() +
-    (tree(treeNodes("x"), "x", EXS, exGroup, false) || `<p class="m">Nothing matches the filter.</p>`) +
+    (tree(treeNodes("x"), "x", EXS, exGroup, false) ||
+      `<p class="m">Nothing matches the filter.</p>`) +
     `<p class="m" role="status">${picked.length ? `Selected: ${picked.join(", ")}${all ? " (full backup)" : ""} · about ${fmtBytes(bytes + 2048)}` : "Nothing selected."}</p>
 <div class="row"><button class="b" data-a="xExport"${picked.length ? "" : " disabled"}>${all ? "Export full backup" : "Export selected"}</button></div>`;
 
@@ -1376,6 +1459,7 @@ async function mkPdf() {
   );
 }
 // Start: load saved data, then show the first screen.
+loadView();
 Store.load().then((d) => {
   initState(d);
   R();
