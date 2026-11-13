@@ -54,7 +54,7 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 5. Add steps. Each step has an optional headline, a description and an optional photo.
    - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
      at the end. Steps renumber automatically.
-   - **Move to** jumps a step straight to another position; **↑ ↓** move it one place.
+   - **↑ ↓** move a step up or down.
    - **＋ Add sub-step** adds numbered sub-steps (2.1, 2.2, …) inside a step, each with
      its own text and optional photo, and ↑ ↓ ✕ to arrange them. In the PDF they are
      printed indented under their step, kept on the same page where possible.

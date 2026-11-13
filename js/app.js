@@ -131,13 +131,9 @@ const photoBtn = (img, rm, up) =>
   img
     ? `<img class="simg" src="${img}" alt=""><button class="lk" ${rm}>Remove photo</button>`
     : `<label class="b2">＋ Add photo<input type="file" accept="image/*" hidden ${up}></label>`;
-const stepHtml = (s, i, n) => {
-  const subs = s.subs || [],
-    moveTo =
-      n > 1
-        ? `<label class="mv"><span class="m">Move to</span><select data-mv="${i}" aria-label="Move step ${i + 1} to position">${Array.from({ length: n }, (_, k) => `<option value="${k + 1}"${k == i ? " selected" : ""}>${k + 1}</option>`).join("")}</select></label>`
-        : "";
-  return `<div class="box"><div class="sh"><span class="n">${i + 1}</span><span class="sp"></span>${moveTo}<button class="sm" data-a="up" data-i="${i}" aria-label="Move step ${i + 1} up">↑</button><button class="sm" data-a="dn" data-i="${i}" aria-label="Move step ${i + 1} down">↓</button><button class="sm" data-a="rmS" data-i="${i}" aria-label="Delete step ${i + 1}">✕</button></div>
+const stepHtml = (s, i) => {
+  const subs = s.subs || [];
+  return `<div class="box"><div class="sh"><span class="n">${i + 1}</span><span class="sp"></span><button class="sm" data-a="up" data-i="${i}" aria-label="Move step ${i + 1} up">↑</button><button class="sm" data-a="dn" data-i="${i}" aria-label="Move step ${i + 1} down">↓</button><button class="sm" data-a="rmS" data-i="${i}" aria-label="Delete step ${i + 1}">✕</button></div>
 <input data-h="${i}" placeholder="Step headline (optional)" value="${esc(s.h)}" style="font-weight:600" aria-label="Step ${i + 1} headline"><textarea data-s="${i}" placeholder="Describe this step" aria-label="Step ${i + 1} description">${esc(s.t)}</textarea>
 ${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`)}
 ${subs
@@ -208,7 +204,7 @@ ${deptSel(p)}
 <h2>${mm ? "Machine photos" : "Product photos"}</h2>${gal(p.prod, "prod")}
 <h2>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</h2>${gal(p.pack, "pack")}
 <h2>Steps</h2>` +
-      p.steps.map((s, i) => stepHtml(s, i, p.steps.length)).join("") +
+      p.steps.map((s, i) => stepHtml(s, i)).join("") +
       `<button class="b2" data-a="addS">＋ Add step</button>
 <h2>Sign-off</h2><div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>
 <p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
@@ -632,21 +628,6 @@ document.addEventListener("change", async (e) => {
     IMP[t.name == "imode" ? "mode" : "clash"] = t.value;
     R(true);
     $(`input[name="${t.name}"][value="${t.value}"]`).focus();
-    return;
-  }
-  if (t.dataset.mv !== undefined) {
-    const s = P().steps,
-      from = +t.dataset.mv,
-      to = +t.value - 1, // options show step numbers, starting at 1
-      [x] = s.splice(from, 1);
-    s.splice(to, 0, x);
-    save();
-    R(true);
-    const el = $(`[data-mv="${to}"]`);
-    if (el) {
-      el.focus();
-      el.closest(".box").scrollIntoView({ block: "nearest" });
-    }
     return;
   }
   if (!t.dataset.up) return;
@@ -1200,7 +1181,7 @@ const itemHelp = (mm) => {
 <li>A short <b>headline</b> (optional) is printed in bold, for example "Install the fixture".</li>
 <li>The <b>description</b> says exactly what to do, with values such as torque, speed or program number.</li>
 <li><b>＋ Add photo</b> adds one photo to the step, for example the part or the control panel.</li>
-<li><b>↑ ↓</b> move a step one place, <b>Move to</b> jumps it straight to another position, and <b>✕</b> deletes it.</li>
+<li><b>↑ ↓</b> move a step up or down, and <b>✕</b> deletes it.</li>
 <li><b>＋ Insert step below</b> adds a new step right after that step; <b>＋ Add step</b> at the bottom adds one at the end. Steps renumber automatically.</li>
 <li><b>＋ Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text and optional photo. They print indented under their step.</li>
 </ul></li>

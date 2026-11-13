@@ -502,13 +502,3 @@ input[type="radio"] {
   font-weight: 700;
   min-width: 40px;
 }
-.mv {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.mv select {
-  width: auto;
-  margin: 0;
-  padding: 4px 6px;
-}
