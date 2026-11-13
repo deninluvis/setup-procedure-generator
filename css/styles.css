@@ -389,3 +389,22 @@ input[type="radio"] {
   opacity: 0.4;
   cursor: default;
 }
+.xbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 8px 0;
+}
+.xbar input[type="search"] {
+  flex: 1 1 260px;
+}
+.seg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.seg label {
+  margin: 0;
+}

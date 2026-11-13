@@ -6,6 +6,9 @@ const $ = (s) => document.querySelector(s);
 // Screens: T = "co" company setup, "h" home, "p" products, "m" machines,
 // "x" export & import.
 let S = { lines: [], machines: [] },
+  // Export & import page: tree grouping ("line" or "dept") and filter text
+  GRP = "line",
+  XF = "",
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -408,13 +411,19 @@ document.addEventListener("click", (e) => {
     return;
   } else if (a == "goX") {
     T = "x";
-    EXS = new Set(exGroup("all"));
+    EXS = new Set(allKeys("x"));
     IMP = null;
     XMSG = "";
+    XF = "";
   } else if (a == "tgl") {
     COL.has(t.dataset.g) ? COL.delete(t.dataset.g) : COL.add(t.dataset.g);
     R(true);
     $(`[data-a=tgl][data-g="${CSS.escape(t.dataset.g)}"]`).focus();
+    return;
+  } else if (a == "xfClear") {
+    XF = "";
+    R(true);
+    $("[data-xf]").focus();
     return;
   } else if (a == "xExport") {
     exportSelected(t);
@@ -466,6 +475,15 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("input", (e) => {
   const t = e.target;
+  if (t.dataset.xf) {
+    XF = t.value;
+    const pos = t.selectionStart;
+    R(true);
+    const f = $("[data-xf]");
+    f.focus();
+    f.setSelectionRange(pos, pos);
+    return;
+  }
   if (t.dataset.co) {
     S.co[t.dataset.co] = t.value;
     save();
@@ -519,6 +537,12 @@ document.addEventListener("change", async (e) => {
     R(true);
     const el = $(sel);
     if (el) el.focus();
+    return;
+  }
+  if (t.name == "grp") {
+    GRP = t.value;
+    R(true);
+    $(`input[name="grp"][value="${t.value}"]`).focus();
     return;
   }
   if (t.name == "imode" || t.name == "iclash") {
@@ -659,31 +683,194 @@ const itemSub = (p, dept) =>
     .join(" · ");
 const count = (n, one, many) => `${n} ${n == 1 ? one : many}`;
 
-// Export keys: "co" company details, "p:<id>" product, "m:<id>" machine.
-function exGroup(g) {
-  const prods = S.lines.flatMap((l) => l.products.map((p) => "p:" + p.id)),
-    machs = S.machines.map((m) => "m:" + m.id);
-  if (g == "all") return ["co", ...prods, ...machs];
-  if (g == "products") return prods;
-  if (g == "machines") return machs;
-  const l = S.lines.find((x) => "line:" + x.id == g);
-  return l ? l.products.map((p) => "p:" + p.id) : [];
-}
-// Import keys: "co" company details, "i:<n>" the n-th item in the files.
-function impGroup(g) {
-  if (!IMP) return [];
-  const idx = IMP.packs.map((pk, i) => ({ pk, k: "i:" + i }));
-  if (g == "all")
-    return [...(IMP.company ? ["co"] : []), ...idx.map((x) => x.k)];
-  if (g == "products")
-    return idx.filter((x) => x.pk.kind == "product").map((x) => x.k);
-  if (g == "machines")
-    return idx.filter((x) => x.pk.kind == "machine").map((x) => x.k);
-  return idx
-    .filter((x) => x.pk.kind == "product" && "line:" + lineKey(x.pk.line) == g)
-    .map((x) => x.k);
-}
+// Tree items. Export keys: "co" company details, "p:<id>" product, "m:<id>"
+// machine. Import keys: "co" company details, "i:<n>" the n-th item in the files.
 const lineKey = (n) => (String(n || "").trim() || "Imported").toLowerCase();
+const exItems = () => [
+  ...S.lines.flatMap((l) =>
+    l.products.map((p) => ({
+      key: "p:" + p.id,
+      kind: "product",
+      p,
+      line: l.name,
+      lk: "l" + l.id,
+      dept: deptName(deptOf(p, S.co), S.co),
+    })),
+  ),
+  ...S.machines.map((p) => ({
+    key: "m:" + p.id,
+    kind: "machine",
+    p,
+    line: "",
+    lk: "",
+    dept: deptName(deptOf(p, S.co), S.co),
+  })),
+];
+const impItems = () =>
+  IMP
+    ? IMP.packs.map((pk, i) => ({
+        key: "i:" + i,
+        kind: pk.kind,
+        p: pk.item,
+        line: String(pk.line || "").trim() || "Imported",
+        lk: lineKey(pk.line),
+        dept: String(pk.dept || "").trim(),
+        exists: findExisting(S, pk),
+      }))
+    : [];
+const itemsOf = (mode) => (mode == "x" ? exItems() : impItems());
+const company = (mode) =>
+  mode == "x" ? { name: S.co.name, depts: [] } : IMP && IMP.company;
+// All keys, ignoring the filter (for "everything ticked" and initial ticks).
+const allKeys = (mode) => [
+  ...(company(mode) ? ["co"] : []),
+  ...itemsOf(mode).map((x) => x.key),
+];
+
+// Filter: matches name, code, product line, department or kind.
+const fq = () => XF.trim().toLowerCase();
+const shown = (it) =>
+  !fq() ||
+  [it.p.name, it.p.code, it.line, it.dept, it.kind].some((v) =>
+    String(v || "")
+      .toLowerCase()
+      .includes(fq()),
+  );
+const coShown = (c) =>
+  !!c &&
+  (!fq() || ("company details logo " + c.name).toLowerCase().includes(fq()));
+const deptKey = (it) => "dept:" + it.dept.toLowerCase();
+
+// Keys in a group, counting only items the filter shows.
+function groupKeys(mode, g) {
+  const items = itemsOf(mode).filter(shown),
+    pick = (f) => items.filter(f).map((x) => x.key);
+  if (g == "all")
+    return [...(coShown(company(mode)) ? ["co"] : []), ...pick(() => true)];
+  if (g == "products") return pick((x) => x.kind == "product");
+  if (g == "machines") return pick((x) => x.kind == "machine");
+  if (g.startsWith("line:"))
+    return pick((x) => x.kind == "product" && "line:" + x.lk == g);
+  if (g.startsWith("dept:")) return pick((x) => deptKey(x) == g);
+  return [];
+}
+const exGroup = (g) => groupKeys("x", g),
+  impGroup = (g) => groupKeys("i", g);
+
+// Tree nodes, grouped by product line or by department (GRP).
+function treeNodes(mode) {
+  const items = itemsOf(mode).filter(shown),
+    c = company(mode),
+    kids = [];
+  const leaf = (it) => ({
+    key: it.key,
+    label: esc(it.p.name || "Untitled"),
+    sub:
+      GRP == "dept"
+        ? [it.kind == "machine" ? "Machine" : "Product · " + it.line, it.p.code]
+            .filter((x) => String(x || "").trim())
+            .map(esc)
+            .join(" · ")
+        : itemSub(it.p, it.dept),
+    badge:
+      mode == "i"
+        ? it.exists
+          ? `<span class="bd">already exists</span>`
+          : `<span class="bd new">new</span>`
+        : "",
+  });
+  const mix = (list) => {
+    const np = list.filter((x) => x.kind == "product").length,
+      nm = list.length - np;
+    return [
+      np && count(np, "product", "products"),
+      nm && count(nm, "machine", "machines"),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  };
+  if (coShown(c))
+    kids.push({
+      key: "co",
+      label: "Company details and logo",
+      sub: esc([c.name, ...(c.depts || [])].filter(Boolean).join(" · ")),
+    });
+  if (GRP == "dept") {
+    // Departments in the company's order (export), then as found; "No department" last.
+    const groups = new Map();
+    if (mode == "x")
+      S.co.depts
+        .filter((d) => d.name.trim())
+        .forEach((d) =>
+          groups.set("dept:" + d.name.toLowerCase(), {
+            name: d.name,
+            items: [],
+          }),
+        );
+    for (const it of items) {
+      const k = deptKey(it);
+      if (!groups.has(k)) groups.set(k, { name: it.dept, items: [] });
+      groups.get(k).items.push(it);
+    }
+    const none = groups.get("dept:");
+    groups.delete("dept:");
+    if (none) groups.set("dept:", none);
+    for (const [k, gr] of groups)
+      if (gr.items.length)
+        kids.push({
+          group: k,
+          label: gr.name ? esc(gr.name) : "<i>No department</i>",
+          sub: mix(gr.items),
+          children: gr.items.map(leaf),
+        });
+  } else {
+    const lines = new Map();
+    if (mode == "x" && !fq())
+      S.lines.forEach((l) =>
+        lines.set("l" + l.id, { name: l.name, items: [] }),
+      );
+    for (const it of items.filter((x) => x.kind == "product")) {
+      if (!lines.has(it.lk)) lines.set(it.lk, { name: it.line, items: [] });
+      lines.get(it.lk).items.push(it);
+    }
+    const np = items.filter((x) => x.kind == "product").length,
+      machs = items.filter((x) => x.kind == "machine");
+    if (np || (mode == "x" && !fq()))
+      kids.push({
+        group: "products",
+        label: "Products",
+        sub: `${count(lines.size, "line", "lines")} · ${count(np, "product", "products")}`,
+        children: [...lines].map(([k, l]) => ({
+          group: "line:" + k,
+          label: esc(l.name),
+          sub: count(l.items.length, "product", "products"),
+          children: l.items.map(leaf),
+        })),
+      });
+    if (machs.length || (mode == "x" && !fq()))
+      kids.push({
+        group: "machines",
+        label: "Machines",
+        sub: count(machs.length, "machine", "machines"),
+        children: machs.map(leaf),
+      });
+  }
+  const top =
+    mode == "x"
+      ? {
+          label: "<b>Everything</b>",
+          sub: fq() ? "items matching the filter" : "full backup",
+        }
+      : {
+          label:
+            "<b>Everything in the file" +
+            (IMP.names.length > 1 ? "s" : "") +
+            "</b>",
+          sub: fq() ? "items matching the filter" : "",
+        };
+  if (!kids.length) return [];
+  return [{ group: "all", ...top, children: kids }];
+}
 
 // Tree with tick boxes. Node: { key } for an item, or { group, children } for a
 // group. A group is ticked when all its items are, and shows a dash when some are.
@@ -701,109 +888,21 @@ function tree(nodes, mode, sel, groupFn, disabled) {
         : `<span class="tg"></span>`;
     return `<li><div class="tr">${tg}<label>${box}<span>${n.label}</span>${n.sub ? `<span class="m">${n.sub}</span>` : ""}${n.badge || ""}</label></div>${kids.length && open ? `<ul>${kids.map(node).join("")}</ul>` : ""}</li>`;
   };
-  return `<ul class="tree">${nodes.map(node).join("")}</ul>`;
+  return nodes.length
+    ? `<ul class="tree">${nodes.map(node).join("")}</ul>`
+    : "";
 }
 
-function exNodes() {
-  const np = S.lines.reduce((a, l) => a + l.products.length, 0);
-  return [
-    {
-      group: "all",
-      label: "<b>Everything</b>",
-      sub: "full backup",
-      children: [
-        { key: "co", label: "Company details and logo", sub: esc(S.co.name) },
-        {
-          group: "products",
-          label: "Products",
-          sub: `${count(S.lines.length, "line", "lines")} · ${count(np, "product", "products")}`,
-          children: S.lines.map((l) => ({
-            group: "line:" + l.id,
-            label: esc(l.name),
-            sub: count(l.products.length, "product", "products"),
-            children: l.products.map((p) => ({
-              key: "p:" + p.id,
-              label: esc(p.name),
-              sub: itemSub(p, deptName(deptOf(p, S.co), S.co)),
-            })),
-          })),
-        },
-        {
-          group: "machines",
-          label: "Machines",
-          sub: count(S.machines.length, "machine", "machines"),
-          children: S.machines.map((m) => ({
-            key: "m:" + m.id,
-            label: esc(m.name),
-            sub: itemSub(m, deptName(deptOf(m, S.co), S.co)),
-          })),
-        },
-      ],
-    },
-  ];
-}
-
-function impNodes() {
-  const badge = (pk) =>
-    findExisting(S, pk)
-      ? `<span class="bd">already exists</span>`
-      : `<span class="bd new">new</span>`;
-  const item = (pk, i) => ({
-    key: "i:" + i,
-    label: esc(pk.item.name || "Untitled"),
-    sub: itemSub(pk.item, pk.dept),
-    badge: badge(pk),
-  });
-  const lines = new Map();
-  IMP.packs.forEach((pk, i) => {
-    if (pk.kind != "product") return;
-    const k = lineKey(pk.line);
-    if (!lines.has(k))
-      lines.set(k, {
-        name: String(pk.line || "").trim() || "Imported",
-        items: [],
-      });
-    lines.get(k).items.push(item(pk, i));
-  });
-  const machs = IMP.packs
-    .map((pk, i) => [pk, i])
-    .filter(([pk]) => pk.kind == "machine");
-  const kids = [];
-  if (IMP.company)
-    kids.push({
-      key: "co",
-      label: "Company details and logo",
-      sub: esc(
-        [IMP.company.name, ...IMP.company.depts].filter(Boolean).join(" · "),
-      ),
-    });
-  if (lines.size)
-    kids.push({
-      group: "products",
-      label: "Products",
-      children: [...lines].map(([k, l]) => ({
-        group: "line:" + k,
-        label: esc(l.name),
-        sub: count(l.items.length, "product", "products"),
-        children: l.items,
-      })),
-    });
-  if (machs.length)
-    kids.push({
-      group: "machines",
-      label: "Machines",
-      children: machs.map(([pk, i]) => item(pk, i)),
-    });
-  return [
-    {
-      group: "all",
-      label:
-        "<b>Everything in the file" +
-        (IMP.names.length > 1 ? "s" : "") +
-        "</b>",
-      children: kids,
-    },
-  ];
+// Filter box and "Group by" switch; they apply to both trees on the page.
+function toolbar() {
+  const total = exItems().length + (IMP ? IMP.packs.length : 0),
+    hits = exItems().filter(shown).length + impItems().filter(shown).length;
+  return (
+    `<div class="xbar"><input type="search" data-xf="1" value="${esc(XF)}" placeholder="Filter by name, code, line or department" aria-label="Filter the lists"><div class="radios seg" role="radiogroup" aria-label="Group by"><span class="m">Group by</span><label><input type="radio" name="grp" value="line"${GRP == "line" ? " checked" : ""}> Product line</label><label><input type="radio" name="grp" value="dept"${GRP == "dept" ? " checked" : ""}> Department</label></div></div>` +
+    (fq()
+      ? `<p class="m" role="status">Showing ${hits} of ${count(total, "item", "items")}. Ticking a group ticks only the items shown; hidden items keep their ticks. <button class="lk" data-a="xfClear">Clear filter</button></p>`
+      : "")
+  );
 }
 
 function XV() {
@@ -813,7 +912,7 @@ function XV() {
       .filter((p) => EXS.has("p:" + p.id)),
     machs = S.machines.filter((m) => EXS.has("m:" + m.id)),
     co = EXS.has("co"),
-    all = exGroup("all").every((k) => EXS.has(k)),
+    all = allKeys("x").every((k) => EXS.has(k)),
     bytes =
       [...prods, ...machs].reduce((a, p) => a + imgBytes(p), 0) +
       (co && S.logo ? S.logo.length * 0.75 : 0),
@@ -826,7 +925,8 @@ function XV() {
     `<button class="lk" data-a="goHome">← Home</button><h1>Export &amp; import</h1>` +
     (XMSG ? `<p class="ok" role="status">${XMSG}</p>` : "") +
     `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
-    tree(exNodes(), "x", EXS, exGroup, false) +
+    toolbar() +
+    (tree(treeNodes("x"), "x", EXS, exGroup, false) || `<p class="m">Nothing matches the filter.</p>`) +
     `<p class="m" role="status">${picked.length ? `Selected: ${picked.join(", ")}${all ? " (full backup)" : ""} · about ${fmtBytes(bytes + 2048)}` : "Nothing selected."}</p>
 <div class="row"><button class="b" data-a="xExport"${picked.length ? "" : " disabled"}>${all ? "Export full backup" : "Export selected"}</button></div>`;
 
@@ -856,7 +956,9 @@ function XV() {
   if (IMP.full)
     h += `<div class="radios"><label><input type="radio" name="imode" value="replace"${IMP.mode == "replace" ? " checked" : ""}> Replace all current data with this backup</label><label><input type="radio" name="imode" value="merge"${IMP.mode == "merge" ? " checked" : ""}> Add only what I tick below to the current data</label></div>`;
   const merge = IMP.mode == "merge";
-  h += tree(impNodes(), "i", IMP.sel, impGroup, !merge);
+  h +=
+    tree(treeNodes("i"), "i", IMP.sel, impGroup, !merge) ||
+    `<p class="m">Nothing in the file matches the filter.</p>`;
   if (merge)
     h += `<p class="m">When an item already exists:</p><div class="radios"><label><input type="radio" name="iclash" value="replace"${IMP.clash == "replace" ? " checked" : ""}> Replace it with the imported one</label><label><input type="radio" name="iclash" value="keep"${IMP.clash == "keep" ? " checked" : ""}> Keep both (the imported one gets "(imported)")</label></div>`;
   return (
@@ -888,7 +990,7 @@ async function exportSelected(btn) {
     ],
     co = EXS.has("co");
   if (!list.length && !co) return alert("Tick at least one thing to export.");
-  if (exGroup("all").every((k) => EXS.has(k)))
+  if (allKeys("x").every((k) => EXS.has(k)))
     return exportZip(
       planBackup(S),
       `setup-procedures-backup-${dateStamp()}.zip`,
@@ -945,10 +1047,10 @@ async function loadImport(files) {
     clash: "replace",
     sel: new Set(),
   };
-  impGroup("all").forEach((k) => IMP.sel.add(k));
+  allKeys("i").forEach((k) => IMP.sel.add(k));
   // Company details from a full backup are not ticked by default when adding.
   if (fulls.length) IMP.sel.delete("co");
-  if (T != "x") EXS = new Set(exGroup("all"));
+  if (T != "x") EXS = new Set(allKeys("x"));
   XMSG = "";
   T = "x";
   R(true);
@@ -996,7 +1098,7 @@ async function applyImport() {
   if (!(await writeNow())) return;
   IMP = null;
   XMSG = esc(msg);
-  EXS = new Set(exGroup("all"));
+  EXS = new Set(allKeys("x"));
   R();
 }
 

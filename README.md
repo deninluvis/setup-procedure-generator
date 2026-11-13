@@ -88,6 +88,12 @@ A tree lists everything, each with a tick box:
 ```
 
 - Ticking a group ticks everything in it; a group shows a dash when only part is ticked.
+- **Group by:** *Product line* (Products → lines → products, then Machines) or
+  *Department* (each department with its products and machines, then "No department").
+  One tick selects a whole department.
+- **Filter:** type in the filter box to show only items whose name, code, product line
+  or department matches. Ticking a group then ticks only the items shown; hidden items
+  keep their ticks. The grouping and filter apply to the import list too.
 - ▾ / ▸ collapses or expands a group.
 - The page shows what is selected and the approximate file size.
 - With **everything** ticked you get a full backup:
