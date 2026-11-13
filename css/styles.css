@@ -511,11 +511,41 @@ input[type="radio"] {
 .wbox .sh {
   margin-bottom: 2px;
 }
-.wbox b {
-  color: var(--dg);
+/* Warning / Caution / Note colours (the PDF uses the same colours). */
+:root {
+  --cau: #b45309;
+  --nt: #1d4ed8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cau: #fbbf24;
+    --nt: #93c5fd;
+  }
+}
+:root[data-theme="dark"] {
+  --cau: #fbbf24;
+  --nt: #93c5fd;
+}
+.wbox {
+  --wc: var(--dg);
+  border-color: var(--wc);
+}
+.wbox.t-caution {
+  --wc: var(--cau);
+}
+.wbox.t-note {
+  --wc: var(--nt);
 }
 .wi {
   font-size: 20px;
   line-height: 1;
-  color: var(--dg);
+  color: var(--wc);
+}
+.wbox select {
+  width: auto;
+  margin: 0;
+  padding: 4px 8px;
+  font-weight: 700;
+  color: var(--wc);
+  border-color: var(--wc);
 }

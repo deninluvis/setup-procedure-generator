@@ -59,9 +59,11 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
      its own text and optional photo, and ↑ ↓ ✕ to arrange them. In the PDF they are
      printed indented under their step, kept on the same page where possible.
    - Deleting a step that has sub-steps asks first.
-   - **⚠ Add warning** adds a safety warning to a step with a field to describe the
-     hazard. In the PDF it prints in a bordered box under the headline, with a warning
-     symbol and "WARNING" next to it, followed by the description.
+   - **⚠ Add warning or note** on a step or sub-step adds a box with a type and a
+     description: **Warning** (serious hazard, red), **Caution** (risk of damage,
+     orange) or **Note** (useful tip, blue). In the PDF it prints in a box with the same
+     colour edge, a symbol, and WARNING / CAUTION / NOTE next to it, followed by the
+     description.
 6. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
 7. Optionally tick **Add watermark to the PDF**: the company name and the item's
