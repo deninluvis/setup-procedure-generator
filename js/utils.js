@@ -71,7 +71,13 @@ const mapImgs = (S, test, fn) => {
     ...p,
     prod: (p.prod || []).map(c).filter(Boolean),
     pack: (p.pack || []).map(c).filter(Boolean),
-    steps: (p.steps || []).map((s) => ({ ...s, img: c(s.img) || "" })),
+    steps: (p.steps || []).map((s) => ({
+      ...s,
+      img: c(s.img) || "",
+      ...(Array.isArray(s.subs)
+        ? { subs: s.subs.map((u) => ({ ...u, img: c(u.img) || "" })) }
+        : {}),
+    })),
   });
   const out = {
     ...S,
@@ -144,6 +150,14 @@ const imgPlanner = () => {
       steps: (p.steps || []).map((s, i) => ({
         ...s,
         img: put(s.img, `${f}/step-${i + 1}`),
+        ...(Array.isArray(s.subs)
+          ? {
+              subs: s.subs.map((u, j) => ({
+                ...u,
+                img: put(u.img, `${f}/step-${i + 1}-${j + 1}`),
+              })),
+            }
+          : {}),
       })),
     };
   };
@@ -316,7 +330,13 @@ const imgRefs = (data) => {
         });
     (p.prod || []).forEach((v, i) => add(v, `${a} ${i + 1}`));
     (p.pack || []).forEach((v, i) => add(v, `${b} ${i + 1}`));
-    (p.steps || []).forEach((s, i) => s && add(s.img, `Step ${i + 1} photo`));
+    (p.steps || []).forEach((s, i) => {
+      if (!s) return;
+      add(s.img, `Step ${i + 1} photo`);
+      (Array.isArray(s.subs) ? s.subs : []).forEach(
+        (u, j) => u && add(u.img, `Step ${i + 1}.${j + 1} photo`),
+      );
+    });
   };
   const logo = (v) =>
     isImgPath(v) &&

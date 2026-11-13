@@ -236,3 +236,16 @@ test('similarPath finds a near match for a missing photo', () => {
   assert.equal(similarPath('photos/Line 1/Widget A/product-1.jpg', names), 'photos/Other/product-1.jpg');
   assert.equal(similarPath('photos/x/panel-9.jpg', names), '');
 });
+
+test('sub-step photos: storage refs, ZIP paths and missing-photo report', () => {
+  const S = sample();
+  S.lines[0].products[0].steps[1].subs = [{ t: 'a', img: '' }, { t: 'b', img: 'data:image/jpeg;base64,EEEE' }];
+  const { data, files } = planBackup(S);
+  const w = data.lines[0].products[0];
+  assert.deepEqual(w.steps[1].subs, [{ t: 'a', img: '' }, { t: 'b', img: 'photos/Line 1/Widget A/step-2-2.jpg' }]);
+  assert.equal('subs' in w.steps[0], false); // steps without sub-steps stay as they were
+  assert.ok(files.some(([p]) => p == 'photos/Line 1/Widget A/step-2-2.jpg'));
+  const back = restoreImgs(JSON.parse(JSON.stringify(data)), new Map(files));
+  assert.deepEqual(back.data.lines, S.lines);
+  assert.ok(imgRefs(data).some((r) => r.what == 'Step 2.2 photo' && r.path.endsWith('step-2-2.jpg')));
+});

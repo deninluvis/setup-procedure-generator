@@ -493,3 +493,22 @@ input[type="radio"] {
   margin: 16px 0 0;
   cursor: pointer;
 }
+.sub {
+  margin: 12px 0 0 14px;
+  padding-left: 12px;
+  border-left: 2px solid var(--bd);
+}
+.n2 {
+  font-weight: 700;
+  min-width: 40px;
+}
+.mv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mv select {
+  width: auto;
+  margin: 0;
+  padding: 4px 6px;
+}

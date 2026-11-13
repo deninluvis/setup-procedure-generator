@@ -52,7 +52,13 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
    explains each part (closed at first: click it to open; it stays as you left it).
    Pick the **Department**, then fill in the code or asset number, the revision and photos.
 5. Add steps. Each step has an optional headline, a description and an optional photo.
-   Use ↑ ↓ to reorder.
+   - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
+     at the end. Steps renumber automatically.
+   - **Move to** jumps a step straight to another position; **↑ ↓** move it one place.
+   - **＋ Add sub-step** adds numbered sub-steps (2.1, 2.2, …) inside a step, each with
+     its own text and optional photo, and ↑ ↓ ✕ to arrange them. In the PDF they are
+     printed indented under their step, kept on the same page where possible.
+   - Deleting a step that has sub-steps asks first.
 6. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
 7. Optionally tick **Add watermark to the PDF**: the company name and the item's
@@ -119,6 +125,7 @@ data.json
 logo.png
 photos/Line 1/Widget A/product-1.jpg
 photos/Line 1/Widget A/step-2.jpg
+photos/Line 1/Widget A/step-2-1.jpg   (photo of sub-step 2.1)
 photos/Machines/Press 3/panel-1.jpg
 ```
 
