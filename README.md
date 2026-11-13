@@ -55,8 +55,11 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
    Use ↑ ↓ to reorder.
 6. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
-7. Press **Download PDF**.
-8. Use **Export backup** on the home page regularly. Data lives only in this browser.
+7. Optionally tick **Add watermark to the PDF**: the company name and the item's
+   department are printed large, faint and diagonally across every page. The choice is
+   remembered in this browser.
+8. Press **Download PDF**.
+9. Use **Export backup** on the home page regularly. Data lives only in this browser.
 
 ## Storage
 

@@ -12,6 +12,7 @@ let S = { lines: [], machines: [] },
   HS = "", // home page search text
   HELPS = { x: false, item: false }, // help panels open? x = Export & import, item = product/machine page (closed at first)
   LASTMISS = [], // photos missing in the last import, shown with the result
+  WM = false, // add a company/department watermark to downloaded PDFs
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -195,6 +196,7 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
 <p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
 <div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
+${wmBox(p)}
 <div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
   $("#app").innerHTML = h;
@@ -560,6 +562,11 @@ document.addEventListener("change", async (e) => {
     if (el) el.focus();
     return;
   }
+  if (t.dataset.wm) {
+    WM = t.checked;
+    saveView();
+    return;
+  }
   if (t.name == "grp") {
     GRP = t.value;
     saveView();
@@ -769,6 +776,7 @@ function loadView() {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "{}");
     if (v.grp == "line" || v.grp == "dept") GRP = v.grp;
     if (typeof v.help == "boolean") HELPS.x = v.help; // older setting
+    if (typeof v.wm == "boolean") WM = v.wm;
     if (v.helps && typeof v.helps == "object")
       for (const k in HELPS)
         if (typeof v.helps[k] == "boolean") HELPS[k] = v.helps[k];
@@ -780,7 +788,7 @@ function saveView() {
   try {
     localStorage.setItem(
       VIEW_KEY,
-      JSON.stringify({ grp: GRP, col: [...COL], helps: HELPS }),
+      JSON.stringify({ grp: GRP, col: [...COL], helps: HELPS, wm: WM }),
     );
   } catch (e) {}
 }
@@ -1111,7 +1119,7 @@ const itemHelp = (mm) => {
 <li><b>↑ ↓</b> move a step, <b>✕</b> deletes it, <b>＋ Add step</b> adds a new one at the end.</li>
 </ul></li>
 <li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
-<li><b>Download PDF.</b> The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
+<li><b>Download PDF.</b> Tick <b>Add watermark</b> first if you want the company name and department printed faintly across every page. The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
 </ol>
 <h3>Good to know</h3>
 <ul>
@@ -1395,6 +1403,65 @@ async function dl(name, data) {
     }
   }
 }
+// ---------- PDF watermark ----------
+
+// Watermark text for a product or machine: [company name, department].
+// Empty parts are left out.
+const wmLines = (p) =>
+  [S.co.name, deptName(deptOf(p, S.co), S.co)]
+    .map((x) => String(x || "").trim())
+    .filter(Boolean);
+
+// The "Add watermark" tick box shown above Download PDF.
+const wmBox = (p) => {
+  const lines = wmLines(p);
+  return `<label class="chk"><input type="checkbox" data-wm="1"${WM && lines.length ? " checked" : ""}${lines.length ? "" : " disabled"}> <span>Add watermark to the PDF${lines.length ? `: <b>${lines.map(esc).join(" · ")}</b>` : " (enter a company name first)"}</span></label>`;
+};
+
+// Large, faint diagonal text across the middle of a page: the company name,
+// and the department on a second, smaller line. Drawn over the content so it
+// also shows on photos, but light enough to read through.
+function watermark(d, lines, W, H) {
+  const ang = (Math.atan2(H, W) * 180) / Math.PI, // corner to corner
+    rad = (ang * Math.PI) / 180,
+    dir = [Math.cos(rad), -Math.sin(rad)], // along the text (jsPDF y points down)
+    up = [-Math.sin(rad), -Math.cos(rad)], // towards the top of the letters
+    maxW = Math.hypot(W, H) * 0.72,
+    sizes = [];
+  d.setFont("helvetica", "bold");
+  lines.forEach((t, i) => {
+    const want = i == 0 ? 64 : 36;
+    d.setFontSize(want);
+    const w = d.getTextWidth(t.toUpperCase());
+    sizes.push(Math.max(10, Math.min(want, (want * maxW) / w)));
+  });
+  let gs = false;
+  try {
+    d.saveGraphicsState();
+    d.setGState(new d.GState({ opacity: 0.13 }));
+    gs = true;
+  } catch (e) {}
+  d.setTextColor(...(gs ? [0, 0, 0] : [225, 225, 225]));
+  // Stack the lines around the page centre.
+  const pt = 0.3528, // mm per point
+    hts = sizes.map((s) => s * pt),
+    gap = 4,
+    total = hts.reduce((a, h) => a + h, 0) + gap * (lines.length - 1);
+  let off = total / 2; // distance of the next line's top above the centre
+  lines.forEach((t, i) => {
+    const txt = t.toUpperCase();
+    d.setFontSize(sizes[i]);
+    const w = d.getTextWidth(txt),
+      base = off - hts[i] * 0.78, // baseline below the line's top
+      cx = W / 2 + up[0] * base,
+      cy = H / 2 + up[1] * base;
+    d.text(txt, cx - (dir[0] * w) / 2, cy - (dir[1] * w) / 2, { angle: ang });
+    off -= hts[i] + gap;
+  });
+  if (gs) d.restoreGraphicsState();
+  d.setFont("helvetica", "normal");
+}
+
 async function mkPdf() {
   const p = P();
   if (!p.by.trim() || !p.appr.trim()) {
@@ -1627,9 +1694,11 @@ async function mkPdf() {
     d.text("Date", x + c2 * 0.65, y + 28);
   });
   y += 36;
-  const n = d.getNumberOfPages();
+  const n = d.getNumberOfPages(),
+    wm = WM ? wmLines(p) : [];
   for (let i = 1; i <= n; i++) {
     d.setPage(i);
+    if (wm.length) watermark(d, wm, W, 297);
     d.setDrawColor(...LN);
     d.setLineWidth(0.2);
     d.line(M, 284, W - M, 284);
