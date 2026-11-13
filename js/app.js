@@ -17,10 +17,14 @@ let V = { l: null, p: null },
 const save = () => {
   try {
     localStorage.setItem("sp", JSON.stringify(S));
+    return true;
   } catch (e) {
     alert("Browser storage is full. Remove some photos or products.");
+    return false;
   }
 };
+const BAD_IMG =
+  "This image could not be read. Please use a PNG, JPG or SVG file. (iPhone HEIC photos may need converting first.)";
 const L = () => S.lines.find((x) => x.id == V.l),
   P = () => {
     if (T == "m") return S.machines.find((x) => x.id == MID);
@@ -153,11 +157,17 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
 }
 
 // Shrink an image file to fit max px. PNG keeps transparency (used for the logo).
+// Resolves null when the browser cannot read the image (e.g. HEIC in Chrome).
 const comp = (f, png = false, max = 900) =>
   new Promise((r) => {
     const u = URL.createObjectURL(f),
       i = new Image();
+    i.onerror = () => {
+      URL.revokeObjectURL(u);
+      r(null);
+    };
     i.onload = () => {
+      if (!i.width || !i.height) return i.onerror();
       const k = Math.min(1, max / Math.max(i.width, i.height)),
         c = document.createElement("canvas");
       c.width = i.width * k;
@@ -357,8 +367,12 @@ document.addEventListener("change", async (e) => {
   if (t.dataset.logo) {
     const f = t.files[0];
     if (!f) return;
-    S.logo = await comp(f, true, 600);
-    save();
+    const d = await comp(f, true, 600);
+    t.value = "";
+    if (!d) return alert(BAD_IMG);
+    const prev = S.logo;
+    S.logo = d;
+    if (!save()) S.logo = prev;
     R(true);
     return;
   }
@@ -386,6 +400,10 @@ document.addEventListener("change", async (e) => {
     k = t.dataset.up;
   for (const f of t.files) {
     const d = await comp(f);
+    if (!d) {
+      alert(BAD_IMG);
+      continue;
+    }
     if (k == "step") p.steps[+t.dataset.i].img = d;
     else p[k].push(d);
   }
