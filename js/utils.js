@@ -186,34 +186,42 @@ const planBackup = (S) => {
 
 // Products and machines -> { data, files }, to share with another app.
 // list: [{ p, kind: "product" | "machine", line, dept }] (line and dept are names).
-const planItems = (list) => {
+// company: optional { co, logo } to include company name, departments and logo.
+const planItems = (list, company) => {
   const pl = imgPlanner();
-  return {
-    data: {
-      format: "setup-procedures-items",
-      version: 1,
-      exported: dateStamp(),
-      items: list.map(({ p, kind, line, dept }) => ({
-        kind,
-        line: line || "",
-        dept: dept || "",
-        item:
-          kind == "machine"
-            ? pl.item(
-                p,
-                `photos/Machines/${safeName(p.name, "Machine")}`,
-                MACH_KINDS,
-              )
-            : pl.item(
-                p,
-                `photos/${safeName(line, "Products")}/${safeName(p.name, "Product")}`,
-                PROD_KINDS,
-              ),
-      })),
-    },
-    files: pl.files,
+  const data = {
+    format: "setup-procedures-items",
+    version: 1,
+    exported: dateStamp(),
+    items: list.map(({ p, kind, line, dept }) => ({
+      kind,
+      line: line || "",
+      dept: dept || "",
+      item:
+        kind == "machine"
+          ? pl.item(
+              p,
+              `photos/Machines/${safeName(p.name, "Machine")}`,
+              MACH_KINDS,
+            )
+          : pl.item(
+              p,
+              `photos/${safeName(line, "Products")}/${safeName(p.name, "Product")}`,
+              PROD_KINDS,
+            ),
+    })),
   };
+  if (company) {
+    data.company = {
+      name: company.co.name,
+      depts: company.co.depts.map((d) => d.name).filter((n) => n.trim()),
+    };
+    if (company.logo) data.company.logo = pl.put(company.logo, "logo");
+  }
+  return { data, files: pl.files };
 };
+
+const ITEM_FORMATS = ["setup-procedures-item", "setup-procedures-items"];
 
 // Items in a shared file as [{ kind, line, dept, item }], or null if the file
 // is not a product/machine export. Reads both the list format and the older
@@ -261,23 +269,28 @@ const lineItems = (S, lineId) => {
     : [];
 };
 
-// Image fields of a whole backup, or of each item in a shared file, through fn.
+// Image fields of a whole backup, or of each item (and company logo) in a
+// shared file, through fn.
 const mapFileImgs = (data, test, fn) => {
-  const packs = itemPacks(data);
-  if (!packs) return mapImgs(data, test, fn);
-  const items = mapImgs(
-    { machines: packs.map((x) => x.item) },
-    test,
-    fn,
-  ).machines;
-  return data.format == "setup-procedures-item"
-    ? { ...data, item: items[0] }
-    : {
-        ...data,
-        items: data.items
-          .filter((x) => x && x.item)
-          .map((x, i) => ({ ...x, item: items[i] })),
-      };
+  if (!ITEM_FORMATS.includes(data.format)) return mapImgs(data, test, fn);
+  const packs = itemPacks(data) || [],
+    items = mapImgs({ machines: packs.map((x) => x.item) }, test, fn).machines,
+    out =
+      data.format == "setup-procedures-item"
+        ? { ...data, item: items[0] }
+        : {
+            ...data,
+            items: (data.items || [])
+              .filter((x) => x && x.item)
+              .map((x, i) => ({ ...x, item: items[i] })),
+          };
+  if (data.company && data.company.logo !== undefined) {
+    const logo = mapImgs({ logo: data.company.logo }, test, fn).logo;
+    out.company = { ...data.company };
+    if (logo) out.company.logo = logo;
+    else delete out.company.logo;
+  }
+  return out;
 };
 
 // The image paths a data.json refers to.
@@ -317,6 +330,87 @@ const hasItems = (S) =>
   S.machines.length > 0 || S.lines.some((l) => l.products.length > 0);
 const backupDue = (S, now = Date.now(), days = 7) =>
   hasItems(S) && (!S.lastBackup || daysSince(S.lastBackup, now) >= days);
+
+// ---------- Universal import ----------
+
+// Every product and machine of a backup as packs, like a shared file has.
+const backupPacks = (b) => [
+  ...b.lines.flatMap((l) =>
+    (l.products || []).map((p) => ({
+      kind: "product",
+      line: l.name,
+      dept: deptName(deptOf(p, b.co), b.co),
+      item: p,
+    })),
+  ),
+  ...b.machines.map((p) => ({
+    kind: "machine",
+    line: "",
+    dept: deptName(deptOf(p, b.co), b.co),
+    item: p,
+  })),
+];
+
+// What an imported file holds: { packs, company, full } or null if not valid.
+// full is the whole backup (for "replace everything"); company is
+// { name, depts: [names], logo? } or null.
+const fileContents = (data) => {
+  if (!data || typeof data != "object") return null;
+  if (ITEM_FORMATS.includes(data.format)) {
+    const packs = itemPacks(data) || [],
+      c = data.company && typeof data.company == "object" ? data.company : null,
+      company = c
+        ? {
+            name: String(c.name || ""),
+            depts: (Array.isArray(c.depts) ? c.depts : []).map(String),
+            logo: c.logo || undefined,
+          }
+        : null;
+    return packs.length || company ? { packs, company, full: null } : null;
+  }
+  const b = parseBackup(data);
+  if (!b) return null;
+  return {
+    packs: backupPacks(b),
+    company: {
+      name: b.co.name,
+      depts: b.co.depts.map((d) => d.name).filter((n) => n.trim()),
+      logo: b.logo,
+    },
+    full: b,
+  };
+};
+
+// Does a product/machine with this name already exist where it would go?
+const findExisting = (S, pk) => {
+  const name = String(pk.item.name || "")
+      .trim()
+      .toLowerCase(),
+    same = (x) =>
+      String(x.name || "")
+        .trim()
+        .toLowerCase() == name;
+  if (pk.kind == "machine") return S.machines.some(same);
+  const ln = (String(pk.line || "").trim() || "Imported").toLowerCase(),
+    l = S.lines.find((x) => x.name.trim().toLowerCase() == ln);
+  return !!l && l.products.some(same);
+};
+
+// Apply imported company details: name and logo (when given) replace the
+// current ones; departments that are missing are added.
+const mergeCompany = (S, c) => {
+  if (c.name && c.name.trim()) S.co.name = c.name;
+  if (c.logo) S.logo = c.logo;
+  for (const n of c.depts || []) {
+    if (
+      n.trim() &&
+      !S.co.depts.some(
+        (d) => d.name.trim().toLowerCase() == n.trim().toLowerCase(),
+      )
+    )
+      S.co.depts.push({ id: id(), name: n.trim() });
+  }
+};
 
 // Add an imported product or machine to S (changes S). The department and
 // product line are matched by name and created if missing. If an item with
@@ -364,7 +458,20 @@ const addItem = (S, pk, replace) => {
     list[i] = it;
     return { kind: pk.kind, lineId, item: it, replaced: true };
   }
-  if (i >= 0) it.name += " (imported)";
+  if (i >= 0) {
+    // Keep both: give the new one a name not used yet in this list.
+    const base = it.name,
+      used = (n) =>
+        list.some(
+          (x) =>
+            String(x.name || "")
+              .trim()
+              .toLowerCase() == n.toLowerCase(),
+        );
+    let n = 1;
+    do it.name = base + (n == 1 ? " (imported)" : ` (imported ${n})`);
+    while (used(it.name) && ++n);
+  }
   list.push(it);
   return { kind: pk.kind, lineId, item: it, replaced: false };
 };
@@ -386,6 +493,10 @@ if (typeof module !== "undefined")
     imgExt,
     planBackup,
     planItems,
+    fileContents,
+    findExisting,
+    mergeCompany,
+    backupPacks,
     itemPacks,
     deptItems,
     lineItems,

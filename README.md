@@ -7,7 +7,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
 - Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import backups as .zip files with photos as normal image files
-- Share a product, machine, product line or department as a file; import several at once
+- Export & import page: tick exactly what to export or import in a tree (everything, company details, lines, products, machines)
 - Backup reminder after 7 days without a backup
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 
@@ -67,49 +67,71 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 
 ## Backup and sharing
 
-**Full backup:** on the home page press **Export backup**. You get
-`setup-procedures-backup-YYYY-MM-DD.zip`:
+Everything is on the **Export & import** page (home page → **Backup and sharing** →
+**Export & import**). **Quick full backup** on the home page exports everything in
+one click.
+
+### Export
+
+A tree lists everything, each with a tick box:
 
 ```
-data.json                          all text: company, departments, products, steps…
+☑ Everything (full backup)
+   ☑ Company details and logo
+   ☑ Products
+      ☑ Line 1
+         ☑ Widget A   WA-1 · Assembly
+         ☑ Widget B   WB-2 · Press Shop
+      ☑ Line 2 …
+   ☑ Machines
+      ☑ Press 3      P3 · Press Shop
+```
+
+- Ticking a group ticks everything in it; a group shows a dash when only part is ticked.
+- ▾ / ▸ collapses or expands a group.
+- The page shows what is selected and the approximate file size.
+- With **everything** ticked you get a full backup:
+  `setup-procedures-backup-YYYY-MM-DD.zip` (this also updates "Last backup").
+- Otherwise you get `setup-procedures-export-YYYY-MM-DD.zip` with just the ticked
+  items, or `Widget A - product - YYYY-MM-DD.zip` for a single item.
+
+Shortcuts: **Export this line** on a line page, **Export this product / machine** on its page.
+
+The ZIP holds `data.json` (all text) plus photos as normal image files:
+
+```
+data.json
 logo.png
 photos/Line 1/Widget A/product-1.jpg
-photos/Line 1/Widget A/packaging-1.jpg
 photos/Line 1/Widget A/step-2.jpg
 photos/Machines/Press 3/panel-1.jpg
 ```
 
-`data.json` refers to each photo by its path. **Import** reads the ZIP, puts every
-photo back in place and replaces all current data (after asking).
+You can replace a photo inside the ZIP with a better one (keep the same file name).
+A ZIP re-saved by Windows, macOS or other tools, even inside an extra folder, still
+imports. Older `.json` backups still import.
 
-- You can replace a photo inside the ZIP with a better one: keep the same file name.
-  Any image type works; it is converted for the PDF if needed.
-- A photo missing from the ZIP is left empty and the import tells you how many.
-- A ZIP re-saved by Windows, macOS or other tools, even inside an extra folder,
-  still imports.
-- Older `.json` backups still import.
+### Import
 
-**Backup reminder:** the home page shows when you last exported a backup. If it
-was 7 or more days ago (or never), a reminder box with an **Export backup** button
-appears at the top.
+Press **Choose files** (one or several files) — or **Import backup** on the Welcome
+screen. The page shows what is inside as the same kind of tree, with each item marked
+**new** or **already exists**. Tick what to import, then press **Import selected**.
 
-**Share products and machines:** export them as a file another person can import.
-
-| What | Where | File name |
-|---|---|---|
-| One product or machine | its page: **Export this product / machine** | `Widget A - product - YYYY-MM-DD.zip` |
-| A whole product line | the line's page: **Export this line** | `Line 1 - line - YYYY-MM-DD.zip` |
-| A whole department | home page: **Share a department** | `Press Shop - department - YYYY-MM-DD.zip` |
-
-In the other app, press **Import** on the home page. You can select **several files
-at once**. Shared items are **added** to the existing data, not replacing it:
-
+- **Full backup file:** choose **Replace all current data with this backup**, or
+  **Add only what I tick** to the current data.
+- **When an item already exists:** replace it, or keep both (the imported one gets
+  "(imported)", then "(imported 2)" and so on).
 - Products go into the product line with the same name; it is created if missing.
-- The department is matched by name, and added to the company details if missing.
-- If one with the same name already exists there, you choose: replace it, or keep both
-  (the new one gets "(imported)").
-- A full backup must be imported on its own; if it is selected together with other
-  files, it is skipped and you are told.
+  Departments are matched by name and added if missing.
+- **Company details and logo**, when ticked, replace the company name and logo and
+  add any missing departments. For full backups in "add" mode this is unticked by
+  default.
+- Photos missing from a file are left empty and the page says how many.
+
+### Backup reminder
+
+The home page shows when you last exported a full backup. After 7 days (or if you
+never have), a reminder box with an **Export backup** button appears at the top.
 
 ## Tests
 

@@ -3,9 +3,15 @@
 // deptName, fmtBytes, backup helpers) come from js/utils.js, Store from
 // js/storage.js and Zip from js/zip.js, all loaded first.
 const $ = (s) => document.querySelector(s);
-// Screens: T = "co" company setup, "h" home, "p" products, "m" machines.
+// Screens: T = "co" company setup, "h" home, "p" products, "m" machines,
+// "x" export & import.
 let S = { lines: [], machines: [] },
   V = { l: null, p: null },
+  // Export & import page: export ticks, pending import, collapsed tree groups, result message
+  EXS = new Set(),
+  IMP = null,
+  COL = new Set(),
+  XMSG = "",
   T = "h",
   MID = null;
 // Set up state from saved data (see the Store.load() call at the end).
@@ -94,17 +100,8 @@ ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was
 <h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
-<h2>Backup</h2><p class="m">Export saves everything, photos included, as one .zip file. Last backup: <b>${agoText(S.lastBackup)}</b>.</p><p class="m">Import restores a backup, or adds products and machines someone shared with you. You can pick several shared files at once.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import<input type="file" accept=".zip,.json,application/zip,application/json" multiple hidden data-imp="1"></label></div>
-${
-  S.co.depts.some((d) => d.name.trim())
-    ? `<h2>Share a department</h2><p class="m">Export every product and machine in one department as one file.</p><div class="row"><select id="exDept" aria-label="Department to export">${S.co.depts
-        .filter((d) => d.name.trim())
-        .map((d) => `<option value="${esc(d.id)}">${esc(d.name)}</option>`)
-        .join(
-          "",
-        )}</select><button class="b2" data-a="exDept" style="white-space:nowrap">Export department</button></div>`
-    : ""
-}<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
+<h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
+<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
   [p.code, deptName(deptOf(p, S.co), S.co)]
@@ -133,7 +130,9 @@ const MV = () =>
   add("Machine name", "addM");
 function R(keep) {
   let h = "";
-  if (T == "co") {
+  if (T == "x") {
+    h = XV();
+  } else if (T == "co") {
     h = CoV();
   } else if (T == "h") {
     h = HomeV();
@@ -193,6 +192,9 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
 <div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
   $("#app").innerHTML = h;
+  document
+    .querySelectorAll("[data-ind]")
+    .forEach((e) => (e.indeterminate = true));
   if (!keep) window.scrollTo(0, 0);
   if (T == "h") showStorage();
 }
@@ -404,16 +406,25 @@ document.addEventListener("click", (e) => {
       t,
     );
     return;
-  } else if (a == "exDept") {
-    const d = S.co.depts.find((x) => x.id == $("#exDept").value),
-      list = d ? deptItems(S, d.id) : [];
-    if (!list.length)
-      return alert("There are no products or machines in this department yet.");
-    exportZip(
-      planItems(list),
-      `${safeName(d.name, "Department")} - department - ${dateStamp()}.zip`,
-      t,
-    );
+  } else if (a == "goX") {
+    T = "x";
+    EXS = new Set(exGroup("all"));
+    IMP = null;
+    XMSG = "";
+  } else if (a == "tgl") {
+    COL.has(t.dataset.g) ? COL.delete(t.dataset.g) : COL.add(t.dataset.g);
+    R(true);
+    $(`[data-a=tgl][data-g="${CSS.escape(t.dataset.g)}"]`).focus();
+    return;
+  } else if (a == "xExport") {
+    exportSelected(t);
+    return;
+  } else if (a == "iDo") {
+    applyImport();
+    return;
+  } else if (a == "iCancel") {
+    IMP = null;
+    R(true);
     return;
   } else if (a == "exItem") {
     const p = P(),
@@ -491,7 +502,29 @@ document.addEventListener("change", async (e) => {
   if (t.dataset.imp) {
     const files = [...t.files];
     t.value = "";
-    if (files.length) await importFiles(files);
+    if (files.length) await loadImport(files);
+    return;
+  }
+  // Tree tick boxes: a single item (data-k) or a whole group (data-g).
+  if (t.dataset.ck || t.dataset.cg) {
+    const m = t.dataset.ck || t.dataset.cg,
+      set = m == "x" ? EXS : IMP.sel,
+      keys = t.dataset.ck
+        ? [t.dataset.k]
+        : (m == "x" ? exGroup : impGroup)(t.dataset.g),
+      sel = t.dataset.ck
+        ? `[data-ck="${m}"][data-k="${CSS.escape(t.dataset.k)}"]`
+        : `[data-cg="${m}"][data-g="${CSS.escape(t.dataset.g)}"]`;
+    keys.forEach((k) => (t.checked ? set.add(k) : set.delete(k)));
+    R(true);
+    const el = $(sel);
+    if (el) el.focus();
+    return;
+  }
+  if (t.name == "imode" || t.name == "iclash") {
+    IMP[t.name == "imode" ? "mode" : "clash"] = t.value;
+    R(true);
+    $(`input[name="${t.name}"][value="${t.value}"]`).focus();
     return;
   }
   if (!t.dataset.up) return;
@@ -612,11 +645,271 @@ async function readFile(f) {
   return { data, missing };
 }
 
-const plural = (n, one, many) => `${n} ${n == 1 ? one : many}`;
+// ---------- Export & import page ----------
 
-// Import one or more files. A full backup replaces everything (one file at a
-// time); shared products and machines are added to the current data.
-async function importFiles(files) {
+const ACCEPT_IMP = ".zip,.json,application/zip,application/json";
+const imgBytes = (p) =>
+  [...(p.prod || []), ...(p.pack || []), ...(p.steps || []).map((s) => s.img)]
+    .filter(Boolean)
+    .reduce((a, v) => a + v.length * 0.75, 0);
+const itemSub = (p, dept) =>
+  [p.code, dept]
+    .filter((x) => String(x || "").trim())
+    .map(esc)
+    .join(" · ");
+const count = (n, one, many) => `${n} ${n == 1 ? one : many}`;
+
+// Export keys: "co" company details, "p:<id>" product, "m:<id>" machine.
+function exGroup(g) {
+  const prods = S.lines.flatMap((l) => l.products.map((p) => "p:" + p.id)),
+    machs = S.machines.map((m) => "m:" + m.id);
+  if (g == "all") return ["co", ...prods, ...machs];
+  if (g == "products") return prods;
+  if (g == "machines") return machs;
+  const l = S.lines.find((x) => "line:" + x.id == g);
+  return l ? l.products.map((p) => "p:" + p.id) : [];
+}
+// Import keys: "co" company details, "i:<n>" the n-th item in the files.
+function impGroup(g) {
+  if (!IMP) return [];
+  const idx = IMP.packs.map((pk, i) => ({ pk, k: "i:" + i }));
+  if (g == "all")
+    return [...(IMP.company ? ["co"] : []), ...idx.map((x) => x.k)];
+  if (g == "products")
+    return idx.filter((x) => x.pk.kind == "product").map((x) => x.k);
+  if (g == "machines")
+    return idx.filter((x) => x.pk.kind == "machine").map((x) => x.k);
+  return idx
+    .filter((x) => x.pk.kind == "product" && "line:" + lineKey(x.pk.line) == g)
+    .map((x) => x.k);
+}
+const lineKey = (n) => (String(n || "").trim() || "Imported").toLowerCase();
+
+// Tree with tick boxes. Node: { key } for an item, or { group, children } for a
+// group. A group is ticked when all its items are, and shows a dash when some are.
+function tree(nodes, mode, sel, groupFn, disabled) {
+  const node = (n) => {
+    const keys = n.group ? groupFn(n.group) : [n.key],
+      on = keys.length > 0 && keys.every((k) => sel.has(k)),
+      some = keys.some((k) => sel.has(k)),
+      kids = n.children || [],
+      cg = mode + "|" + n.group,
+      open = !COL.has(cg),
+      box = `<input type="checkbox" ${n.group ? `data-cg="${mode}" data-g="${esc(n.group)}"` : `data-ck="${mode}" data-k="${esc(n.key)}"`}${on ? " checked" : ""}${!on && some ? ' data-ind="1"' : ""}${disabled || !keys.length ? " disabled" : ""}>`,
+      tg = kids.length
+        ? `<button class="tg" data-a="tgl" data-g="${esc(cg)}" aria-expanded="${open}" aria-label="${open ? "Collapse" : "Expand"}">${open ? "▾" : "▸"}</button>`
+        : `<span class="tg"></span>`;
+    return `<li><div class="tr">${tg}<label>${box}<span>${n.label}</span>${n.sub ? `<span class="m">${n.sub}</span>` : ""}${n.badge || ""}</label></div>${kids.length && open ? `<ul>${kids.map(node).join("")}</ul>` : ""}</li>`;
+  };
+  return `<ul class="tree">${nodes.map(node).join("")}</ul>`;
+}
+
+function exNodes() {
+  const np = S.lines.reduce((a, l) => a + l.products.length, 0);
+  return [
+    {
+      group: "all",
+      label: "<b>Everything</b>",
+      sub: "full backup",
+      children: [
+        { key: "co", label: "Company details and logo", sub: esc(S.co.name) },
+        {
+          group: "products",
+          label: "Products",
+          sub: `${count(S.lines.length, "line", "lines")} · ${count(np, "product", "products")}`,
+          children: S.lines.map((l) => ({
+            group: "line:" + l.id,
+            label: esc(l.name),
+            sub: count(l.products.length, "product", "products"),
+            children: l.products.map((p) => ({
+              key: "p:" + p.id,
+              label: esc(p.name),
+              sub: itemSub(p, deptName(deptOf(p, S.co), S.co)),
+            })),
+          })),
+        },
+        {
+          group: "machines",
+          label: "Machines",
+          sub: count(S.machines.length, "machine", "machines"),
+          children: S.machines.map((m) => ({
+            key: "m:" + m.id,
+            label: esc(m.name),
+            sub: itemSub(m, deptName(deptOf(m, S.co), S.co)),
+          })),
+        },
+      ],
+    },
+  ];
+}
+
+function impNodes() {
+  const badge = (pk) =>
+    findExisting(S, pk)
+      ? `<span class="bd">already exists</span>`
+      : `<span class="bd new">new</span>`;
+  const item = (pk, i) => ({
+    key: "i:" + i,
+    label: esc(pk.item.name || "Untitled"),
+    sub: itemSub(pk.item, pk.dept),
+    badge: badge(pk),
+  });
+  const lines = new Map();
+  IMP.packs.forEach((pk, i) => {
+    if (pk.kind != "product") return;
+    const k = lineKey(pk.line);
+    if (!lines.has(k))
+      lines.set(k, {
+        name: String(pk.line || "").trim() || "Imported",
+        items: [],
+      });
+    lines.get(k).items.push(item(pk, i));
+  });
+  const machs = IMP.packs
+    .map((pk, i) => [pk, i])
+    .filter(([pk]) => pk.kind == "machine");
+  const kids = [];
+  if (IMP.company)
+    kids.push({
+      key: "co",
+      label: "Company details and logo",
+      sub: esc(
+        [IMP.company.name, ...IMP.company.depts].filter(Boolean).join(" · "),
+      ),
+    });
+  if (lines.size)
+    kids.push({
+      group: "products",
+      label: "Products",
+      children: [...lines].map(([k, l]) => ({
+        group: "line:" + k,
+        label: esc(l.name),
+        sub: count(l.items.length, "product", "products"),
+        children: l.items,
+      })),
+    });
+  if (machs.length)
+    kids.push({
+      group: "machines",
+      label: "Machines",
+      children: machs.map(([pk, i]) => item(pk, i)),
+    });
+  return [
+    {
+      group: "all",
+      label:
+        "<b>Everything in the file" +
+        (IMP.names.length > 1 ? "s" : "") +
+        "</b>",
+      children: kids,
+    },
+  ];
+}
+
+function XV() {
+  // Export summary
+  const prods = S.lines
+      .flatMap((l) => l.products)
+      .filter((p) => EXS.has("p:" + p.id)),
+    machs = S.machines.filter((m) => EXS.has("m:" + m.id)),
+    co = EXS.has("co"),
+    all = exGroup("all").every((k) => EXS.has(k)),
+    bytes =
+      [...prods, ...machs].reduce((a, p) => a + imgBytes(p), 0) +
+      (co && S.logo ? S.logo.length * 0.75 : 0),
+    picked = [
+      prods.length && count(prods.length, "product", "products"),
+      machs.length && count(machs.length, "machine", "machines"),
+      co && "company details",
+    ].filter(Boolean);
+  let h =
+    `<button class="lk" data-a="goHome">← Home</button><h1>Export &amp; import</h1>` +
+    (XMSG ? `<p class="ok" role="status">${XMSG}</p>` : "") +
+    `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
+    tree(exNodes(), "x", EXS, exGroup, false) +
+    `<p class="m" role="status">${picked.length ? `Selected: ${picked.join(", ")}${all ? " (full backup)" : ""} · about ${fmtBytes(bytes + 2048)}` : "Nothing selected."}</p>
+<div class="row"><button class="b" data-a="xExport"${picked.length ? "" : " disabled"}>${all ? "Export full backup" : "Export selected"}</button></div>`;
+
+  h += `<h2 id="imp">Import</h2>`;
+  if (!IMP) {
+    h += `<p class="m">Choose one or more .zip files (or older .json backups). You will see what is inside and can tick what to import.</p><label class="b2">Choose files<input type="file" accept="${ACCEPT_IMP}" multiple hidden data-imp="1"></label>`;
+    return h;
+  }
+  const notes = [];
+  if (IMP.bad.length)
+    notes.push(
+      `Not a valid backup or export, skipped: ${esc(IMP.bad.join(", "))}`,
+    );
+  if (IMP.missing)
+    notes.push(
+      `${count(IMP.missing, "photo was", "photos were")} not found in the file${IMP.names.length > 1 ? "s" : ""} and will be left empty.`,
+    );
+  h +=
+    `<p class="m">From: <b>${esc(IMP.names.join(", "))}</b></p>` +
+    notes.map((n) => `<p class="err">${n}</p>`).join("");
+  if (!IMP.packs.length && !IMP.company) {
+    return (
+      h +
+      `<div class="row"><button class="b2" data-a="iCancel">Choose other files</button></div>`
+    );
+  }
+  if (IMP.full)
+    h += `<div class="radios"><label><input type="radio" name="imode" value="replace"${IMP.mode == "replace" ? " checked" : ""}> Replace all current data with this backup</label><label><input type="radio" name="imode" value="merge"${IMP.mode == "merge" ? " checked" : ""}> Add only what I tick below to the current data</label></div>`;
+  const merge = IMP.mode == "merge";
+  h += tree(impNodes(), "i", IMP.sel, impGroup, !merge);
+  if (merge)
+    h += `<p class="m">When an item already exists:</p><div class="radios"><label><input type="radio" name="iclash" value="replace"${IMP.clash == "replace" ? " checked" : ""}> Replace it with the imported one</label><label><input type="radio" name="iclash" value="keep"${IMP.clash == "keep" ? " checked" : ""}> Keep both (the imported one gets "(imported)")</label></div>`;
+  return (
+    h +
+    `<div class="row" style="flex-wrap:wrap"><button class="b" data-a="iDo">${merge ? "Import selected" : "Replace all data"}</button><button class="b2" data-a="iCancel">Cancel</button></div>`
+  );
+}
+
+async function exportSelected(btn) {
+  const list = [
+      ...S.lines.flatMap((l) =>
+        l.products
+          .filter((p) => EXS.has("p:" + p.id))
+          .map((p) => ({
+            p,
+            kind: "product",
+            line: l.name,
+            dept: deptName(deptOf(p, S.co), S.co),
+          })),
+      ),
+      ...S.machines
+        .filter((m) => EXS.has("m:" + m.id))
+        .map((p) => ({
+          p,
+          kind: "machine",
+          line: "",
+          dept: deptName(deptOf(p, S.co), S.co),
+        })),
+    ],
+    co = EXS.has("co");
+  if (!list.length && !co) return alert("Tick at least one thing to export.");
+  if (exGroup("all").every((k) => EXS.has(k)))
+    return exportZip(
+      planBackup(S),
+      `setup-procedures-backup-${dateStamp()}.zip`,
+      btn,
+      () => {
+        S.lastBackup = Date.now();
+        save();
+      },
+    );
+  const one = list.length == 1 && !co;
+  exportZip(
+    planItems(list, co ? { co: S.co, logo: S.logo } : null),
+    one
+      ? `${safeName(list[0].p.name, list[0].kind)} - ${list[0].kind} - ${dateStamp()}.zip`
+      : `setup-procedures-export-${dateStamp()}.zip`,
+    btn,
+  );
+}
+
+// Read the chosen files and show what is in them on the Export & import page.
+async function loadImport(files) {
   document.body.style.cursor = "progress";
   const read = [];
   try {
@@ -625,95 +918,86 @@ async function importFiles(files) {
     document.body.style.cursor = "";
   }
   const packs = [],
-    fulls = [],
-    bad = [];
-  let missing = 0;
+    bad = [],
+    fulls = [];
+  let company = null,
+    missing = 0;
   for (const r of read) {
-    const items = itemPacks(r.data);
-    if (items) {
-      packs.push(...items);
-      missing += r.missing;
-    } else if (parseBackup(r.data)) fulls.push(r);
-    else bad.push(r.name);
+    const c = fileContents(r.data);
+    if (!c) {
+      bad.push(r.name);
+      continue;
+    }
+    packs.push(...c.packs);
+    if (c.company && !company) company = c.company;
+    if (c.full) fulls.push(c.full);
+    missing += r.missing;
   }
-  const notes = [];
-  if (bad.length) notes.push(`Not a valid backup or export: ${bad.join(", ")}`);
-  if (fulls.length && read.length > 1) {
-    notes.push(
-      `Full backups must be imported on their own, so these were skipped: ${fulls.map((r) => r.name).join(", ")}`,
-    );
-    fulls.length = 0;
-  }
+  const full = read.length == 1 && fulls.length == 1 ? fulls[0] : null;
+  IMP = {
+    names: read.map((r) => r.name),
+    packs,
+    company,
+    full,
+    bad,
+    missing,
+    mode: full ? "replace" : "merge",
+    clash: "replace",
+    sel: new Set(),
+  };
+  impGroup("all").forEach((k) => IMP.sel.add(k));
+  // Company details from a full backup are not ticked by default when adding.
+  if (fulls.length) IMP.sel.delete("co");
+  if (T != "x") EXS = new Set(exGroup("all"));
+  XMSG = "";
+  T = "x";
+  R(true);
+  const el = $("#imp");
+  if (el) el.scrollIntoView({ block: "start" });
+}
 
-  // A full backup: replace everything.
-  if (fulls.length) {
-    const r = fulls[0],
-      b = parseBackup(r.data),
-      note = r.missing
-        ? `\n\n${plural(r.missing, "photo was", "photos were")} not found in the file and left empty.`
-        : "";
-    if (!confirm("Replace all current data with this backup?" + note)) return;
-    S = b;
-    S.lastBackup = Date.now(); // this data is already in a backup file
-    await writeNow();
-    T = S.co.done ? "h" : "co";
-    MID = null;
-    V = { l: null, p: null };
-    R();
-    return;
-  }
-
-  // Shared products and machines: add them.
-  if (packs.length) {
-    const list = packs
-      .slice(0, 12)
-      .map(
-        (x) =>
-          `• ${x.item.name} (${x.kind == "machine" ? "machine" : `product, line "${x.line || "Imported"}"`})`,
-      )
-      .join("\n");
-    const more = packs.length > 12 ? `\n…and ${packs.length - 12} more` : "",
-      note = missing
-        ? `\n\n${plural(missing, "photo was", "photos were")} not found and will be left empty.`
-        : "";
+async function applyImport() {
+  let msg;
+  if (IMP.mode == "replace" && IMP.full) {
     if (
       !confirm(
-        `Add ${plural(packs.length, "item", "items")}?\n\n${list}${more}${note}`,
+        "Replace ALL current data with this backup? This cannot be undone.",
       )
-    ) {
-      if (notes.length) alert(notes.join("\n\n"));
+    )
       return;
-    }
-    const res = packs.map((pk) =>
-      addItem(S, pk, (name, where) =>
-        confirm(
-          `"${name}" already exists in ${where}.\n\nOK = replace it with the imported one\nCancel = keep both`,
-        ),
+    S = IMP.full;
+    S.lastBackup = Date.now(); // this data is already in a backup file
+    msg = "All data was replaced with the backup.";
+  } else {
+    const chosen = IMP.packs.filter((_, i) => IMP.sel.has("i:" + i)),
+      co = IMP.company && IMP.sel.has("co");
+    if (!chosen.length && !co)
+      return alert("Tick at least one thing to import.");
+    if (co) mergeCompany(S, IMP.company);
+    const res = chosen.map((pk) =>
+        addItem(S, pk, () => IMP.clash == "replace"),
       ),
-    );
-    if (!(await writeNow())) return;
-    if (res.length == 1) {
-      const r = res[0];
-      if (r.kind == "machine") {
-        T = "m";
-        MID = r.item.id;
-      } else {
-        T = "p";
-        V = { l: r.lineId, p: r.item.id };
-      }
-    } else {
-      const rep = res.filter((r) => r.replaced).length;
-      notes.unshift(
-        `Added ${plural(res.length - rep, "item", "items")}` +
-          (rep ? `, replaced ${rep}.` : "."),
-      );
-      T = "h";
-      MID = null;
-      V = { l: null, p: null };
-    }
-    R();
+      rep = res.filter((r) => r.replaced).length;
+    msg =
+      [
+        res.length - rep && `${count(res.length - rep, "item", "items")} added`,
+        rep && `${rep} replaced`,
+        co && "company details updated",
+      ]
+        .filter(Boolean)
+        .join(", ") + ".";
+    msg = msg[0].toUpperCase() + msg.slice(1);
   }
-  if (notes.length) alert(notes.join("\n\n"));
+  // Finishing the company setup when importing from the Welcome screen.
+  if (!S.co.done && S.co.name.trim()) {
+    S.co.depts = S.co.depts.filter((d) => d.name.trim());
+    S.co.done = true;
+  }
+  if (!(await writeNow())) return;
+  IMP = null;
+  XMSG = esc(msg);
+  EXS = new Set(exGroup("all"));
+  R();
 }
 
 async function dl(name, data) {

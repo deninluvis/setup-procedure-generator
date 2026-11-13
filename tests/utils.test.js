@@ -203,6 +203,8 @@ test('addItem with a name clash replaces or keeps both', () => {
   const kept = addItem(S, pk, () => false);
   assert.equal(S.machines.length, 2);
   assert.equal(kept.item.name, 'press: 3/4 (imported)');
+  assert.equal(addItem(S, pk, () => false).item.name, 'press: 3/4 (imported 2)');
+  S.machines.pop();
   const rep = addItem(S, pk, (name, where) => where == 'Machines');
   assert.equal(rep.replaced, true);
   assert.equal(S.machines.length, 2);
