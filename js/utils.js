@@ -28,11 +28,41 @@ const parseBackup = (j) => {
   };
   if (typeof j.logo == "string" && j.logo.startsWith("data:image/"))
     b.logo = j.logo;
-  const co = j.co && typeof j.co == "object" ? j.co : {};
-  b.co = { name: String(co.name ?? ""), dept: String(co.dept ?? "") };
-  if (co.done && b.co.name.trim()) b.co.done = true;
+  b.co = normCo(j.co);
   return b;
 };
 
+// Normalize company details to { name, depts: [{id, name}], done? }.
+// Older data stored a single department as the string co.dept.
+const normCo = (co) => {
+  co = co && typeof co == "object" ? co : {};
+  const out = { name: String(co.name ?? ""), depts: [] };
+  if (Array.isArray(co.depts))
+    out.depts = co.depts
+      .filter((d) => d && typeof d == "object")
+      .map((d) => ({ id: String(d.id || id()), name: String(d.name ?? "") }));
+  else if (String(co.dept ?? "").trim())
+    out.depts = [{ id: "d1", name: String(co.dept).trim() }];
+  if (co.done && out.name.trim()) out.done = true;
+  return out;
+};
+
+// Department id for a product/machine. Older items (no dept field) use the first one.
+const deptOf = (p, co) =>
+  p.dept === undefined ? (co.depts[0] || {}).id || "" : p.dept;
+
+// Department name for an id, or "" when none or deleted.
+const deptName = (deptId, co) =>
+  (co.depts.find((d) => d.id == deptId) || {}).name || "";
+
 if (typeof module !== "undefined")
-  module.exports = { id, esc, parseBackup, toMinutes, fmtTime };
+  module.exports = {
+    id,
+    esc,
+    parseBackup,
+    toMinutes,
+    fmtTime,
+    normCo,
+    deptOf,
+    deptName,
+  };

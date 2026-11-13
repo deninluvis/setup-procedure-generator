@@ -1,6 +1,6 @@
 // Setup Procedures app: state, rendering, event handling and PDF export.
-// Helpers (id, esc, parseBackup, toMinutes, fmtTime) come from js/utils.js,
-// loaded first.
+// Helpers (id, esc, parseBackup, toMinutes, fmtTime, normCo, deptOf,
+// deptName) come from js/utils.js, loaded first.
 const $ = (s) => document.querySelector(s);
 let S = { lines: [] };
 try {
@@ -8,7 +8,8 @@ try {
 } catch (e) {}
 S.machines = S.machines || [];
 S.lines = S.lines || [];
-S.co = S.co || { name: "", dept: "" };
+S.co = normCo(S.co);
+if (!S.co.done && !S.co.depts.length) S.co.depts = [{ id: id(), name: "" }];
 // Screens: T = "co" company setup, "h" home, "p" products, "m" machines.
 let V = { l: null, p: null },
   T = S.co.done ? "h" : "co",
@@ -44,7 +45,9 @@ const CoV = () => {
     `<h1>${first ? "Welcome" : "Company details"}</h1><p class="m">${first ? "Set up your company first. These details appear on every PDF." : "These details appear on every PDF."}</p>
 <h2>Company logo</h2>${logoField()}
 <label class="f">Company name<input data-co="name" value="${esc(S.co.name)}" placeholder="e.g. ACME Manufacturing"></label>
-<label class="f">Department name<input data-co="dept" value="${esc(S.co.dept)}" placeholder="e.g. Assembly"></label>
+<span class="f">Departments</span><p class="m">Add each department. You pick one for every product and machine.</p>
+${S.co.depts.map((d, i) => `<div class="drow"><input data-dept="${i}" value="${esc(d.name)}" placeholder="e.g. Assembly" aria-label="Department name"><button class="sm" data-a="rmDept" data-i="${i}" aria-label="Remove department">✕</button></div>`).join("")}
+<button class="b2" data-a="addDept">＋ Add department</button>
 <p class="err" id="coErr" hidden>Enter the company name to continue.</p>
 <div class="row"><button class="b" data-a="coDone">${first ? "Continue" : "Save"}</button></div>
 ${first ? `<p class="m">Moving from another computer? <label class="lk">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></p>` : ""}`
@@ -53,17 +56,34 @@ ${first ? `<p class="m">Moving from another computer? <label class="lk">Import b
 // Home page: company header, then pick Products or Machines.
 const nProducts = () => S.lines.reduce((a, l) => a + l.products.length, 0);
 const HomeV = () =>
-  `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.dept ? `<p class="m">${esc(S.co.dept)}</p>` : ""}</div></div>
+  `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div>
 <button class="lk" data-a="editCo">Edit company details</button>
 <h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Backup</h2><p class="m">Save a copy of everything, or restore one.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
+// "CODE · Department · " prefix for list cards (empty parts skipped).
+const cardMeta = (p) =>
+  [p.code, deptName(deptOf(p, S.co), S.co)]
+    .filter((x) => String(x || "").trim())
+    .map((x) => esc(x) + " · ")
+    .join("");
+// Department picker on the product/machine page.
+const deptSel = (p) => {
+  const cur = deptOf(p, S.co);
+  return `<label class="f">Department<select data-f="dept"><option value="">— No department —</option>${S.co.depts
+    .filter((d) => d.name.trim())
+    .map(
+      (d) =>
+        `<option value="${esc(d.id)}"${d.id == cur ? " selected" : ""}>${esc(d.name)}</option>`,
+    )
+    .join("")}</select></label>`;
+};
 const MV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
   S.machines
     .map(
       (m) =>
-        `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)}</b><span class="m">${esc(m.code)} · ${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
+        `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)}</b><span class="m">${cardMeta(m)}${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
     )
     .join("") +
   add("Machine name", "addM");
@@ -92,7 +112,7 @@ function R(keep) {
       l.products
         .map(
           (p) =>
-            `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)}</b><span class="m">${esc(p.code)} · ${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
+            `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)}</b><span class="m">${cardMeta(p)}${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
       add("Product name", "addP") +
@@ -106,6 +126,7 @@ function R(keep) {
         : `<button class="lk" data-a="openL" data-id="${V.l}">← ${esc(L().name)}</button>`) +
       `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>
 <label class="f">${mm ? "Machine name" : "Product name"}<input data-f="name" value="${esc(p.name)}"></label>
+${deptSel(p)}
 <div class="two"><label class="f">${mm ? "Machine ID / asset no." : "Product code"}<input data-f="code" value="${esc(p.code)}"></label><label class="f">Revision<input data-f="rev" value="${esc(p.rev)}"></label></div>
 <h2>${mm ? "Machine photos" : "Product photos"}</h2>${gal(p.prod, "prod")}
 <h2>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</h2>${gal(p.pack, "pack")}
@@ -170,6 +191,7 @@ document.addEventListener("click", (e) => {
     const p = {
       id: id(),
       name: nw.trim(),
+      dept: (S.co.depts.find((d) => d.name.trim()) || {}).id || "",
       code: "",
       rev: "1",
       date: new Date().toISOString().slice(0, 10),
@@ -223,12 +245,41 @@ document.addEventListener("click", (e) => {
     V = { l: null, p: null };
   } else if (a == "editCo") {
     T = "co";
+  } else if (a == "addDept") {
+    S.co.depts.push({ id: id(), name: "" });
+    save();
+    R(true);
+    const ins = document.querySelectorAll("[data-dept]");
+    ins[ins.length - 1].focus();
+    return;
+  } else if (a == "rmDept") {
+    const d = S.co.depts[i],
+      used = [...S.machines, ...S.lines.flatMap((l) => l.products)].some(
+        (p) => deptOf(p, S.co) == d.id,
+      );
+    if (
+      used &&
+      !confirm(
+        `Remove "${d.name}"? Products and machines using it will have no department.`,
+      )
+    )
+      return;
+    // Pin older items to their current department before the list changes.
+    [...S.machines, ...S.lines.flatMap((l) => l.products)].forEach((p) => {
+      if (p.dept === undefined) p.dept = deptOf(p, S.co);
+    });
+    S.co.depts.splice(i, 1);
   } else if (a == "coDone") {
     if (!S.co.name.trim()) {
       $("#coErr").hidden = false;
       $("[data-co=name]").focus();
       return;
     }
+    // Drop empty departments, pinning older items to their department first.
+    [...S.machines, ...S.lines.flatMap((l) => l.products)].forEach((p) => {
+      if (p.dept === undefined) p.dept = deptOf(p, S.co);
+    });
+    S.co.depts = S.co.depts.filter((d) => d.name.trim());
     S.co.done = true;
     T = "h";
   } else if (a == "mhome") {
@@ -240,6 +291,7 @@ document.addEventListener("click", (e) => {
     const m = {
       id: id(),
       name: nw.trim(),
+      dept: (S.co.depts.find((d) => d.name.trim()) || {}).id || "",
       code: "",
       rev: "1",
       date: new Date().toISOString().slice(0, 10),
@@ -261,7 +313,11 @@ document.addEventListener("click", (e) => {
       )
     )
       return;
-    S = { lines: [], machines: [], co: { name: "", dept: "" } };
+    S = {
+      lines: [],
+      machines: [],
+      co: { name: "", depts: [{ id: id(), name: "" }] },
+    };
     T = "co";
     MID = null;
     try {
@@ -279,6 +335,11 @@ document.addEventListener("input", (e) => {
   const t = e.target;
   if (t.dataset.co) {
     S.co[t.dataset.co] = t.value;
+    save();
+    return;
+  }
+  if (t.dataset.dept !== undefined) {
+    S.co.depts[+t.dataset.dept].name = t.value;
     save();
     return;
   }
@@ -448,7 +509,7 @@ async function mkPdf() {
     d.addImage(S.logo, "PNG", W - M - lw, M, lw, lh);
   }
   // Top line: company · department · Setup procedure
-  const top = [S.co.name, S.co.dept, "Setup procedure"]
+  const top = [S.co.name, deptName(deptOf(p, S.co), S.co), "Setup procedure"]
     .map((x) => String(x || "").trim())
     .filter(Boolean)
     .join("  ·  ");
@@ -489,9 +550,23 @@ async function mkPdf() {
     gal(p.pack);
   }
   sec("Procedure");
+  // Height of wrapped text, matching para() below.
+  const textH = (t, w, sz, bd) => {
+    d.setFont("helvetica", bd ? "bold" : "normal");
+    d.setFontSize(sz);
+    return d.splitTextToSize(t, w).length * sz * 0.46;
+  };
   p.steps.forEach((s, i) => {
-    need(16);
-    const y0 = y;
+    // Keep a step's headline, text and photo together on one page when they
+    // fit on a page; otherwise start it on a new page if it is near the bottom.
+    let sh = 0;
+    if (s.h) sh += textH(s.h, CW - 9, 11.5, 1) + 1;
+    if (s.t) sh += textH(s.t, CW - 9, 10.5, 0);
+    if (s.img) sh += 2 + fit(s.img, 100, 75)[1];
+    sh = Math.max(sh, 7);
+    need(sh <= B - (M + 4) ? sh : 16);
+    const y0 = y,
+      pg = d.getNumberOfPages();
     d.setFont("helvetica", "bold");
     d.setFontSize(12);
     tc(K);
@@ -508,7 +583,8 @@ async function mkPdf() {
       box(s.img, M + 9, w, h);
       y += h;
     }
-    if (y < y0 + 7) y = y0 + 7;
+    // Minimum step height, only if the step did not run onto a new page.
+    if (d.getNumberOfPages() == pg && y < y0 + 7) y = y0 + 7;
     y += 6;
   });
   y += 4;

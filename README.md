@@ -3,9 +3,9 @@
 Browser-based tool for writing work setup procedures, per product (grouped by line) and per machine.
 
 - Photos of the product/machine and packaging or control panel
-- Step-by-step guides, each with an optional headline and photo
+- Step-by-step guides, each with an optional headline and photo (kept together on one PDF page)
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
-- Company logo, company name and department, set once on first visit and printed on every PDF
+- Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
 - Data is stored in the browser (localStorage); export and import a JSON backup
 
 ## Project structure
@@ -34,13 +34,14 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 ## How to use
 
 1. **First visit:** the Welcome screen asks for your company logo, company name
-   and department name. Press **Continue**. (Moving from another computer? Use
+   and departments (use **+ Add department** for each one). Press **Continue**. (Moving from another computer? Use
    **Import backup** on that screen instead.)
 2. **Home page:** shows your company and two options, **Products** and **Machines**.
-   Use **Edit company details** to change the logo, name or department later.
+   Use **Edit company details** to change the logo or name, or to add, rename or
+   remove departments later.
 3. **Products:** add a product line (for example "Line 1"), then add a product to it.
    **Machines:** add a machine.
-4. Fill in the code or asset number, the revision and photos.
+4. Pick the **Department**, then fill in the code or asset number, the revision and photos.
 5. Add steps. Each step has an optional headline, a description and an optional photo.
    Use ↑ ↓ to reorder.
 6. In **Sign-off**, fill in Time required and Technicians required (or leave them

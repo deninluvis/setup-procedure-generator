@@ -88,6 +88,7 @@ h2 {
   margin: 8px 0;
 }
 input,
+select,
 textarea {
   width: 100%;
   font: inherit;
@@ -285,4 +286,9 @@ textarea {
   .opts {
     grid-template-columns: 1fr;
   }
+}
+.drow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
