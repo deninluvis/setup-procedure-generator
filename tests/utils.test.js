@@ -72,3 +72,94 @@ test('fmtBytes shows KB, MB and GB', () => {
   assert.equal(fmtBytes(12.34 * 1024 * 1024), '12.3 MB');
   assert.equal(fmtBytes(1.5 * 1024 ** 3), '1.5 GB');
 });
+
+const { dateStamp, safeName, imgExt, planBackup, planItem, imgPaths, restoreImgs, addItem } = require('../js/utils.js');
+const JPG = 'data:image/jpeg;base64,AAAA', JPG2 = 'data:image/jpeg;base64,BBBB', PNG = 'data:image/png;base64,CCCC';
+const sample = () => ({
+  co: { name: 'ACME', depts: [{ id: 'a', name: 'Assembly' }], done: true },
+  logo: PNG,
+  lines: [{ id: 'l1', name: 'Line 1', products: [
+    { id: 'p1', name: 'Widget A', dept: 'a', prod: [JPG], pack: [JPG2], steps: [{ t: 'one', img: '' }, { t: 'two', img: JPG }] },
+    { id: 'p2', name: 'Widget A', prod: [], pack: [], steps: [{ t: 'x', img: JPG2 }] },
+  ] }],
+  machines: [{ id: 'm1', name: 'Press: 3/4', prod: [], pack: [JPG2], steps: [] }],
+});
+
+test('dateStamp, safeName and imgExt', () => {
+  assert.equal(dateStamp(new Date(2026, 0, 5)), '2026-01-05');
+  assert.equal(safeName('Press: 3/4*  ', 'X'), 'Press 3 4');
+  assert.equal(safeName(' ..', 'Fallback'), 'Fallback');
+  assert.equal(imgExt(JPG), 'jpg');
+  assert.equal(imgExt(PNG), 'png');
+});
+
+test('planBackup gives readable unique paths and stores each image once', () => {
+  const { data, files } = planBackup(sample());
+  assert.equal(data.format, 'setup-procedures-backup');
+  assert.equal(data.logo, 'logo.png');
+  const [a, b] = data.lines[0].products;
+  assert.deepEqual(a.prod, ['photos/Line 1/Widget A/product-1.jpg']);
+  assert.deepEqual(a.pack, ['photos/Line 1/Widget A/packaging-1.jpg']);
+  assert.equal(a.steps[0].img, '');
+  assert.equal(a.steps[1].img, 'photos/Line 1/Widget A/product-1.jpg'); // same image reused
+  assert.equal(b.steps[0].img, 'photos/Line 1/Widget A/packaging-1.jpg');
+  assert.deepEqual(data.machines[0].pack, ['photos/Line 1/Widget A/packaging-1.jpg']);
+  assert.deepEqual(files.map((f) => f[0]).sort(), ['logo.png', 'photos/Line 1/Widget A/packaging-1.jpg', 'photos/Line 1/Widget A/product-1.jpg']);
+});
+
+test('duplicate names get separate folders', () => {
+  const S = sample();
+  S.lines[0].products[1].prod = ['data:image/jpeg;base64,DDDD'];
+  const { data } = planBackup(S);
+  assert.deepEqual(data.lines[0].products[1].prod, ['photos/Line 1/Widget A (2)/product-1.jpg']);
+});
+
+test('backup round trip: paths back to images, missing ones counted', () => {
+  const S = sample(), { data, files } = planBackup(S);
+  const json = JSON.parse(JSON.stringify(data));
+  assert.equal(imgPaths(json).size, 3);
+  const all = restoreImgs(json, new Map(files));
+  assert.equal(all.missing, 0);
+  assert.deepEqual(all.data.lines, S.lines);
+  assert.deepEqual(all.data.machines, S.machines);
+  assert.equal(all.data.logo, PNG);
+  const some = restoreImgs(json, new Map(files.filter(([p]) => p != 'logo.png')));
+  assert.equal(some.missing, 1);
+  assert.equal('logo' in some.data, false);
+});
+
+test('planItem and restore for a single machine', () => {
+  const S = sample(), { data, files } = planItem(S.machines[0], 'machine', '', 'Assembly');
+  assert.equal(data.format, 'setup-procedures-item');
+  assert.equal(data.kind, 'machine');
+  assert.deepEqual(data.item.pack, ['photos/Press 3 4/panel-1.jpg']);
+  const r = restoreImgs(JSON.parse(JSON.stringify(data)), new Map(files));
+  assert.deepEqual(r.data.item, S.machines[0]);
+});
+
+test('addItem places products by line and department name', () => {
+  const S = sample();
+  const pk = { kind: 'product', line: 'line 1', dept: 'Painting', item: { id: 'x', name: 'Gadget', prod: [], pack: [], steps: [] } };
+  const r = addItem(S, pk, () => assert.fail('no clash expected'));
+  assert.equal(r.lineId, 'l1');
+  assert.notEqual(r.item.id, 'x');
+  assert.equal(S.lines[0].products.length, 3);
+  assert.equal(S.co.depts[1].name, 'Painting'); // new department created
+  assert.equal(r.item.dept, S.co.depts[1].id);
+  const r2 = addItem(S, { ...pk, line: 'New line', dept: 'assembly' }, () => false);
+  assert.equal(S.lines[1].name, 'New line');
+  assert.equal(r2.item.dept, 'a'); // matched existing department, any case
+});
+
+test('addItem with a name clash replaces or keeps both', () => {
+  const S = sample();
+  const pk = { kind: 'machine', item: { name: 'press: 3/4', prod: [], pack: [], steps: [] } };
+  const kept = addItem(S, pk, () => false);
+  assert.equal(S.machines.length, 2);
+  assert.equal(kept.item.name, 'press: 3/4 (imported)');
+  const rep = addItem(S, pk, (name, where) => where == 'Machines');
+  assert.equal(rep.replaced, true);
+  assert.equal(S.machines.length, 2);
+  assert.equal(S.machines[0].id, 'm1'); // keeps its place and id
+  assert.equal(S.machines[0].name, 'press: 3/4');
+});

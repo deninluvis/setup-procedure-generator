@@ -1,7 +1,7 @@
 // Setup Procedures app: state, rendering, event handling and PDF export.
 // Helpers (id, esc, parseBackup, toMinutes, fmtTime, normCo, deptOf,
-// deptName, fmtBytes) come from js/utils.js and Store from js/storage.js,
-// both loaded first.
+// deptName, fmtBytes, backup helpers) come from js/utils.js, Store from
+// js/storage.js and Zip from js/zip.js, all loaded first.
 const $ = (s) => document.querySelector(s);
 // Screens: T = "co" company setup, "h" home, "p" products, "m" machines.
 let S = { lines: [], machines: [] },
@@ -82,7 +82,7 @@ ${S.co.depts.map((d, i) => `<div class="drow"><input data-dept="${i}" value="${e
 <button class="b2" data-a="addDept">＋ Add department</button>
 <p class="err" id="coErr" hidden>Enter the company name to continue.</p>
 <div class="row"><button class="b" data-a="coDone">${first ? "Continue" : "Save"}</button></div>
-${first ? `<p class="m">Moving from another computer? <label class="lk">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></p>` : ""}`
+${first ? `<p class="m">Moving from another computer? <label class="lk">Import backup<input type="file" accept=".zip,.json,application/zip,application/json" hidden data-imp="1"></label></p>` : ""}`
   );
 };
 // Home page: company header, then pick Products or Machines.
@@ -93,7 +93,7 @@ const HomeV = () =>
 <h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
-<h2>Backup</h2><p class="m">Save a copy of everything, or restore one.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
+<h2>Backup</h2><p class="m">Export saves everything, photos included, as one .zip file. Import restores a backup, or adds a single product or machine someone shared with you.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import<input type="file" accept=".zip,.json,application/zip,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
   [p.code, deptName(deptOf(p, S.co), S.co)]
@@ -179,7 +179,7 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
 <p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
 <div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
-<div class="row"><button class="b" data-a="pdf">Download PDF</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
+<div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
   $("#app").innerHTML = h;
   if (!keep) window.scrollTo(0, 0);
@@ -372,7 +372,21 @@ document.addEventListener("click", (e) => {
     S.machines.push(m);
     MID = m.id;
   } else if (a == "bk") {
-    dl("setup-procedures-backup.json", JSON.stringify(S));
+    exportZip(planBackup(S), `setup-procedures-backup-${dateStamp()}.zip`, t);
+    return;
+  } else if (a == "exItem") {
+    const p = P(),
+      kind = T == "m" ? "machine" : "product";
+    exportZip(
+      planItem(
+        p,
+        kind,
+        kind == "product" ? L().name : "",
+        deptName(deptOf(p, S.co), S.co),
+      ),
+      `${safeName(p.name, kind)} - ${kind} - ${dateStamp()}.zip`,
+      t,
+    );
     return;
   } else if (a == "clearAll") {
     if (
@@ -433,21 +447,8 @@ document.addEventListener("change", async (e) => {
   }
   if (t.dataset.imp) {
     const f = t.files[0];
-    if (!f) return;
-    try {
-      const j = JSON.parse(await f.text());
-      const b = parseBackup(j);
-      if (!b) throw 0;
-      if (!confirm("Replace all current data with this backup?")) return;
-      S = b;
-      save();
-      T = S.co.done ? "h" : "co";
-      MID = null;
-      V = { l: null, p: null };
-      R();
-    } catch (x) {
-      alert("That file is not a valid backup.");
-    }
+    t.value = "";
+    if (f) await importFile(f);
     return;
   }
   if (!t.dataset.up) return;
@@ -475,6 +476,139 @@ document.addEventListener("change", async (e) => {
   }
   R(true);
 });
+
+// ---------- Export and import (.zip, or older .json backups) ----------
+
+// Image data -> bytes, and bytes -> image data.
+const dataToBytes = (d) => {
+  const b = atob(d.slice(d.indexOf(",") + 1)),
+    u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+};
+const bytesToData = (bytes, type) =>
+  new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(new Blob([bytes], { type }));
+  });
+// Image type from the file's first bytes (a replaced photo may have any name).
+const sniff = (b) =>
+  b[0] == 0xff && b[1] == 0xd8
+    ? "image/jpeg"
+    : b[0] == 0x89 && b[1] == 0x50
+      ? "image/png"
+      : b[0] == 0x52 && b[8] == 0x57
+        ? "image/webp"
+        : b[0] == 0x47 && b[1] == 0x49
+          ? "image/gif"
+          : b[0] == 0x3c || (b[0] == 0xef && b[3] == 0x3c)
+            ? "image/svg+xml"
+            : "";
+
+// plan: { data, files } from planBackup() or planItem().
+async function exportZip(plan, name, btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Exporting…";
+  try {
+    const files = [
+      {
+        name: "data.json",
+        data: new TextEncoder().encode(JSON.stringify(plan.data, null, 1)),
+      },
+    ];
+    for (const [p, d] of plan.files)
+      files.push({ name: p, data: dataToBytes(d) });
+    await dl(name, Zip.make(files));
+  } catch (e) {
+    alert("Could not create the export file.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+
+async function importFile(f) {
+  let data,
+    missing = 0;
+  document.body.style.cursor = "progress";
+  try {
+    const buf = await f.arrayBuffer();
+    if (Zip.isZip(buf)) {
+      const z = await Zip.read(buf),
+        key = [...z.keys()].find(
+          (k) => /(^|\/)data\.json$/i.test(k) && !k.startsWith("__MACOSX"),
+        );
+      if (!key) throw 0;
+      // The ZIP may have been re-saved inside a folder: paths are relative to data.json.
+      const root = key.slice(0, -"data.json".length),
+        raw = JSON.parse(new TextDecoder().decode(z.get(key))),
+        imgs = new Map();
+      for (const p of imgPaths(raw)) {
+        const b = z.get(root + p);
+        if (!b) continue;
+        const type = sniff(b),
+          logo = p == raw.logo;
+        // Photos must be JPEG and the logo PNG or JPEG for the PDF; convert others.
+        let d =
+          type == "image/jpeg" || (logo && type == "image/png")
+            ? await bytesToData(b, type)
+            : null;
+        if (!d && type)
+          d = await comp(new Blob([b], { type }), logo, logo ? 1000 : 2000);
+        if (d) imgs.set(p, d);
+      }
+      ({ data, missing } = restoreImgs(raw, imgs));
+    } else data = JSON.parse(new TextDecoder().decode(buf));
+  } catch (e) {
+    data = null;
+  } finally {
+    document.body.style.cursor = "";
+  }
+  const note = missing
+    ? `\n\n${missing} photo${missing == 1 ? " was" : "s were"} not found in the file and ${missing == 1 ? "was" : "were"} left empty.`
+    : "";
+
+  // A single product or machine: add it to the current data.
+  if (data && data.format == "setup-procedures-item" && data.item) {
+    const kind = data.kind == "machine" ? "machine" : "product";
+    if (
+      !confirm(
+        `Add the ${kind} "${data.item.name}"${kind == "product" ? ` to the line "${data.line || "Imported"}"` : ""}?` +
+          note,
+      )
+    )
+      return;
+    const r = addItem(S, { ...data, kind }, (name, where) =>
+      confirm(
+        `"${name}" already exists in ${where}.\n\nOK = replace it with the imported one\nCancel = keep both`,
+      ),
+    );
+    if (!(await writeNow())) return;
+    if (kind == "machine") {
+      T = "m";
+      MID = r.item.id;
+    } else {
+      T = "p";
+      V = { l: r.lineId, p: r.item.id };
+    }
+    R();
+    return;
+  }
+
+  // A full backup: replace everything.
+  const b = parseBackup(data);
+  if (!b) return alert("That file is not a valid backup or export.");
+  if (!confirm("Replace all current data with this backup?" + note)) return;
+  S = b;
+  await writeNow();
+  T = S.co.done ? "h" : "co";
+  MID = null;
+  V = { l: null, p: null };
+  R();
+}
 
 async function dl(name, data) {
   try {

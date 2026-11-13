@@ -3,7 +3,7 @@
 // older versions in localStorage is moved to IndexedDB on first load.
 //
 // In IndexedDB each photo is its own record ("img:<id>") and the main record
-// ("state") holds only references, so saving a text change stays small and fast
+// ("state") holds only references (mapImgs is in utils.js), so saving a text change stays small and fast
 // however many photos there are. The app itself always sees full image data.
 const Store = (() => {
   let db = null;
@@ -12,28 +12,6 @@ const Store = (() => {
 
   const isImg = (v) => typeof v == "string" && v.startsWith("data:image/");
   const isRef = (v) => typeof v == "string" && v.startsWith("img:");
-
-  // Copy of S with every image value passed through fn (photos, step photos, logo).
-  const mapImgs = (S, test, fn) => {
-    const c = (v) => (test(v) ? fn(v) : v);
-    const item = (p) => ({
-      ...p,
-      prod: (p.prod || []).map(c).filter(Boolean),
-      pack: (p.pack || []).map(c).filter(Boolean),
-      steps: (p.steps || []).map((s) => ({ ...s, img: c(s.img) || "" })),
-    });
-    const out = {
-      ...S,
-      lines: (S.lines || []).map((l) => ({
-        ...l,
-        products: (l.products || []).map(item),
-      })),
-      machines: (S.machines || []).map(item),
-    };
-    if (S.logo !== undefined) out.logo = c(S.logo) || undefined;
-    if (out.logo === undefined) delete out.logo;
-    return out;
-  };
 
   const req = (r) =>
     new Promise((res, rej) => {

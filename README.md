@@ -6,7 +6,8 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Step-by-step guides, each with an optional headline and photo (kept together on one PDF page)
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
-- Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import a JSON backup
+- Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import backups as .zip files with photos as normal image files
+- Export a single product or machine and import it into someone else's app
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 
 ## Project structure
@@ -16,11 +17,12 @@ index.html          Page markup; loads the CSS, jsPDF and the scripts below
 css/styles.css      All styles (light and dark mode)
 js/utils.js         Pure helpers (unit tested)
 js/storage.js       Saving and loading (IndexedDB, with a localStorage fallback)
+js/zip.js           Built-in ZIP writer/reader for backups (no library needed)
 js/app.js           App state, rendering, events, backup and PDF export
-tests/              Node unit tests for js/utils.js
+tests/              Node unit tests for js/utils.js and js/zip.js
 ```
 
-`js/utils.js` and `js/storage.js` must load before `js/app.js`, because the app uses them.
+`js/utils.js`, `js/storage.js` and `js/zip.js` must load before `js/app.js`, because the app uses them.
 
 ## Run
 
@@ -61,6 +63,39 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
   and says so on the home page.
 - Data saved by older versions is moved over automatically on first load.
 - Clearing the browser's site data deletes everything, so export backups regularly.
+
+## Backup and sharing
+
+**Full backup:** on the home page press **Export backup**. You get
+`setup-procedures-backup-YYYY-MM-DD.zip`:
+
+```
+data.json                          all text: company, departments, products, steps…
+logo.png
+photos/Line 1/Widget A/product-1.jpg
+photos/Line 1/Widget A/packaging-1.jpg
+photos/Line 1/Widget A/step-2.jpg
+photos/Machines/Press 3/panel-1.jpg
+```
+
+`data.json` refers to each photo by its path. **Import** reads the ZIP, puts every
+photo back in place and replaces all current data (after asking).
+
+- You can replace a photo inside the ZIP with a better one: keep the same file name.
+  Any image type works; it is converted for the PDF if needed.
+- A photo missing from the ZIP is left empty and the import tells you how many.
+- A ZIP re-saved by Windows, macOS or other tools, even inside an extra folder,
+  still imports.
+- Older `.json` backups still import.
+
+**Share one product or machine:** on its page press **Export this product** (or
+machine). You get `Widget A - product - YYYY-MM-DD.zip`. In the other app, press
+**Import** on the home page. It is **added** to the existing data, not replacing it:
+
+- Products go into the product line with the same name; it is created if missing.
+- The department is matched by name, and added to the company details if missing.
+- If one with the same name already exists there, you choose: replace it, or keep both
+  (the new one gets "(imported)").
 
 ## Tests
 
