@@ -4,7 +4,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 
 - Photos of the product/machine and packaging or control panel
 - Step-by-step guides, each with an optional headline and photo
-- Clean black-and-white PDF with Prepared by / Approved by sign-off and a blank staffing and time table
+- Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo at the top of every PDF (set once on the home screen)
 - Data is stored in the browser (localStorage); export and import a JSON backup
 
