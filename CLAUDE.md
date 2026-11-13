@@ -16,16 +16,17 @@ the `claude` branch.
 - Single test file: `node --test tests/zip.test.js`
 - Single test by name: `node --test --test-name-pattern="addItem" tests/utils.test.js`
 - Formatting: code is formatted with Prettier 3.3.3 (`npx -y prettier@3.3.3 --write js/*.js css/styles.css index.html`). There is no linter config.
-- Only `js/utils.js` and `js/zip.js` are unit tested. UI and PDF behaviour are verified by driving the page with Playwright (not part of the repo). jsPDF loads from cdnjs; if the CDN is unreachable, route that URL to a local copy of `jspdf@2.5.1/dist/jspdf.umd.min.js`.
+- Browser tests: `npm run test:e2e` (`tests/e2e/app.test.js`, node:test + the `playwright` library, not `@playwright/test`). Needs `playwright` resolvable (CI: `npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium`). They block all internet requests, so they also check that the app works offline, and they search the downloaded PDF bytes for text (jsPDF output is uncompressed).
+- CI: `.github/workflows/test.yml` runs both on every push and pull request.
 
 ## Architecture
 
-Classic `<script>` files (not ES modules) share globals; load order in `index.html` matters:
-jsPDF (CDN) → `js/utils.js` → `js/storage.js` → `js/zip.js` → `js/app.js`.
+Classic `<script>` files (not ES modules) share globals, including top-level `let`/`const`; load order in `index.html` matters:
+`vendor/jspdf` → `utils.js` → `storage.js` → `zip.js` → `state.js` → `ppe.js` → `views.js` → `undo.js` → `transfer.js` → `pdf.js` → `events.js` → `app.js` (start-up). Code that runs at load time may only use globals from earlier files; functions may use any. A new script must also be added to `FILES` in `sw.js` (and bump `VERSION`).
 `utils.js` and `zip.js` end with `if (typeof module !== "undefined") module.exports = …` so the Node tests can `require` them. Keep that guard, and keep `utils.js` free of DOM access.
 
-### State and rendering (`js/app.js`)
-- One mutable global `S` holds all data: `{ co: {name, depts:[{id,name}], done}, logo, lines:[{id,name,products:[item]}], machines:[item], lastBackup }`. Products and machines share one item shape: `{id, name, code, rev, date, dept, prod:[img], pack:[img], tools:[{n,s,q}], steps:[{h, t, img, warn, wtype, subs:[{t, img, warn, wtype}]}], th, tm, tech, by, appr}`. Images are JPEG/PNG data URLs. Missing optional fields mean "not set" (e.g. `warn === undefined` = no note box; no `wtype` = "warning"; no `dept` = first department via `deptOf`).
+### State and rendering (`state.js`, `views.js`, `events.js`)
+- One mutable global `S` holds all data: `{ co: {name, depts:[{id,name}], done}, logo, lines:[{id,name,products:[item]}], machines:[item], lastBackup }`. Products and machines share one item shape: `{id, name, code, rev, date, dept, prod:[img], pack:[img], tools:[{n,s,q}], ppe:[key], ppeo, steps:[{h, t, img, warn, wtype, subs:[{t, img, warn, wtype}]}], th, tm, tech, by, appr}`. Images are JPEG/PNG data URLs. Missing optional fields mean "not set" (e.g. `warn === undefined` = no note box; no `wtype` = "warning"; no `dept` = first department via `deptOf`).
 - Navigation globals: `T` = screen (`"co"` company setup, `"h"` home, `"p"` products, `"m"` machines, `"x"` export & import), `V = {l, p}` = selected line/product, `MID` = selected machine. `P()` returns the item being edited (product or machine).
 - `R(keep)` re-renders the whole screen by building an HTML string into `#app`. `keep = true` keeps the scroll position and restores focus/caret via `data-*` attribute selectors. Views: `CoV`, `HomeV`, `MV`, the product/machine page inside `R`, `XV` (export & import); helpers such as `stepHtml`, `noteHtml`, `toolsHtml`, `tree`.
 - Events use document-level delegation: `click` dispatches on `data-a="<action>"` (with `data-i`/`data-j` indexes) in one large if/else chain, then calls `save()` and `R()`. Typing goes through the `input` listener, which writes into `S` by data attribute (`data-f` field, `data-h`/`data-s` step, `data-ss` sub-step, `data-w` note, `data-tool`). It saves but does not re-render. File inputs, selects and tick boxes go through the `change` listener.
@@ -42,11 +43,12 @@ jsPDF (CDN) → `js/utils.js` → `js/storage.js` → `js/zip.js` → `js/app.js
 - Export ZIP layout: `data.json` (images replaced by relative paths such as `photos/<line>/<product>/step-2-1.jpg`), the image files, `logo.png`, and `READ ME.txt`. Planned by `planBackup(S)` (full backup) or `planItems(list, company)` (selection; format `"setup-procedures-items"`). The older single-item format `"setup-procedures-item"` and plain-JSON backups must keep importing.
 - Import: `readFile` → `fileContents` (packs, company, full backup) → preview on the `"x"` screen → `applyImport`, which either replaces `S` or merges via `addItem` (line and department matched by name). `imgRefs`/`similarPath` build the missing-photo report.
 
-### PDF (`mkPdf` in `app.js`)
+### PDF (`mkPdf` in `pdf.js`)
 - jsPDF A4 in mm, drawn top to bottom with a running `y` and `need(h)` for page breaks. `stepH`/`subH` precompute heights so a step (with its notes, photos and sub-steps) stays on one page when it fits, and the "Procedure" heading stays with step 1.
-- Order: header (company · department · "Setup procedure", logo top right), meta row, product and packaging photos, Tools required table, Procedure, Approval (time/technicians table, then signatures), footer and optional watermark on every page.
+- Order: header (company · department · "Setup procedure", logo top right), meta row, Safety equipment signs, product and packaging photos, Tools required table, Procedure, Approval (time/technicians table, then signatures), footer and optional watermark on every page.
 - Note colours are defined twice and must stay in sync: `NOTE_PDF` in `mkPdf` and the `--dg`/`--cau`/`--nt` CSS variables. Photo print sizes come from `PHOTO_SIZES`.
 - The built-in Helvetica font has no symbol glyphs; the warning triangle and info circle are drawn with shapes.
+- PPE signs (`ppe.js`) are SVG strings: inline on the page, converted to PNG through a canvas (`ppePng`, cached) for the PDF.
 
 ### Undo
 `remember(msg)` must be called before a destructive change. It stores a deep copy of `S` (strings are shared, not copied) plus `T`/`V`/`MID` on a 20-entry stack and shows the toast. `undo()` restores state and re-renders. Small removals rely on Undo instead of `confirm()`; large ones (delete product/machine/line, replace all, clear all) confirm and also call `remember`.
@@ -54,4 +56,4 @@ jsPDF (CDN) → `js/utils.js` → `js/storage.js` → `js/zip.js` → `js/app.js
 ## Conventions
 
 - User-facing text is plain, short English; the in-app help panels (`xHelp`, `itemHelp`) and `README.md` describe behaviour and should be updated when features change.
-- Keep the app working when opened from `file://`: no ES module imports and no fetches other than the jsPDF CDN script and the Google Fonts stylesheet.
+- Keep the app working offline and from `file://`: no ES module imports and no network requests; libraries and fonts go in `vendor/` with their licence. `sw.js` (network first, cache fallback) is registered only on http(s).

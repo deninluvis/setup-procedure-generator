@@ -617,3 +617,48 @@ input[type="radio"] {
   margin: 0;
   padding: 6px 8px;
 }
+/* Safety equipment (PPE) tick boxes with their signs. */
+.ppe {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+.pp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+}
+.pp svg {
+  width: 44px;
+  height: 44px;
+  opacity: 0.35;
+}
+.pp.on {
+  border: 2px solid var(--ac);
+  padding: 9px 5px;
+  font-weight: 600;
+}
+.pp.on svg {
+  opacity: 1;
+}
+.pp input {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+}
+.pp:focus-within {
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+}

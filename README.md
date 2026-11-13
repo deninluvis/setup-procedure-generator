@@ -10,6 +10,8 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Export & import page: tick exactly what to export or import in a tree (everything, company details, lines, products, machines)
 - Backup reminder after 7 days without a backup
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
+- Safety equipment (PPE) printed as safety signs at the top of the PDF
+- Works offline: everything it needs is in the repository, and it can be installed as an app
 
 ## Project structure
 
@@ -19,11 +21,22 @@ css/styles.css      All styles (light and dark mode)
 js/utils.js         Pure helpers (unit tested)
 js/storage.js       Saving and loading (IndexedDB, with a localStorage fallback)
 js/zip.js           Built-in ZIP writer/reader for backups (no library needed)
-js/app.js           App state, rendering, events, backup and PDF export
-tests/              Node unit tests for js/utils.js and js/zip.js
+js/state.js         App state, saving, remembered view settings
+js/ppe.js           Safety equipment (PPE) list and safety-sign pictures
+js/views.js         Screens and the HTML they are built from
+js/undo.js          Undo and the message bar at the bottom
+js/transfer.js      Export & import page and .zip backups
+js/pdf.js           PDF export
+js/events.js        Clicks, typing and other user actions
+js/app.js           Start-up
+sw.js               Offline support when served from a web address
+manifest.webmanifest, icons/   Install as an app
+vendor/             jsPDF and the IBM Plex Sans font, stored locally
+tests/              Unit tests (Node) and browser tests (tests/e2e, Playwright)
+.github/workflows/  Runs all tests on GitHub on every push
 ```
 
-`js/utils.js`, `js/storage.js` and `js/zip.js` must load before `js/app.js`, because the app uses them.
+The scripts share globals and load in the order listed in `index.html`.
 
 ## Run
 
@@ -34,7 +47,27 @@ tests/              Node unit tests for js/utils.js and js/zip.js
 3. Optional: serve it locally with `npm start` (or `python3 -m http.server 8000`)
    and open http://localhost:8000.
 
-The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an internet connection is needed.
+No internet connection is needed: jsPDF (the PDF library) and the IBM Plex Sans font are
+stored in `vendor/`.
+
+### Install as an app (optional)
+
+When the app is opened from a web address (for example GitHub Pages, or `npm start`),
+the browser can install it like a normal app and it keeps working offline:
+
+- **Chrome / Edge (computer):** click the install icon at the right of the address bar.
+- **Android (Chrome):** menu ⋮ → **Add to Home screen** / **Install app**.
+- **iPhone / iPad (Safari):** Share → **Add to Home Screen**.
+
+After the first visit the app opens with no connection. When online, it picks up
+updates automatically.
+
+Data is kept per address: data entered at `file://…/index.html` is not visible at a web
+address, and the other way round. Use **Export backup** and **Import** to move it.
+
+To publish on GitHub Pages: repository **Settings → Pages → Build and deployment →
+Deploy from a branch**, pick `main` and `/ (root)`, then **Save**. The address appears on
+the same page after a minute or two.
 
 ## How to use
 
@@ -51,11 +84,15 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 4. On a product or machine page, the **How to fill in this product/machine** panel
    explains each part (closed at first: click it to open; it stays as you left it).
    Pick the **Department**, then fill in the code or asset number, the revision and photos.
-5. Under **Tools required**, press **＋ Add tool** and enter each tool with its size or
+5. Under **Safety equipment (PPE)**, tick what must be worn: safety glasses, gloves,
+   ear protection, safety shoes, hard hat, hi-vis vest, face shield or dust mask. Each one
+   prints as a blue safety sign with its name under the header of the PDF. Type anything
+   else in **Other safety equipment**; it prints under the signs.
+6. Under **Tools required**, press **＋ Add tool** and enter each tool with its size or
    specification and quantity (Enter adds the next row; names you used before are
    suggested). In the PDF they print as a table before the procedure, with a box to
    tick for each tool.
-6. Add steps. Each step has an optional headline, a description and an optional photo.
+7. Add steps. Each step has an optional headline, a description and an optional photo.
    - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
      at the end. Steps renumber automatically.
    - **↑ ↓** move a step up or down.
@@ -68,15 +105,15 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
      orange) or **Note** (useful tip, blue). In the PDF it prints in a box with the same
      colour edge, a symbol, and WARNING / CAUTION / NOTE next to it, followed by the
      description.
-7. In **Sign-off**, fill in Time required and Technicians required (or leave them
+8. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
-8. Optionally tick **Add watermark to the PDF**: the company name and the item's
+9. Optionally tick **Add watermark to the PDF**: the company name and the item's
    department are printed large, faint and diagonally across every page. The choice is
    remembered in this browser.
    Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
    their full resolution, so they stay sharp when zoomed at any size.
-9. Press **Download PDF**.
-10. Use **Export backup** on the home page regularly. Data lives only in this browser.
+10. Press **Download PDF**.
+11. Use **Export backup** on the home page regularly. Data lives only in this browser.
 
 **Undo:** after removing or replacing something (a step, sub-step, warning or note,
 photo, product, machine, line, department, the logo, an import, or clearing all data), a
@@ -187,11 +224,24 @@ never have), a reminder box with an **Export backup** button appears at the top.
 
 ## Tests
 
-Requires Node.js 18 or newer. No dependencies to install.
+Requires Node.js 18 or newer.
 
-```
-npm test
-```
+1. Unit tests (no dependencies to install):
+   ```
+   npm test
+   ```
+2. Browser tests: these open the real app in Chromium and check the main features
+   (company setup, products and machines, PPE, tools, steps and warnings, the PDF,
+   undo, search, export and import, and working with no internet connection).
+   Install Playwright once, then run them:
+   ```
+   npm install --no-save playwright@1.63.0
+   npx playwright install chromium
+   npm run test:e2e
+   ```
+
+Both run automatically on GitHub for every push and pull request (the **Actions** tab,
+workflow **Tests**). A red ✕ next to a commit means a test failed: open it to see which.
 
 ## Notes
 
