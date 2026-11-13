@@ -73,7 +73,7 @@ test('fmtBytes shows KB, MB and GB', () => {
   assert.equal(fmtBytes(1.5 * 1024 ** 3), '1.5 GB');
 });
 
-const { dateStamp, safeName, imgExt, planBackup, planItems, itemPacks, deptItems, lineItems, imgPaths, restoreImgs, addItem, daysSince, agoText, backupDue } = require('../js/utils.js');
+const { imgRefs, similarPath, dateStamp, safeName, imgExt, planBackup, planItems, itemPacks, deptItems, lineItems, imgPaths, restoreImgs, addItem, daysSince, agoText, backupDue } = require('../js/utils.js');
 const JPG = 'data:image/jpeg;base64,AAAA', JPG2 = 'data:image/jpeg;base64,BBBB', PNG = 'data:image/png;base64,CCCC';
 const sample = () => ({
   co: { name: 'ACME', depts: [{ id: 'a', name: 'Assembly' }], done: true },
@@ -210,4 +210,29 @@ test('addItem with a name clash replaces or keeps both', () => {
   assert.equal(S.machines.length, 2);
   assert.equal(S.machines[0].id, 'm1'); // keeps its place and id
   assert.equal(S.machines[0].name, 'press: 3/4');
+});
+
+test('imgRefs says where every photo belongs', () => {
+  const { data } = planBackup(sample());
+  const refs = imgRefs(JSON.parse(JSON.stringify(data)));
+  assert.deepEqual(refs.map((r) => [r.item, r.kind, r.line, r.what]), [
+    ['Widget A', 'product', 'Line 1', 'Product photo 1'],
+    ['Widget A', 'product', 'Line 1', 'Packaging photo 1'],
+    ['Widget A', 'product', 'Line 1', 'Step 2 photo'],
+    ['Widget A', 'product', 'Line 1', 'Step 1 photo'],
+    ['Press: 3/4', 'machine', '', 'Control panel photo 1'],
+    ['Company logo', 'logo', '', 'Logo'],
+  ]);
+  const S = sample();
+  const items = planItems([{ p: S.machines[0], kind: 'machine', line: '', dept: '' }], { co: S.co, logo: S.logo }).data;
+  assert.deepEqual(imgRefs(items).map((r) => r.what), ['Control panel photo 1', 'Logo']);
+  assert.deepEqual(imgRefs(null), []);
+});
+
+test('similarPath finds a near match for a missing photo', () => {
+  const names = ['data.json', 'photos/Line 1/Widget A/step-2.JPG', 'photos/Other/product-1.jpg', 'logo.png'];
+  assert.equal(similarPath('photos/Line 1/Widget A/step-2.jpg', names), 'photos/Line 1/Widget A/step-2.JPG');
+  assert.equal(similarPath('photos/Line 1/Widget A/step-2.png', names), 'photos/Line 1/Widget A/step-2.JPG');
+  assert.equal(similarPath('photos/Line 1/Widget A/product-1.jpg', names), 'photos/Other/product-1.jpg');
+  assert.equal(similarPath('photos/x/panel-9.jpg', names), '');
 });

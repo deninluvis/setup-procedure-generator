@@ -293,6 +293,76 @@ const mapFileImgs = (data, test, fn) => {
   return out;
 };
 
+// Every photo a data.json refers to, with where it belongs, so a missing one
+// can be reported clearly: [{ path, item, kind, line, what }].
+// kind is "product", "machine" or "logo".
+const imgRefs = (data) => {
+  const out = [];
+  if (!data || typeof data != "object") return out;
+  const walk = (p, kind, line) => {
+    if (!p || typeof p != "object") return;
+    const [a, b] =
+        kind == "machine"
+          ? ["Machine photo", "Control panel photo"]
+          : ["Product photo", "Packaging photo"],
+      add = (v, what) =>
+        isImgPath(v) &&
+        out.push({
+          path: v,
+          item: String(p.name || "Untitled"),
+          kind,
+          line: line || "",
+          what,
+        });
+    (p.prod || []).forEach((v, i) => add(v, `${a} ${i + 1}`));
+    (p.pack || []).forEach((v, i) => add(v, `${b} ${i + 1}`));
+    (p.steps || []).forEach((s, i) => s && add(s.img, `Step ${i + 1} photo`));
+  };
+  const logo = (v) =>
+    isImgPath(v) &&
+    out.push({
+      path: v,
+      item: "Company logo",
+      kind: "logo",
+      line: "",
+      what: "Logo",
+    });
+  if (ITEM_FORMATS.includes(data.format)) {
+    (itemPacks(data) || []).forEach((pk) =>
+      walk(
+        pk.item,
+        pk.kind,
+        pk.kind == "product" ? String(pk.line || "").trim() || "Imported" : "",
+      ),
+    );
+    if (data.company) logo(data.company.logo);
+  } else {
+    (data.lines || []).forEach((l) =>
+      (l.products || []).forEach((p) => walk(p, "product", l.name)),
+    );
+    (data.machines || []).forEach((m) => walk(m, "machine", ""));
+    logo(data.logo);
+  }
+  return out;
+};
+
+// A file in the ZIP whose name is close to a missing one: same name in another
+// letter case or with another image extension, or the same file name in
+// another folder. Returns its path, or "".
+const similarPath = (path, names) => {
+  const base = (p) =>
+      p
+        .toLowerCase()
+        .replace(/\.(jpe?g|png|webp|gif|heic|heif|bmp|tiff?|svg)$/, ""),
+    want = base(path),
+    file = path.split("/").pop().toLowerCase();
+  return (
+    names.find((n) => n != path && base(n) == want) ||
+    names.find((n) => n != path && n.split("/").pop().toLowerCase() == file) ||
+    ""
+  );
+};
+
 // The image paths a data.json refers to.
 const imgPaths = (data) => {
   const want = new Set();
@@ -493,6 +563,8 @@ if (typeof module !== "undefined")
     imgExt,
     planBackup,
     planItems,
+    imgRefs,
+    similarPath,
     fileContents,
     findExisting,
     mergeCompany,

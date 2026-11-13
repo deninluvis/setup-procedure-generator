@@ -10,7 +10,8 @@ let S = { lines: [], machines: [] },
   GRP = "line",
   XF = "",
   HS = "", // home page search text
-  HELPS = { x: true, item: true }, // help panels open? x = Export & import, item = product/machine page
+  HELPS = { x: false, item: false }, // help panels open? x = Export & import, item = product/machine page (closed at first)
+  LASTMISS = [], // photos missing in the last import, shown with the result
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -416,6 +417,7 @@ document.addEventListener("click", (e) => {
     EXS = new Set(allKeys("x"));
     IMP = null;
     XMSG = "";
+    LASTMISS = [];
     XF = "";
   } else if (a == "tgl") {
     COL.has(t.dataset.g) ? COL.delete(t.dataset.g) : COL.add(t.dataset.g);
@@ -655,10 +657,12 @@ async function exportZip(plan, name, btn, done) {
   }
 }
 
-// Read one .zip or .json file -> { data, missing } (data null if unreadable).
+// Read one .zip or .json file -> { data, missing, missingList } (data null if
+// unreadable). missingList says which photos could not be loaded, and why.
 async function readFile(f) {
   let data = null,
-    missing = 0;
+    missing = 0,
+    missingList = [];
   try {
     const buf = await f.arrayBuffer();
     if (Zip.isZip(buf)) {
@@ -670,10 +674,12 @@ async function readFile(f) {
       // The ZIP may have been re-saved inside a folder: paths are relative to data.json.
       const root = key.slice(0, -"data.json".length),
         raw = JSON.parse(new TextDecoder().decode(z.get(key))),
-        imgs = new Map();
+        imgs = new Map(),
+        unreadable = new Set();
       for (const p of imgPaths(raw)) {
         const b = z.get(root + p);
         if (!b) continue;
+        unreadable.add(p); // removed again below once the image is read
         const type = sniff(b),
           logo = p == raw.logo;
         // Photos must be JPEG and the logo PNG or JPEG for the PDF; convert others.
@@ -683,14 +689,30 @@ async function readFile(f) {
             : null;
         if (!d && type)
           d = await comp(new Blob([b], { type }), logo, logo ? 1000 : 2000);
-        if (d) imgs.set(p, d);
+        if (d) {
+          imgs.set(p, d);
+          unreadable.delete(p);
+        }
       }
       ({ data, missing } = restoreImgs(raw, imgs));
+      const names = [...z.keys()]
+        .filter((k) => k.startsWith(root))
+        .map((k) => k.slice(root.length));
+      missingList = imgRefs(raw)
+        .filter((r) => !imgs.has(r.path))
+        .map((r) => ({
+          ...r,
+          file: f.name,
+          reason: unreadable.has(r.path)
+            ? "is in the file but could not be read as an image"
+            : "was not found in the file",
+          similar: unreadable.has(r.path) ? "" : similarPath(r.path, names),
+        }));
     } else data = JSON.parse(new TextDecoder().decode(buf));
   } catch (e) {
     data = null;
   }
-  return { data, missing };
+  return { data, missing, missingList };
 }
 
 // ---------- Home page search ----------
@@ -1057,7 +1079,7 @@ const xHelp = () =>
 <h3>Import: restore or add</h3>
 <ol>
 <li>Under <b>Import</b>, press <b>Choose files</b> and pick one or more <code>.zip</code> files. Older <code>.json</code> backups work too.</li>
-<li>Check the list of what is inside. Each item is marked <span class="bd new">new</span> or <span class="bd">already exists</span>. If photos are missing, the page tells you how many.</li>
+<li>Check the list of what is inside. Each item is marked <span class="bd new">new</span> or <span class="bd">already exists</span>. If any photos are missing, the page lists each one: which product or machine, which photo, and the exact file name it looked for.</li>
 <li>For a <b>full backup</b>, choose <b>Replace all current data</b> (restore everything, for example on a new computer) or <b>Add only what I tick</b>.</li>
 <li>Tick what to import. For items that already exist, choose <b>Replace it</b> or <b>Keep both</b>.</li>
 <li>Press <b>Import selected</b> (or <b>Replace all data</b>). A message confirms what was imported.</li>
@@ -1100,6 +1122,32 @@ const itemHelp = (mm) => {
   );
 };
 
+// List of photos that could not be loaded, grouped by product or machine.
+// done: shown after importing (true) or before (false).
+function missingHtml(list, done) {
+  if (!list || !list.length) return "";
+  const groups = new Map();
+  for (const m of list) {
+    const k = [m.file, m.kind, m.line, m.item].join("|");
+    if (!groups.has(k)) groups.set(k, { m, rows: [] });
+    groups.get(k).rows.push(m);
+  }
+  const files = new Set(list.map((m) => m.file)).size;
+  return `<details class="miss" open><summary>${count(list.length, "photo", "photos")} ${done ? (list.length == 1 ? "was" : "were") + " missing and left empty" : "could not be loaded and will be left empty"}</summary>
+<p class="m">To fix: put each photo back in the .zip with <b>exactly</b> the folder and file name shown, then import again. Or add the photo later on the ${list.some((m) => m.kind == "machine") ? "product or machine" : "product"} page.</p>
+<ul>${[...groups.values()]
+    .map(
+      ({ m, rows }) =>
+        `<li><b>${esc(m.item)}</b> <span class="m">${esc([m.kind == "logo" ? "company details" : m.kind, m.line, files > 1 ? "from " + m.file : ""].filter(Boolean).join(" · "))}</span><ul>${rows
+          .map(
+            (r) =>
+              `<li>${esc(r.what)}: <code>${esc(r.path)}</code> ${esc(r.reason)}.${r.similar ? ` A file with a similar name is in the .zip: <code>${esc(r.similar)}</code>. Rename it to match.` : ""}</li>`,
+          )
+          .join("")}</ul></li>`,
+    )
+    .join("")}</ul></details>`;
+}
+
 // Filter box and "Group by" switch; they apply to both trees on the page.
 function toolbar() {
   const total = exItems().length + (IMP ? IMP.packs.length : 0),
@@ -1131,7 +1179,9 @@ function XV() {
   let h =
     `<button class="lk" data-a="goHome">← Home</button><h1>Export &amp; import</h1>` +
     xHelp() +
-    (XMSG ? `<p class="ok" role="status">${XMSG}</p>` : "") +
+    (XMSG
+      ? `<p class="ok" role="status">${XMSG}</p>` + missingHtml(LASTMISS, true)
+      : "") +
     `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
     toolbar() +
     (tree(treeNodes("x"), "x", EXS, exGroup, false) ||
@@ -1150,13 +1200,11 @@ function XV() {
     notes.push(
       `Not a valid backup or export, skipped: ${esc(IMP.bad.join(", "))}`,
     );
-  if (IMP.missing)
-    notes.push(
-      `${count(IMP.missing, "photo was", "photos were")} not found in the file${IMP.names.length > 1 ? "s" : ""} and will be left empty.`,
-    );
+
   h +=
     `<p class="m">From: <b>${esc(IMP.names.join(", "))}</b></p>` +
-    notes.map((n) => `<p class="err">${n}</p>`).join("");
+    notes.map((n) => `<p class="err">${n}</p>`).join("") +
+    missingHtml(IMP.missingList, false);
   if (!IMP.packs.length && !IMP.company) {
     return (
       h +
@@ -1234,16 +1282,18 @@ async function loadImport(files) {
     fulls = [];
   let company = null,
     missing = 0;
+  const missingList = [];
   for (const r of read) {
     const c = fileContents(r.data);
     if (!c) {
       bad.push(r.name);
       continue;
     }
-    packs.push(...c.packs);
+    packs.push(...c.packs.map((pk) => ({ ...pk, file: r.name })));
     if (c.company && !company) company = c.company;
     if (c.full) fulls.push(c.full);
     missing += r.missing;
+    missingList.push(...r.missingList);
   }
   const full = read.length == 1 && fulls.length == 1 ? fulls[0] : null;
   IMP = {
@@ -1253,6 +1303,7 @@ async function loadImport(files) {
     full,
     bad,
     missing,
+    missingList,
     mode: full ? "replace" : "merge",
     clash: "replace",
     sel: new Set(),
@@ -1262,6 +1313,7 @@ async function loadImport(files) {
   if (fulls.length) IMP.sel.delete("co");
   if (T != "x") EXS = new Set(allKeys("x"));
   XMSG = "";
+  LASTMISS = [];
   T = "x";
   R(true);
   const el = $("#imp");
@@ -1280,12 +1332,22 @@ async function applyImport() {
     S = IMP.full;
     S.lastBackup = Date.now(); // this data is already in a backup file
     msg = "All data was replaced with the backup.";
+    LASTMISS = IMP.missingList;
   } else {
     const chosen = IMP.packs.filter((_, i) => IMP.sel.has("i:" + i)),
       co = IMP.company && IMP.sel.has("co");
     if (!chosen.length && !co)
       return alert("Tick at least one thing to import.");
     if (co) mergeCompany(S, IMP.company);
+    // Missing photos of the items (and logo) actually imported.
+    const same = (m, pk) =>
+      m.file == pk.file &&
+      m.kind == pk.kind &&
+      m.item == String(pk.item.name || "Untitled") &&
+      (m.kind == "machine" || lineKey(m.line) == lineKey(pk.line));
+    LASTMISS = IMP.missingList.filter((m) =>
+      m.kind == "logo" ? co : chosen.some((pk) => same(m, pk)),
+    );
     const res = chosen.map((pk) =>
         addItem(S, pk, () => IMP.clash == "replace"),
       ),

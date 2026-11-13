@@ -49,7 +49,7 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 3. **Products:** add a product line (for example "Line 1"), then add a product to it.
    **Machines:** add a machine.
 4. On a product or machine page, the **How to fill in this product/machine** panel
-   explains each part (it can be closed, and stays closed until opened again).
+   explains each part (closed at first: click it to open; it stays as you left it).
    Pick the **Department**, then fill in the code or asset number, the revision and photos.
 5. Add steps. Each step has an optional headline, a description and an optional photo.
    Use ↑ ↓ to reorder.
@@ -73,7 +73,7 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 
 Everything is on the **Export & import** page (home page → **Backup and sharing** →
 **Export & import**). A **How export and import work** panel at the top of the page
-explains the steps; it can be closed, and stays closed until opened again. **Quick full backup** on the home page exports everything in
+explains the steps (closed at first: click it to open; it stays as you left it). **Quick full backup** on the home page exports everything in
 one click.
 
 ### Export
@@ -147,7 +147,11 @@ screen. The page shows what is inside as the same kind of tree, with each item m
 - **Company details and logo**, when ticked, replace the company name and logo and
   add any missing departments. For full backups in "add" mode this is unticked by
   default.
-- Photos missing from a file are left empty and the page says how many.
+- If photos cannot be loaded, the page lists each one before you import: which product
+  or machine, which photo (for example "Step 2 photo"), the exact file path it looked
+  for, and whether it was not found or not a readable image. When a file with a similar
+  name is in the ZIP (for example `.JPG` instead of `.jpg`), it says so. The list stays
+  after importing (only for what you imported), so you know what to fix.
 
 ### Backup reminder
 
