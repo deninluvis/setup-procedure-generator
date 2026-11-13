@@ -1972,7 +1972,6 @@ async function mkPdf() {
     });
     y += 4;
   }
-  sec("Procedure");
   // Height of wrapped text, matching para() below.
   const textH = (t, w, sz, bd) => {
     d.setFont("helvetica", bd ? "bold" : "normal");
@@ -2028,26 +2027,37 @@ async function mkPdf() {
     d.setDrawColor(...K);
     y = by + h + 2;
   };
-  p.steps.forEach((s, i) => {
-    // Keep a step's headline, text and photo together on one page when they
-    // fit on a page; otherwise start it on a new page if it is near the bottom.
+  // Height of a sub-step and of a whole step (with its notes, photos and
+  // sub-steps), used to keep them together on one page where they fit.
+  const subH = (u) =>
+    Math.max(
+      (String(u.warn || "").trim()
+        ? noteBoxH(String(u.warn).trim(), CW - 21) + 3
+        : 0) +
+        (u.t ? textH(u.t, CW - 21, 10.5, 0) : 0) +
+        (u.img ? 2 + fit(u.img, 80, 60)[1] : 0),
+      5,
+    );
+  const stepH = (s) => {
     let sh = 0;
     if (s.h) sh += textH(s.h, CW - 9, 11.5, 1) + 1;
     const warn = String(s.warn || "").trim();
     if (warn) sh += noteBoxH(warn, CW - 9) + 3;
     if (s.t) sh += textH(s.t, CW - 9, 10.5, 0);
     if (s.img) sh += 2 + fit(s.img, 100, 75)[1];
-    const subH = (u) =>
-      Math.max(
-        (String(u.warn || "").trim()
-          ? noteBoxH(String(u.warn).trim(), CW - 21) + 3
-          : 0) +
-          (u.t ? textH(u.t, CW - 21, 10.5, 0) : 0) +
-          (u.img ? 2 + fit(u.img, 80, 60)[1] : 0),
-        5,
-      );
     (s.subs || []).forEach((u) => (sh += 3 + subH(u)));
-    sh = Math.max(sh, 7);
+    return Math.max(sh, 7);
+  };
+  // The "Procedure" heading moves to the next page together with step 1.
+  const fitsPage = (h) => (h <= B - (M + 4) - 16 ? h : 16);
+  need(16 + (p.steps.length ? fitsPage(stepH(p.steps[0])) : 0));
+  sec("Procedure");
+  p.steps.forEach((s, i) => {
+    // Keep a step's headline, notes, text, photos and sub-steps together on one
+    // page when they fit on a page; otherwise start it on a new page if it is
+    // near the bottom.
+    const warn = String(s.warn || "").trim(),
+      sh = stepH(s);
     need(sh <= B - (M + 4) ? sh : 16);
     const y0 = y,
       pg = d.getNumberOfPages();
