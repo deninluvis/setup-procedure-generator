@@ -204,7 +204,33 @@ const MV = () =>
     )
     .join("") +
   add("Machine name", "addM");
+// A selector for an element in #app built from its data-* attributes, so the
+// same field can be found again after the page is re-drawn.
+const selectorOf = (el) => {
+  const attrs = [...el.attributes]
+    .filter((a) => a.name.startsWith("data-") && a.name != "data-ind")
+    .map((a) => `[${a.name}="${CSS.escape(a.value)}"]`)
+    .join("");
+  return attrs
+    ? el.tagName.toLowerCase() + attrs
+    : el.id
+      ? "#" + CSS.escape(el.id)
+      : null;
+};
+
 function R(keep) {
+  // When re-drawing the same page (keep), put the cursor back where it was,
+  // e.g. if a photo finishes processing while you are typing.
+  const ae = document.activeElement,
+    app = $("#app"),
+    fsel =
+      keep && ae && ae != document.body && app && app.contains(ae)
+        ? selectorOf(ae)
+        : null,
+    caret =
+      fsel && typeof ae.selectionStart == "number"
+        ? [ae.selectionStart, ae.selectionEnd]
+        : null;
   let h = "";
   if (T == "x") {
     h = XV();
@@ -264,6 +290,16 @@ ${wmBox(p)}
     .querySelectorAll("[data-ind]")
     .forEach((e) => (e.indeterminate = true));
   if (!keep) window.scrollTo(0, 0);
+  if (fsel) {
+    const el = $(fsel);
+    if (el) {
+      el.focus({ preventScroll: true });
+      if (caret)
+        try {
+          el.setSelectionRange(caret[0], caret[1]);
+        } catch (e) {}
+    }
+  }
   if (T == "h") showStorage();
 }
 
@@ -317,6 +353,80 @@ const comp = (f, png = false, max = 2000) =>
     i.src = u;
   });
 
+// ---------- Undo ----------
+// Before a removal or replacement, remember(message) keeps a copy of the data
+// and of the page you are on, and shows "message · Undo" at the bottom for 10 s.
+// Undo (or Ctrl+Z / ⌘Z outside text fields) puts it back. Up to 20 steps; kept
+// until the page is closed or reloaded. Photos are shared, not copied, so this
+// stays light.
+const UNDO = [];
+const copyData = (o) =>
+  Array.isArray(o)
+    ? o.map(copyData)
+    : o && typeof o == "object"
+      ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, copyData(v)]))
+      : o;
+function remember(msg) {
+  UNDO.push({ S: copyData(S), T, V: { ...V }, MID, msg });
+  if (UNDO.length > 20) UNDO.shift();
+  toast(msg, true);
+}
+async function undo() {
+  const u = UNDO.pop();
+  if (!u) return;
+  S = u.S;
+  T = u.T;
+  V = u.V;
+  MID = u.MID;
+  IMP = null;
+  R(); // show it straight away, then save
+  toast(`Undone: ${u.msg}`, false);
+  await writeNow();
+}
+let toastTimer = null;
+function toast(msg, canUndo) {
+  let el = $("#toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    document.body.append(el);
+  }
+  el.innerHTML = `<span>${esc(msg)}</span>${canUndo ? `<button class="tb" data-undo="1">Undo</button>` : ""}<button class="tx" data-tclose="1" aria-label="Close">✕</button>`;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.hidden = true), canUndo ? 10000 : 4000);
+}
+// The toast is outside #app, so it has its own click handling.
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-undo]")) undo();
+  else if (e.target.closest("[data-tclose]")) $("#toast").hidden = true;
+});
+// Keep the bar while the mouse is over it or it has keyboard focus.
+document.addEventListener("mouseover", (e) => {
+  if (e.target.closest && e.target.closest("#toast")) clearTimeout(toastTimer);
+});
+document.addEventListener("focusin", (e) => {
+  if (e.target.closest && e.target.closest("#toast")) clearTimeout(toastTimer);
+});
+document.addEventListener("keydown", (e) => {
+  if (
+    e.key.toLowerCase() != "z" ||
+    !(e.ctrlKey || e.metaKey) ||
+    e.shiftKey ||
+    e.altKey
+  )
+    return;
+  const tg = e.target,
+    typing =
+      tg &&
+      (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName));
+  if (typing || !UNDO.length) return; // text fields keep their own undo
+  e.preventDefault();
+  undo();
+});
+
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-a]");
   if (!t) return;
@@ -355,11 +465,13 @@ document.addEventListener("click", (e) => {
     V.p = p.id;
   } else if (a == "delL") {
     if (!confirm("Delete this line and all its products?")) return;
+    remember(`Line "${L().name}" deleted`);
     S.lines = S.lines.filter((x) => x.id != V.l);
     V = { l: null, p: null };
   } else if (a == "delP") {
     if (!confirm("Delete this " + (T == "m" ? "machine" : "product") + "?"))
       return;
+    remember(`${T == "m" ? "Machine" : "Product"} "${P().name}" deleted`);
     if (T == "m") {
       S.machines = S.machines.filter((x) => x.id != MID);
       MID = null;
@@ -369,6 +481,7 @@ document.addEventListener("click", (e) => {
       V.p = null;
     }
   } else if (a == "rmPh") {
+    remember("Photo removed");
     P()[t.dataset.k].splice(i, 1);
   } else if (a == "addS") {
     P().steps.push({ t: "", img: "" });
@@ -378,13 +491,9 @@ document.addEventListener("click", (e) => {
     focus = `[data-h="${i + 1}"]`;
   } else if (a == "rmS") {
     const n = (P().steps[i].subs || []).length;
-    if (
-      n &&
-      !confirm(
-        `Delete step ${i + 1} and its ${count(n, "sub-step", "sub-steps")}?`,
-      )
-    )
-      return;
+    remember(
+      `Step ${i + 1}${n ? ` and its ${count(n, "sub-step", "sub-steps")}` : ""} deleted`,
+    );
     P().steps.splice(i, 1);
   } else if (a == "addW") {
     stepOrSub(i, j).warn = "";
@@ -394,13 +503,7 @@ document.addEventListener("click", (e) => {
   } else if (a == "rmW") {
     const o = stepOrSub(i, j),
       where = isNaN(j) ? `step ${i + 1}` : `sub-step ${i + 1}.${j + 1}`;
-    if (
-      (o.warn || "").trim() &&
-      !confirm(
-        `Remove the ${NOTE_TYPES[noteType(o)].label.toLowerCase()} from ${where}?`,
-      )
-    )
-      return;
+    remember(`${NOTE_TYPES[noteType(o)].label} removed from ${where}`);
     delete o.warn;
     delete o.wtype;
     focus =
@@ -412,8 +515,10 @@ document.addEventListener("click", (e) => {
     s.subs.push({ t: "", img: "" });
     focus = `[data-ss="${i}"][data-sj="${s.subs.length - 1}"]`;
   } else if (a == "rmSub") {
+    remember(`Sub-step ${i + 1}.${j + 1} deleted`);
     P().steps[i].subs.splice(j, 1);
   } else if (a == "rmSubI") {
+    remember(`Photo removed from sub-step ${i + 1}.${j + 1}`);
     P().steps[i].subs[j].img = "";
   } else if (a == "subUp" && j > 0) {
     const u = P().steps[i].subs;
@@ -424,6 +529,7 @@ document.addEventListener("click", (e) => {
     [u[j + 1], u[j]] = [u[j], u[j + 1]];
     focus = `[data-a=subDn][data-i="${i}"][data-j="${j + 1}"]`;
   } else if (a == "rmSI") {
+    remember(`Photo removed from step ${i + 1}`);
     P().steps[i].img = "";
   } else if (a == "up" && i > 0) {
     const s = P().steps;
@@ -432,7 +538,7 @@ document.addEventListener("click", (e) => {
     const s = P().steps;
     [s[i + 1], s[i]] = [s[i], s[i + 1]];
   } else if (a == "rmLogo") {
-    if (!confirm("Remove the company logo?")) return;
+    remember("Logo removed");
     delete S.logo;
   } else if (a == "tab") {
     T = t.dataset.t;
@@ -453,16 +559,15 @@ document.addEventListener("click", (e) => {
     return;
   } else if (a == "rmDept") {
     const d = S.co.depts[i],
-      used = [...S.machines, ...S.lines.flatMap((l) => l.products)].some(
+      used = [...S.machines, ...S.lines.flatMap((l) => l.products)].filter(
         (p) => deptOf(p, S.co) == d.id,
-      );
-    if (
-      used &&
-      !confirm(
-        `Remove "${d.name}"? Products and machines using it will have no department.`,
-      )
-    )
-      return;
+      ).length;
+    remember(
+      `Department "${d.name || "(empty)"}" removed` +
+        (used
+          ? `; ${count(used, "item has", "items have")} no department now`
+          : ""),
+    );
     // Pin older items to their current department before the list changes.
     [...S.machines, ...S.lines.flatMap((l) => l.products)].forEach((p) => {
       if (p.dept === undefined) p.dept = deptOf(p, S.co);
@@ -583,10 +688,11 @@ document.addEventListener("click", (e) => {
   } else if (a == "clearAll") {
     if (
       !confirm(
-        "Delete ALL lines, products, steps and photos saved in this browser? This cannot be undone.",
+        "Delete ALL lines, products, steps and photos saved in this browser? You can undo this until you close or reload the page.",
       )
     )
       return;
+    remember("All data cleared");
     S = {
       lines: [],
       machines: [],
@@ -655,8 +761,12 @@ document.addEventListener("change", async (e) => {
     t.value = "";
     if (!d) return alert(BAD_IMG);
     const prev = S.logo;
+    if (prev) remember("Logo changed");
     S.logo = d;
-    if (!(await writeNow())) S.logo = prev;
+    if (!(await writeNow())) {
+      S.logo = prev;
+      if (prev) UNDO.pop();
+    }
     R(true);
     return;
   }
@@ -1274,6 +1384,7 @@ const itemHelp = (mm) => {
 <h3>Good to know</h3>
 <ul>
 <li>Everything is saved automatically as you type. There is no Save button.</li>
+<li><b>Removed something by mistake?</b> Press <b>Undo</b> in the bar at the bottom of the screen, or Ctrl+Z (⌘Z on a Mac) when you are not typing in a field. This works for steps, sub-steps, warnings and notes, photos, products, machines, lines, departments, the logo, imports and clearing all data, until you close or reload the page.</li>
 <li><b>Export this ${it}</b> makes a file to share this one ${it} with a colleague (see <b>Export &amp; import</b> on the home page).</li>
 <li><b>Delete ${it}</b> removes it for good. Export it or make a backup first if you might need it again.</li>
 </ul>`,
@@ -1483,10 +1594,11 @@ async function applyImport() {
   if (IMP.mode == "replace" && IMP.full) {
     if (
       !confirm(
-        "Replace ALL current data with this backup? This cannot be undone.",
+        "Replace ALL current data with this backup? You can undo this until you close or reload the page.",
       )
     )
       return;
+    remember("All data replaced with the backup");
     S = IMP.full;
     S.lastBackup = Date.now(); // this data is already in a backup file
     msg = "All data was replaced with the backup.";
@@ -1496,6 +1608,9 @@ async function applyImport() {
       co = IMP.company && IMP.sel.has("co");
     if (!chosen.length && !co)
       return alert("Tick at least one thing to import.");
+    remember(
+      `Import of ${count(chosen.length, "item", "items")}${co ? " and company details" : ""}`,
+    );
     if (co) mergeCompany(S, IMP.company);
     // Missing photos of the items (and logo) actually imported.
     const same = (m, pk) =>

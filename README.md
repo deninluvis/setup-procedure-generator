@@ -72,6 +72,12 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 8. Press **Download PDF**.
 9. Use **Export backup** on the home page regularly. Data lives only in this browser.
 
+**Undo:** after removing or replacing something (a step, sub-step, warning or note,
+photo, product, machine, line, department, the logo, an import, or clearing all data), a
+bar at the bottom shows what happened with an **Undo** button for 10 seconds. Ctrl+Z
+(⌘Z on a Mac) also undoes when you are not typing in a field. Up to 20 actions can be
+undone, until the page is closed or reloaded.
+
 ## Storage
 
 - Data is saved in the browser's IndexedDB storage. The amount allowed depends on the
