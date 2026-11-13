@@ -96,10 +96,10 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
         )
         .join("") +
       `<button class="b2" data-a="addS">＋ Add step</button>
-<h2>Sign-off</h2><div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
-<label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
-<div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>
+<h2>Sign-off</h2><div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>
 <p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
+<div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
+<label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
 <div class="row"><button class="b" data-a="pdf">Download PDF</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
   $("#app").innerHTML = h;
@@ -440,9 +440,41 @@ async function mkPdf() {
     y += 6;
   });
   y += 4;
-  need(66);
+  need(88);
   y += 4;
   sec("Approval");
+  // Time and technicians table: values printed when entered, otherwise the
+  // cell is left blank to write in by pen ("h" and "min" guides for time).
+  const mins = toMinutes(p.th, p.tm),
+    tech = String(p.tech ?? "").trim(),
+    tw = CW / 2,
+    th = 8,
+    tv = 12;
+  d.setDrawColor(...K);
+  d.setLineWidth(0.3);
+  [
+    ["Time required", mins == null ? "" : fmtTime(mins), true],
+    ["Technicians required", tech, false],
+  ].forEach(([lb, v, isTime], i) => {
+    const x = M + i * tw;
+    d.rect(x, y, tw, th);
+    d.rect(x, y + th, tw, tv);
+    d.setFont("helvetica", "bold");
+    d.setFontSize(9);
+    tc(K);
+    d.text(lb, x + 2, y + 5.4);
+    if (v) {
+      d.setFontSize(12);
+      d.text(v, x + 2, y + th + 7.8);
+    } else if (isTime) {
+      d.setFont("helvetica", "normal");
+      d.setFontSize(9);
+      tc(G);
+      d.text("h", x + 26, y + th + tv - 3);
+      d.text("min", x + 58, y + th + tv - 3);
+    }
+  });
+  y += th + tv + 8;
   const c2 = (CW - 10) / 2;
   [
     ["Prepared by", p.by, M],
@@ -466,34 +498,6 @@ async function mkPdf() {
     d.text("Date", x + c2 * 0.65, y + 28);
   });
   y += 36;
-  // Time and technicians: printed when entered, otherwise a line to write on.
-  const mins = toMinutes(p.th, p.tm),
-    tech = String(p.tech ?? "").trim();
-  [
-    ["Time required", mins == null ? "" : fmtTime(mins), M, true],
-    ["Technicians required", tech, M + c2 + 10, false],
-  ].forEach(([lb, v, x, isTime]) => {
-    d.setFont("helvetica", "normal");
-    d.setFontSize(8);
-    tc(G);
-    d.text(lb, x, y + 3);
-    if (v) {
-      d.setFont("helvetica", "bold");
-      d.setFontSize(12);
-      tc(K);
-      d.text(v, x, y + 10);
-    } else {
-      d.setDrawColor(...K);
-      d.setLineWidth(0.3);
-      d.line(x, y + 13, x + c2, y + 13);
-      if (isTime) {
-        d.setFontSize(9);
-        d.text("h", x + 22, y + 12);
-        d.text("min", x + 50, y + 12);
-      }
-    }
-  });
-  y += 18;
   const n = d.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     d.setPage(i);
