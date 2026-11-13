@@ -10,6 +10,7 @@ let S = { lines: [], machines: [] },
   GRP = "line",
   XF = "",
   HS = "", // home page search text
+  HELP = true, // help panel open on the Export & import page
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -741,13 +742,17 @@ function loadView() {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) || "{}");
     if (v.grp == "line" || v.grp == "dept") GRP = v.grp;
+    if (typeof v.help == "boolean") HELP = v.help;
     if (Array.isArray(v.col))
       COL = new Set(v.col.filter((x) => typeof x == "string").slice(0, 500));
   } catch (e) {}
 }
 function saveView() {
   try {
-    localStorage.setItem(VIEW_KEY, JSON.stringify({ grp: GRP, col: [...COL] }));
+    localStorage.setItem(
+      VIEW_KEY,
+      JSON.stringify({ grp: GRP, col: [...COL], help: HELP }),
+    );
   } catch (e) {}
 }
 
@@ -975,6 +980,52 @@ function tree(nodes, mode, sel, groupFn, disabled) {
     : "";
 }
 
+// Step-by-step help at the top of the Export & import page. Open or closed is
+// remembered with the other view settings.
+const helpPanel =
+  () => `<details class="help" data-help="1"${HELP ? " open" : ""}>
+<summary>How export and import work</summary>
+<h3>Export: save or share</h3>
+<ol>
+<li>Tick what you want in the <b>Export</b> list below. Ticking a group ticks everything in it. Use <b>Group by</b> to list by product line or by department, and the <b>filter</b> box to find items.</li>
+<li>Press the button under the list:
+<ul>
+<li><b>Everything ticked → Export full backup.</b> A complete copy of all your data, named <code>setup-procedures-backup-DATE.zip</code>. Keep it somewhere safe, such as a USB drive or a company network folder.</li>
+<li><b>Some items ticked → Export selected.</b> A file with just those items, to share with a colleague.</li>
+</ul></li>
+<li>The <code>.zip</code> file downloads. Inside are <code>data.json</code> (all the text) and your photos as normal image files in folders named after your lines, products and machines.</li>
+</ol>
+<h3>Import: restore or add</h3>
+<ol>
+<li>Under <b>Import</b>, press <b>Choose files</b> and pick one or more <code>.zip</code> files. Older <code>.json</code> backups work too.</li>
+<li>Check the list of what is inside. Each item is marked <span class="bd new">new</span> or <span class="bd">already exists</span>.</li>
+<li>For a <b>full backup</b>, choose <b>Replace all current data</b> (restore everything, for example on a new computer) or <b>Add only what I tick</b>.</li>
+<li>Tick what to import. For items that already exist, choose <b>Replace it</b> or <b>Keep both</b>.</li>
+<li>Press <b>Import selected</b> (or <b>Replace all data</b>). A message confirms what was imported.</li>
+</ol>
+<h3>Good to know</h3>
+<ul>
+<li>Your data is stored only in this browser. Export a full backup regularly; the home page reminds you after 7 days.</li>
+<li><b>Moving to another computer or browser:</b> export a full backup here. On the other one, press <b>Import backup</b> on the Welcome screen, choose the file and keep <b>Replace all current data</b>.</li>
+<li><b>Swapping a photo:</b> open the <code>.zip</code>, replace the photo with a new one using the same file name, then import the file.</li>
+<li>Imported products go into the product line with the same name. Missing lines and departments are created.</li>
+<li>Company details and logo change only if you tick them when importing.</li>
+<li>Nothing changes until you press the import button. <b>Cancel</b> leaves everything as it was.</li>
+</ul>
+</details>`;
+
+// Remember whether the help panel is open ("toggle" does not bubble, so capture it).
+document.addEventListener(
+  "toggle",
+  (e) => {
+    if (e.target.dataset && e.target.dataset.help) {
+      HELP = e.target.open;
+      saveView();
+    }
+  },
+  true,
+);
+
 // Filter box and "Group by" switch; they apply to both trees on the page.
 function toolbar() {
   const total = exItems().length + (IMP ? IMP.packs.length : 0),
@@ -1005,6 +1056,7 @@ function XV() {
     ].filter(Boolean);
   let h =
     `<button class="lk" data-a="goHome">← Home</button><h1>Export &amp; import</h1>` +
+    helpPanel() +
     (XMSG ? `<p class="ok" role="status">${XMSG}</p>` : "") +
     `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
     toolbar() +

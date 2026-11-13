@@ -70,7 +70,8 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 ## Backup and sharing
 
 Everything is on the **Export & import** page (home page → **Backup and sharing** →
-**Export & import**). **Quick full backup** on the home page exports everything in
+**Export & import**). A **How export and import work** panel at the top of the page
+explains the steps; it can be closed, and stays closed until opened again. **Quick full backup** on the home page exports everything in
 one click.
 
 ### Export

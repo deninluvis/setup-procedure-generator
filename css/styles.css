@@ -422,3 +422,34 @@ input[type="radio"] {
 #hres {
   margin-bottom: 8px;
 }
+.help {
+  border: 1px solid var(--bd);
+  border-radius: 8px;
+  padding: 0 16px;
+  margin: 12px 0 8px;
+  font-size: 15px;
+}
+.help[open] {
+  padding-bottom: 8px;
+}
+.help summary {
+  font-weight: 600;
+  cursor: pointer;
+  padding: 12px 0;
+}
+.help h3 {
+  font-size: 16px;
+  margin: 12px 0 4px;
+}
+.help ol,
+.help ul {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+}
+.help li {
+  margin: 4px 0;
+}
+.help code {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
