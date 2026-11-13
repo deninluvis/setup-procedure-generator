@@ -73,6 +73,8 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
 8. Optionally tick **Add watermark to the PDF**: the company name and the item's
    department are printed large, faint and diagonally across every page. The choice is
    remembered in this browser.
+   Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
+   their full resolution, so they stay sharp when zoomed at any size.
 9. Press **Download PDF**.
 10. Use **Export backup** on the home page regularly. Data lives only in this browser.
 

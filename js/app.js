@@ -13,6 +13,7 @@ let S = { lines: [], machines: [] },
   HELPS = { x: false, item: false }, // help panels open? x = Export & import, item = product/machine page (closed at first)
   LASTMISS = [], // photos missing in the last import, shown with the result
   WM = false, // add a company/department watermark to downloaded PDFs
+  PS = "medium", // photo size in the PDF: "small", "medium" or "large"
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -309,7 +310,7 @@ ${toolsHtml(p)}
 <p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
 <div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
-${wmBox(p)}
+${wmBox(p)}${psBox()}
 <div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
   $("#app").innerHTML = h;
@@ -835,6 +836,11 @@ document.addEventListener("change", async (e) => {
     saveView();
     return;
   }
+  if (t.dataset.ps) {
+    PS = t.value;
+    saveView();
+    return;
+  }
   if (t.name == "grp") {
     GRP = t.value;
     saveView();
@@ -1077,6 +1083,7 @@ function loadView() {
     if (v.grp == "line" || v.grp == "dept") GRP = v.grp;
     if (typeof v.help == "boolean") HELPS.x = v.help; // older setting
     if (typeof v.wm == "boolean") WM = v.wm;
+    if (PHOTO_SIZES[v.ps]) PS = v.ps;
     if (v.helps && typeof v.helps == "object")
       for (const k in HELPS)
         if (typeof v.helps[k] == "boolean") HELPS[k] = v.helps[k];
@@ -1088,7 +1095,7 @@ function saveView() {
   try {
     localStorage.setItem(
       VIEW_KEY,
-      JSON.stringify({ grp: GRP, col: [...COL], helps: HELPS, wm: WM }),
+      JSON.stringify({ grp: GRP, col: [...COL], helps: HELPS, wm: WM, ps: PS }),
     );
   } catch (e) {}
 }
@@ -1430,7 +1437,7 @@ const itemHelp = (mm) => {
 <li><b>＋ Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text and optional photo. They print indented under their step.</li>
 </ul></li>
 <li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
-<li><b>Download PDF.</b> Tick <b>Add watermark</b> first if you want the company name and department printed faintly across every page. The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
+<li><b>Download PDF.</b> Tick <b>Add watermark</b> first if you want the company name and department printed faintly across every page, and pick the <b>Photo size in the PDF</b> (Small, Medium or Large; photos stay sharp when zoomed at any size). The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
 </ol>
 <h3>Good to know</h3>
 <ul>
@@ -1729,6 +1736,23 @@ const wmLines = (p) =>
     .filter(Boolean);
 
 // The "Add watermark" tick box shown above Download PDF.
+// Largest printed size (mm) of photos in the PDF. Photos keep their shape and
+// full resolution, so they stay sharp when the PDF is zoomed.
+const PHOTO_SIZES = {
+  small: { label: "Small", step: [70, 52], sub: [56, 42], gal: [44, 34] },
+  medium: { label: "Medium", step: [85, 64], sub: [68, 51], gal: [54, 42] },
+  large: { label: "Large", step: [100, 75], sub: [80, 60], gal: [64, 50] },
+};
+const psBox = () =>
+  `<label class="chk"><span>Photo size in the PDF</span><select data-ps="1" aria-label="Photo size in the PDF">${Object.entries(
+    PHOTO_SIZES,
+  )
+    .map(
+      ([k, v]) =>
+        `<option value="${k}"${k == PS ? " selected" : ""}>${v.label}</option>`,
+    )
+    .join("")}</select></label>`;
+
 const wmBox = (p) => {
   const lines = wmLines(p);
   return `<label class="chk"><input type="checkbox" data-wm="1"${WM && lines.length ? " checked" : ""}${lines.length ? "" : " disabled"}> <span>Add watermark to the PDF${lines.length ? `: <b>${lines.map(esc).join(" · ")}</b>` : " (enter a company name first)"}</span></label>`;
@@ -1840,11 +1864,12 @@ async function mkPdf() {
     d.setLineWidth(0.2);
     d.rect(x, y, w, h);
   };
+  const PH = PHOTO_SIZES[PS] || PHOTO_SIZES.medium;
   const gal = (arr) => {
     let x = M,
       rh = 0;
     for (const s of arr) {
-      const [w, h] = fit(s, 54, 42);
+      const [w, h] = fit(s, ...PH.gal);
       if (x + w > W - M + 0.1) {
         x = M;
         y += rh + 4;
@@ -2035,7 +2060,7 @@ async function mkPdf() {
         ? noteBoxH(String(u.warn).trim(), CW - 21) + 3
         : 0) +
         (u.t ? textH(u.t, CW - 21, 10.5, 0) : 0) +
-        (u.img ? 2 + fit(u.img, 80, 60)[1] : 0),
+        (u.img ? 2 + fit(u.img, ...PH.sub)[1] : 0),
       5,
     );
   const stepH = (s) => {
@@ -2044,7 +2069,7 @@ async function mkPdf() {
     const warn = String(s.warn || "").trim();
     if (warn) sh += noteBoxH(warn, CW - 9) + 3;
     if (s.t) sh += textH(s.t, CW - 9, 10.5, 0);
-    if (s.img) sh += 2 + fit(s.img, 100, 75)[1];
+    if (s.img) sh += 2 + fit(s.img, ...PH.step)[1];
     (s.subs || []).forEach((u) => (sh += 3 + subH(u)));
     return Math.max(sh, 7);
   };
@@ -2076,7 +2101,7 @@ async function mkPdf() {
     if (s.t) para(s.t, M + 9, CW - 9, 10.5, 0, [45, 45, 45]);
     if (s.img) {
       y += 2;
-      const [w, h] = fit(s.img, 100, 75);
+      const [w, h] = fit(s.img, ...PH.step);
       need(h + 1);
       box(s.img, M + 9, w, h);
       y += h;
@@ -2097,7 +2122,7 @@ async function mkPdf() {
       if (u.t) para(u.t, M + 21, CW - 21, 10.5, 0, [45, 45, 45]);
       if (u.img) {
         y += 2;
-        const [w, h] = fit(u.img, 80, 60);
+        const [w, h] = fit(u.img, ...PH.sub);
         need(h + 1);
         box(u.img, M + 21, w, h);
         y += h;

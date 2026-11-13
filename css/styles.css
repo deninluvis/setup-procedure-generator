@@ -612,3 +612,8 @@ input[type="radio"] {
     display: none;
   }
 }
+.chk select {
+  width: auto;
+  margin: 0;
+  padding: 6px 8px;
+}
