@@ -502,3 +502,20 @@ input[type="radio"] {
   font-weight: 700;
   min-width: 40px;
 }
+.wbox {
+  border: 2px solid var(--dg);
+  border-radius: 8px;
+  padding: 8px 10px 4px;
+  margin: 6px 0;
+}
+.wbox .sh {
+  margin-bottom: 2px;
+}
+.wbox b {
+  color: var(--dg);
+}
+.wi {
+  font-size: 20px;
+  line-height: 1;
+  color: var(--dg);
+}

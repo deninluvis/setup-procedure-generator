@@ -134,7 +134,11 @@ const photoBtn = (img, rm, up) =>
 const stepHtml = (s, i) => {
   const subs = s.subs || [];
   return `<div class="box"><div class="sh"><span class="n">${i + 1}</span><span class="sp"></span><button class="sm" data-a="up" data-i="${i}" aria-label="Move step ${i + 1} up">↑</button><button class="sm" data-a="dn" data-i="${i}" aria-label="Move step ${i + 1} down">↓</button><button class="sm" data-a="rmS" data-i="${i}" aria-label="Delete step ${i + 1}">✕</button></div>
-<input data-h="${i}" placeholder="Step headline (optional)" value="${esc(s.h)}" style="font-weight:600" aria-label="Step ${i + 1} headline"><textarea data-s="${i}" placeholder="Describe this step" aria-label="Step ${i + 1} description">${esc(s.t)}</textarea>
+<input data-h="${i}" placeholder="Step headline (optional)" value="${esc(s.h)}" style="font-weight:600" aria-label="Step ${i + 1} headline">${
+    s.warn !== undefined
+      ? `<div class="wbox"><div class="sh"><span class="wi" aria-hidden="true">⚠</span><b>Warning</b><span class="sp"></span><button class="sm" data-a="rmW" data-i="${i}" aria-label="Remove the warning from step ${i + 1}">✕</button></div><textarea data-w="${i}" rows="2" placeholder="Describe the hazard and what to do, for example: Hot surface. Wear heat-resistant gloves." aria-label="Step ${i + 1} warning">${esc(s.warn)}</textarea></div>`
+      : ""
+  }<textarea data-s="${i}" placeholder="Describe this step" aria-label="Step ${i + 1} description">${esc(s.t)}</textarea>
 ${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`)}
 ${subs
   .map(
@@ -146,7 +150,7 @@ ${subs
 ${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" data-i="${i}" data-j="${j}"`)}</div>`,
   )
   .join("")}
-<div class="row" style="flex-wrap:wrap"><button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
+<div class="row" style="flex-wrap:wrap">${s.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}">⚠ Add warning</button>` : ""}<button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
 };
 
 const MV = () =>
@@ -340,6 +344,14 @@ document.addEventListener("click", (e) => {
     )
       return;
     P().steps.splice(i, 1);
+  } else if (a == "addW") {
+    P().steps[i].warn = "";
+    focus = `[data-w="${i}"]`;
+  } else if (a == "rmW") {
+    const w = P().steps[i].warn || "";
+    if (w.trim() && !confirm(`Remove the warning from step ${i + 1}?`)) return;
+    delete P().steps[i].warn;
+    focus = `[data-a=addW][data-i="${i}"]`;
   } else if (a == "addSub") {
     const s = P().steps[i];
     s.subs = s.subs || [];
@@ -534,7 +546,9 @@ document.addEventListener("click", (e) => {
   }
   save();
   R(
-    /^(rmPh|addS|insS|rmS|rmSI|up|dn|addSub|rmSub|rmSubI|subUp|subDn)$/.test(a),
+    /^(rmPh|addS|insS|rmS|rmSI|up|dn|addSub|rmSub|rmSubI|subUp|subDn|addW|rmW)$/.test(
+      a,
+    ),
   );
   if (focus && $(focus)) $(focus).focus();
 });
@@ -570,6 +584,7 @@ document.addEventListener("input", (e) => {
   if (t.dataset.f) p[t.dataset.f] = t.value;
   else if (t.dataset.s !== undefined) p.steps[+t.dataset.s].t = t.value;
   else if (t.dataset.h !== undefined) p.steps[+t.dataset.h].h = t.value;
+  else if (t.dataset.w !== undefined) p.steps[+t.dataset.w].warn = t.value;
   else if (t.dataset.ss !== undefined)
     p.steps[+t.dataset.ss].subs[+t.dataset.sj].t = t.value;
   else return;
@@ -1183,6 +1198,7 @@ const itemHelp = (mm) => {
 <li><b>＋ Add photo</b> adds one photo to the step, for example the part or the control panel.</li>
 <li><b>↑ ↓</b> move a step up or down, and <b>✕</b> deletes it.</li>
 <li><b>＋ Insert step below</b> adds a new step right after that step; <b>＋ Add step</b> at the bottom adds one at the end. Steps renumber automatically.</li>
+<li><b>⚠ Add warning</b> adds a safety warning to a step. Describe the hazard and what to do. In the PDF it is printed in a box with a warning symbol and the word WARNING, under the step's headline. <b>✕</b> in the warning removes it.</li>
 <li><b>＋ Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text and optional photo. They print indented under their step.</li>
 </ul></li>
 <li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
@@ -1676,6 +1692,11 @@ async function mkPdf() {
     // fit on a page; otherwise start it on a new page if it is near the bottom.
     let sh = 0;
     if (s.h) sh += textH(s.h, CW - 9, 11.5, 1) + 1;
+    const warn = String(s.warn || "").trim(),
+      warnH = warn
+        ? Math.max(14, 5.2 + textH(warn, CW - 9 - 18, 10.5, 0) + 6)
+        : 0;
+    if (warn) sh += warnH + 3;
     if (s.t) sh += textH(s.t, CW - 9, 10.5, 0);
     if (s.img) sh += 2 + fit(s.img, 100, 75)[1];
     const subH = (u) =>
@@ -1696,6 +1717,41 @@ async function mkPdf() {
     if (s.h) {
       para(s.h, M + 9, CW - 9, 11.5, 1);
       y += 1;
+    }
+    if (warn) {
+      // Bordered box: warning triangle, "WARNING", then the description.
+      y += 1;
+      need(warnH + 2);
+      const bx = M + 9,
+        by = y,
+        ix = bx + 4,
+        iy = by + 3,
+        sz = 9;
+      d.setDrawColor(...K);
+      d.setLineWidth(0.7);
+      d.rect(bx, by, CW - 9, warnH);
+      d.setLineWidth(0.6);
+      d.setLineJoin("round");
+      d.triangle(
+        ix + sz / 2,
+        iy,
+        ix,
+        iy + sz * 0.87,
+        ix + sz,
+        iy + sz * 0.87,
+        "S",
+      );
+      d.setLineJoin("miter");
+      d.setFont("helvetica", "bold");
+      d.setFontSize(10);
+      tc(K);
+      d.text("!", ix + sz / 2, iy + sz * 0.87 - 1.3, { align: "center" });
+      y = by + 3;
+      d.setFontSize(10.5);
+      d.text("WARNING", bx + 18, y + 3.9);
+      y += 5.2;
+      para(warn, bx + 18, CW - 9 - 18 - 3, 10.5, 0, K);
+      y = by + warnH + 2;
     }
     if (s.t) para(s.t, M + 9, CW - 9, 10.5, 0, [45, 45, 45]);
     if (s.img) {
