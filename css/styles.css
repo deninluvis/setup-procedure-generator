@@ -102,7 +102,7 @@ textarea {
   min-height: 84px;
   resize: vertical;
 }
-label.f {
+.f {
   display: block;
   font-size: 14px;
   color: var(--mut);
@@ -204,19 +204,10 @@ label.f {
 .sp {
   flex: 1;
 }
-.rw {
+.hm {
   display: grid;
-  grid-template-columns: 1fr 64px 64px 64px 34px;
-  gap: 6px;
-  align-items: center;
-}
-.rw input {
-  margin: 2px 0;
-  padding: 8px;
-}
-.rwh {
-  font-size: 12px;
-  color: var(--mut);
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 .tabs {
   display: flex;
