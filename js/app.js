@@ -1,5 +1,6 @@
 // Setup Procedures app: state, rendering, event handling and PDF export.
-// Helpers (id, esc, tot, parseBackup) come from js/utils.js, loaded first.
+// Helpers (id, esc, tot, parseBackup, rowMinutes, fmtTime, rowUsed,
+// staffTotals) come from js/utils.js, loaded first.
 const $ = (s) => document.querySelector(s);
 let S = { lines: [] };
 try {
@@ -95,6 +96,11 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
         )
         .join("") +
       `<button class="b2" data-a="addS">＋ Add step</button>
+<h2>Staffing and time</h2><p class="m">Leave any field empty to write it in by hand on the printed PDF.</p>
+${(p.res || []).length ? `<div class="rw rwh"><span>Role / task</span><span>People</span><span>Hours</span><span>Min</span><span></span></div>` : ""}
+${(p.res || []).map((x, i) => `<div class="rw"><input data-r="${i}" data-rk="r" placeholder="e.g. Operator" value="${esc(x.r)}" aria-label="Role or task"><input data-r="${i}" data-rk="n" type="number" min="0" inputmode="numeric" value="${esc(x.n)}" aria-label="People required"><input data-r="${i}" data-rk="h" type="number" min="0" inputmode="numeric" value="${esc(x.h)}" aria-label="Hours"><input data-r="${i}" data-rk="m" type="number" min="0" max="59" inputmode="numeric" value="${esc(x.m)}" aria-label="Minutes"><button class="sm" data-a="rmR" data-i="${i}" aria-label="Delete row">✕</button></div>`).join("")}
+<button class="b2" data-a="addR">＋ Add row</button>
+<p class="m" id="tot">${(p.res || []).length ? esc(tot(p)) : ""}</p>
 <h2>Sign-off</h2><div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
 <div class="row"><button class="b" data-a="pdf">Download PDF</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
@@ -184,7 +190,7 @@ document.addEventListener("click", (e) => {
   } else if (a == "addR") {
     const q = P();
     q.res = q.res || [];
-    q.res.push({ r: "", n: "1", m: "" });
+    q.res.push({ r: "", n: "", h: "", m: "" });
   } else if (a == "rmR") {
     P().res.splice(i, 1);
   } else if (a == "tab") {
@@ -445,31 +451,82 @@ async function mkPdf() {
     if (y < y0 + 7) y = y0 + 7;
     y += 6;
   });
-  need(58);
-  sec("Staffing and time (completed by approver)");
-  const cw3 = [CW - 76, 38, 38],
+  // Staffing table: filled values are printed; empty cells stay blank so they
+  // can be written in by pen. Empty time cells get faint "h" and "min" guides.
+  const used = (p.res || []).filter(rowUsed),
+    nRows = Math.max(4, used.length + 1),
+    cw3 = [CW - 74, 30, 44],
     hh = 8,
-    rh = 9;
+    rh = 9,
+    st = staffTotals(p);
+  need(hh + rh * Math.min(nRows, 6) + 16);
+  sec("Staffing and time");
   let x = M;
-  d.setDrawColor(...K);
-  d.setLineWidth(0.3);
-  ["Role / task", "People required", "Minutes required"].forEach((t, i) => {
-    d.rect(x, y, cw3[i], hh);
-    d.setFont("helvetica", "bold");
-    d.setFontSize(9);
-    tc(K);
-    d.text(t, x + 2, y + 5.4);
-    x += cw3[i];
-  });
-  y += hh;
-  for (let r = 0; r < 4; r++) {
+  const hdr = () => {
     x = M;
+    d.setDrawColor(...K);
+    d.setLineWidth(0.3);
+    ["Role / task", "People required", "Time required"].forEach((t, i) => {
+      d.rect(x, y, cw3[i], hh);
+      d.setFont("helvetica", "bold");
+      d.setFontSize(9);
+      tc(K);
+      d.text(t, x + 2, y + 5.4);
+      x += cw3[i];
+    });
+    y += hh;
+  };
+  const timeCell = (x, yy, h, mins) => {
+    if (mins != null) {
+      d.setFont("helvetica", "normal");
+      d.setFontSize(10);
+      tc(K);
+      d.text(fmtTime(mins), x + 2, yy + h / 2 + 1.6);
+    } else {
+      d.setFont("helvetica", "normal");
+      d.setFontSize(8);
+      tc(G);
+      d.text("h", x + 17, yy + h - 2.2);
+      d.text("min", x + cw3[2] - 9, yy + h - 2.2);
+    }
+  };
+  const row = (cells, mins, bold) => {
+    d.setFont("helvetica", bold ? "bold" : "normal");
+    d.setFontSize(10);
+    const lines = d.splitTextToSize(cells[0], cw3[0] - 4),
+      h = Math.max(rh, lines.length * 4.6 + 4.4);
+    if (y + h > B) {
+      d.addPage();
+      y = M + 4;
+      hdr();
+    }
+    x = M;
+    d.setDrawColor(...K);
+    d.setLineWidth(0.3);
     cw3.forEach((w) => {
-      d.rect(x, y, w, rh);
+      d.rect(x, y, w, h);
       x += w;
     });
-    y += rh;
+    d.setFont("helvetica", bold ? "bold" : "normal");
+    d.setFontSize(10);
+    tc(K);
+    lines.forEach((l, j) => d.text(l, M + 2, y + 5.8 + j * 4.6));
+    if (cells[1]) d.text(cells[1], M + cw3[0] + 2, y + h / 2 + 1.6);
+    timeCell(M + cw3[0] + cw3[1], y, h, mins);
+    y += h;
+  };
+  hdr();
+  for (let r = 0; r < nRows; r++) {
+    const e = used[r];
+    if (e)
+      row([String(e.r || "").trim(), String(e.n ?? "").trim()], rowMinutes(e));
+    else row(["", ""], null);
   }
+  row(
+    ["Total", st.complete ? "Max " + st.people : ""],
+    st.complete ? st.minutes : null,
+    true,
+  );
   y += 4;
   need(44);
   y += 4;

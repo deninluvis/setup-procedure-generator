@@ -206,7 +206,7 @@ label.f {
 }
 .rw {
   display: grid;
-  grid-template-columns: 1fr 62px 72px 34px;
+  grid-template-columns: 1fr 64px 64px 64px 34px;
   gap: 6px;
   align-items: center;
 }
