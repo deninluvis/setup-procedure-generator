@@ -19,6 +19,14 @@ const toMinutes = (h, m) => {
 const fmtTime = (mins) =>
   mins == null ? "" : `${Math.floor(mins / 60)} h ${mins % 60} min`;
 
+// Format a byte count, e.g. 512 KB, 12.3 MB, 1.5 GB.
+const fmtBytes = (n) =>
+  n < 1024 * 1024
+    ? Math.max(1, Math.round(n / 1024)) + " KB"
+    : n < 1024 ** 3
+      ? (n / 1024 ** 2).toFixed(1) + " MB"
+      : (n / 1024 ** 3).toFixed(1) + " GB";
+
 // Returns normalized {lines, machines, co, logo?} data from a parsed backup, or null if invalid.
 const parseBackup = (j) => {
   if (!j || !Array.isArray(j.lines)) return null;
@@ -65,4 +73,5 @@ if (typeof module !== "undefined")
     normCo,
     deptOf,
     deptName,
+    fmtBytes,
   };

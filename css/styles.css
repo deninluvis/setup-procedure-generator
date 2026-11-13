@@ -292,3 +292,15 @@ textarea {
   gap: 8px;
   align-items: center;
 }
+.meter {
+  height: 8px;
+  border: 1px solid var(--bd);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--ac);
+}

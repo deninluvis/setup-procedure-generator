@@ -1,27 +1,55 @@
 // Setup Procedures app: state, rendering, event handling and PDF export.
 // Helpers (id, esc, parseBackup, toMinutes, fmtTime, normCo, deptOf,
-// deptName) come from js/utils.js, loaded first.
+// deptName, fmtBytes) come from js/utils.js and Store from js/storage.js,
+// both loaded first.
 const $ = (s) => document.querySelector(s);
-let S = { lines: [] };
-try {
-  S = JSON.parse(localStorage.getItem("sp") || "") || S;
-} catch (e) {}
-S.machines = S.machines || [];
-S.lines = S.lines || [];
-S.co = normCo(S.co);
-if (!S.co.done && !S.co.depts.length) S.co.depts = [{ id: id(), name: "" }];
 // Screens: T = "co" company setup, "h" home, "p" products, "m" machines.
-let V = { l: null, p: null },
-  T = S.co.done ? "h" : "co",
+let S = { lines: [], machines: [] },
+  V = { l: null, p: null },
+  T = "h",
   MID = null;
-const save = () => {
+// Set up state from saved data (see the Store.load() call at the end).
+function initState(data) {
+  S = data && typeof data == "object" ? data : {};
+  S.machines = S.machines || [];
+  S.lines = S.lines || [];
+  S.co = normCo(S.co);
+  if (!S.co.done && !S.co.depts.length) S.co.depts = [{ id: id(), name: "" }];
+  T = S.co.done ? "h" : "co";
+}
+
+// Saving: every change is saved straight away (photos are stored separately,
+// so a save is small). If a save is still running, one more follows it.
+// writeNow() saves at once and resolves false if storage is full.
+let writing = null,
+  dirty = false,
+  fullShown = false;
+const writeNow = async () => {
   try {
-    localStorage.setItem("sp", JSON.stringify(S));
+    await Store.write(S);
+    fullShown = false;
     return true;
   } catch (e) {
-    alert("Browser storage is full. Remove some photos or products.");
+    if (!fullShown)
+      alert(
+        "Storage is full, so the last change was not saved. Export a backup, then remove some photos or products.",
+      );
+    fullShown = true;
     return false;
   }
+};
+const save = () => {
+  if (writing) {
+    dirty = true;
+    return;
+  }
+  writing = writeNow().finally(() => {
+    writing = null;
+    if (dirty) {
+      dirty = false;
+      save();
+    }
+  });
 };
 const BAD_IMG =
   "This image could not be read. Please use a PNG, JPG or SVG file. (iPhone HEIC photos may need converting first.)";
@@ -64,6 +92,7 @@ const HomeV = () =>
 <button class="lk" data-a="editCo">Edit company details</button>
 <h2>Setup procedures</h2><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
+<h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 <h2>Backup</h2><p class="m">Save a copy of everything, or restore one.</p><div class="row" style="flex-wrap:wrap"><button class="b2" data-a="bk">Export backup</button><label class="b2">Import backup<input type="file" accept=".json,application/json" hidden data-imp="1"></label></div><div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
@@ -154,11 +183,33 @@ ${s.img ? `<img class="simg" src="${s.img}" alt=""><button class="lk" data-a="rm
   }
   $("#app").innerHTML = h;
   if (!keep) window.scrollTo(0, 0);
+  if (T == "h") showStorage();
+}
+
+// Storage meter on the home page.
+async function showStorage() {
+  const s = await Store.info(S),
+    el = $("#stor");
+  if (!el) return;
+  const pct = Math.min(
+      100,
+      Math.max(1, Math.round((s.used / (s.used + s.free)) * 100)),
+    ),
+    low = s.big ? s.free < 50 * 1024 * 1024 : s.free < 1024 * 1024;
+  el.innerHTML =
+    `<p class="m">Your data: <b>${fmtBytes(s.used)}</b> · Free space: <b>${fmtBytes(s.free)}</b></p><div class="meter" role="img" aria-label="${pct}% of storage used"><span style="width:${pct}%"></span></div>` +
+    (low
+      ? `<p class="err">Storage is almost full. Export a backup, then remove some photos or products.</p>`
+      : "") +
+    (s.big
+      ? ""
+      : `<p class="m">This browser only allows about 5 MB here. For much more space, use Chrome or Edge, or open the app from a web address instead of a file.</p>`);
 }
 
 // Shrink an image file to fit max px. PNG keeps transparency (used for the logo).
 // Resolves null when the browser cannot read the image (e.g. HEIC in Chrome).
-const comp = (f, png = false, max = 900) =>
+// Photos: up to 2000 px, high-quality JPEG, so the PDF stays sharp when zoomed.
+const comp = (f, png = false, max = 2000) =>
   new Promise((r) => {
     const u = URL.createObjectURL(f),
       i = new Image();
@@ -172,9 +223,15 @@ const comp = (f, png = false, max = 900) =>
         c = document.createElement("canvas");
       c.width = i.width * k;
       c.height = i.height * k;
-      c.getContext("2d").drawImage(i, 0, 0, c.width, c.height);
+      const g = c.getContext("2d");
+      if (!png) {
+        // JPEG has no transparency: use white instead of black behind it.
+        g.fillStyle = "#fff";
+        g.fillRect(0, 0, c.width, c.height);
+      }
+      g.drawImage(i, 0, 0, c.width, c.height);
       URL.revokeObjectURL(u);
-      r(png ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.7));
+      r(png ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.85));
     };
     i.src = u;
   });
@@ -291,6 +348,7 @@ document.addEventListener("click", (e) => {
     });
     S.co.depts = S.co.depts.filter((d) => d.name.trim());
     S.co.done = true;
+    Store.persist();
     T = "h";
   } else if (a == "mhome") {
     MID = null;
@@ -330,9 +388,6 @@ document.addEventListener("click", (e) => {
     };
     T = "co";
     MID = null;
-    try {
-      localStorage.removeItem("sp");
-    } catch (e) {}
     V = { l: null, p: null };
   } else if (a == "pdf") {
     return mkPdf();
@@ -367,12 +422,12 @@ document.addEventListener("change", async (e) => {
   if (t.dataset.logo) {
     const f = t.files[0];
     if (!f) return;
-    const d = await comp(f, true, 600);
+    const d = await comp(f, true, 1000);
     t.value = "";
     if (!d) return alert(BAD_IMG);
     const prev = S.logo;
     S.logo = d;
-    if (!save()) S.logo = prev;
+    if (!(await writeNow())) S.logo = prev;
     R(true);
     return;
   }
@@ -397,17 +452,27 @@ document.addEventListener("change", async (e) => {
   }
   if (!t.dataset.up) return;
   const p = P(),
-    k = t.dataset.up;
-  for (const f of t.files) {
+    k = t.dataset.up,
+    si = +t.dataset.i,
+    files = [...t.files];
+  t.value = "";
+  // Add and save photos one at a time; if storage fills up, keep the ones
+  // that fit and undo the one that did not.
+  for (const f of files) {
     const d = await comp(f);
     if (!d) {
       alert(BAD_IMG);
       continue;
     }
-    if (k == "step") p.steps[+t.dataset.i].img = d;
+    const before = k == "step" ? p.steps[si].img : null;
+    if (k == "step") p.steps[si].img = d;
     else p[k].push(d);
+    if (!(await writeNow())) {
+      if (k == "step") p.steps[si].img = before;
+      else p[k].pop();
+      break;
+    }
   }
-  save();
   R(true);
 });
 
@@ -684,4 +749,8 @@ async function mkPdf() {
     d.output("blob"),
   );
 }
-R();
+// Start: load saved data, then show the first screen.
+Store.load().then((d) => {
+  initState(d);
+  R();
+});

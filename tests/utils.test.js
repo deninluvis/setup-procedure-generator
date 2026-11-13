@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { id, esc, parseBackup, toMinutes, fmtTime, normCo, deptOf, deptName } = require('../js/utils.js');
+const { id, esc, parseBackup, toMinutes, fmtTime, normCo, deptOf, deptName, fmtBytes } = require('../js/utils.js');
 
 test('esc escapes HTML special characters', () => {
   assert.equal(esc('<a href="x">&</a>'), '&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;');
@@ -64,4 +64,11 @@ test('deptOf and deptName pick the right department', () => {
   assert.equal(deptName('p', co), 'Press');
   assert.equal(deptName('gone', co), '');
   assert.equal(deptName('', co), '');
+});
+
+test('fmtBytes shows KB, MB and GB', () => {
+  assert.equal(fmtBytes(0), '1 KB');
+  assert.equal(fmtBytes(512 * 1024), '512 KB');
+  assert.equal(fmtBytes(12.34 * 1024 * 1024), '12.3 MB');
+  assert.equal(fmtBytes(1.5 * 1024 ** 3), '1.5 GB');
 });

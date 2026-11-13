@@ -6,19 +6,21 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Step-by-step guides, each with an optional headline and photo (kept together on one PDF page)
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
-- Data is stored in the browser (localStorage); export and import a JSON backup
+- Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import a JSON backup
+- High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 
 ## Project structure
 
 ```
 index.html          Page markup; loads the CSS, jsPDF and the scripts below
 css/styles.css      All styles (light and dark mode)
-js/utils.js         Pure helpers: id, esc, tot, parseBackup (unit tested)
+js/utils.js         Pure helpers (unit tested)
+js/storage.js       Saving and loading (IndexedDB, with a localStorage fallback)
 js/app.js           App state, rendering, events, backup and PDF export
 tests/              Node unit tests for js/utils.js
 ```
 
-`js/utils.js` must load before `js/app.js`, because the app uses its helpers.
+`js/utils.js` and `js/storage.js` must load before `js/app.js`, because the app uses them.
 
 ## Run
 
@@ -48,6 +50,17 @@ The PDF uses jsPDF and the IBM Plex Sans font, both loaded from a CDN, so an int
    empty to write in by pen), then Prepared by and Approved by.
 7. Press **Download PDF**.
 8. Use **Export backup** on the home page regularly. Data lives only in this browser.
+
+## Storage
+
+- Data is saved in the browser's IndexedDB storage. The amount allowed depends on the
+  browser and free disk space, usually hundreds of MB or more. The home page shows
+  how much is used and free.
+- Each photo is about 0.3–1 MB, so expect roughly 1–3 MB per procedure with photos.
+- Where IndexedDB is not available, the app falls back to localStorage (about 5 MB)
+  and says so on the home page.
+- Data saved by older versions is moved over automatically on first load.
+- Clearing the browser's site data deletes everything, so export backups regularly.
 
 ## Tests
 
