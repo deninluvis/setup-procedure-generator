@@ -631,7 +631,9 @@ test("approval: request by email, sign with the approver code, import, and draft
     assert.ok(!s.includes("(DRAFT)") && !s.includes("Not approved"));
     assert.ok(
       s.includes("(Sam Lee)") &&
-        s.includes("(Approver code: Test Approver)") &&
+        !s.includes("Approver code") &&
+        s.includes("(Approver ref " + pub.slice(0, 6).toUpperCase() + ")") &&
+        s.includes("approver ref " + pub.slice(0, 6).toUpperCase() + ")") &&
         s.includes("digital signature checked"),
     );
 

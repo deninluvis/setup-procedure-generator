@@ -572,8 +572,11 @@ async function mkPdf(o) {
         x,
         y + 15,
       );
-      if (approved && ap.slot && ap.slot != ap.name)
-        d.text("Approver code: " + ap.slot, x, y + 19);
+      // Which approver code signed it: hidden text, like the author's reference.
+      if (approved)
+        d.text("Approver ref " + ap.aref, x, y + 19, {
+          renderingMode: "invisible",
+        });
     }
     d.setDrawColor(...K);
     d.setLineWidth(0.3);
@@ -597,7 +600,11 @@ async function mkPdf(o) {
     subject: "Setup procedure",
     author: c.coName || "",
     creator: "Setup Procedures",
-    keywords: (ref ? "Ref " + ref + ", " : "") + "printed " + printed,
+    keywords:
+      (ref ? "Ref " + ref + ", " : "") +
+      "printed " +
+      printed +
+      (approved ? ", approver ref " + ap.aref : ""),
   });
   const n = d.getNumberOfPages(),
     wm = WM
@@ -607,14 +614,20 @@ async function mkPdf(o) {
     d.setPage(i);
     if (wm.length) watermark(d, wm, W, 297);
     if (!approved) draftMark(d, W, 297);
-    if (ref) {
-      // Hidden text: not visible or printed, but found by searching the PDF.
+    // Hidden text: not visible or printed, but found by searching the PDF.
+    const hidden = [
+      ref && `Ref ${ref} printed ${printed}`,
+      approved && `Approver ref ${ap.aref}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    if (hidden) {
       d.setFont("helvetica", "normal");
       d.setFontSize(6);
       for (const hy of [10, 150])
-        d.text(`Ref ${ref} printed ${printed}`, M, hy, {
-          renderingMode: "invisible",
-        });
+        d.text(hidden, M, hy, { renderingMode: "invisible" });
+    }
+    if (ref) {
       // Tracking dots at the top and bottom of every page.
       refDots(d, ref, W / 2, 7);
       refDots(d, ref, W / 2, 291.6);

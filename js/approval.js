@@ -73,6 +73,7 @@ async function apState(p, kind) {
         fp,
         name: chk.name,
         slot: chk.slot,
+        aref: codeRef(a.file.pub), // approver reference (hidden in the PDF)
         at: chk.payload.at,
         comment: chk.payload.comment || "",
       };

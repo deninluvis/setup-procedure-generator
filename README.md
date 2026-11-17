@@ -198,9 +198,11 @@ top of its page shows where it is.
    listed approver's code, that the file was not changed, and that the procedure is
    exactly what was approved. It then shows **Approved** (or **Rejected** with the
    comment), for example "Approved by Sam Lee (Approver 1)". Approved PDFs have no
-   watermark and print the name the approver typed, with "digital signature checked"
-   and the approver code's name (for example "Approver code: Approver 1"), so you can
-   tell which code signed it.
+   watermark and print the name the approver typed, with "digital signature checked".
+   Which approver code signed it is not printed: it is hidden in the PDF as
+   `Approver ref 06DB68` (invisible text, found by searching the PDF for "Approver ref",
+   and in the file properties' Keywords). Look it up with
+   `npm run approver -- find 06DB68` or `npm run approver -- list`.
 4. **Any change** after approval (text, photo, tool, PPE, revision…) makes it a draft
    again, with "Changed after it was approved". Undoing the change makes it approved again.
 
@@ -214,7 +216,8 @@ them with:
   (the code stays the same). Optional: approvers type their own name when signing.
 - `npm run approver -- remove "Sam Lee"`: approvals signed with that code stop counting,
   so those procedures become drafts.
-- `npm run approver -- list`
+- `npm run approver -- list`: names with their approver references
+- `npm run approver -- find 06DB68`: which approver code a reference belongs to
 
 **Mark up a photo:** press **✎** on a product or packaging photo, or **✎ Mark up** under
 a step or sub-step photo. A full-screen editor opens:

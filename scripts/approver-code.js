@@ -5,10 +5,12 @@
 //   npm run approver -- list              list the names
 //   npm run approver -- rename "Old" "New"
 //   npm run approver -- remove "Name"     approvals signed with it stop counting
+//   npm run approver -- find REF          which approver code signed a PDF
+//                                         ("Approver ref ..." hidden in the PDF)
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { apKeys } = require("../js/utils.js");
+const { apKeys, codeRef } = require("../js/utils.js");
 
 const FILE = path.join(__dirname, "../js/approvers.js");
 // Each entry is ["Name", "<64 hex characters>"], on one or more lines.
@@ -77,13 +79,28 @@ const find = (list, name) =>
     console.log(
       `Removed "${a}". Approvals signed with that code are no longer accepted.`,
     );
+  } else if (cmd == "find" && a) {
+    const ref = a
+        .replace(/^(approver\s*)?ref\s*/i, "")
+        .trim()
+        .toUpperCase(),
+      hit = list.find(([, h]) => codeRef(h) == ref);
+    console.log(
+      hit
+        ? `Approver ref ${ref} = "${hit[0]}".`
+        : `No current approver has ref ${ref}. It may belong to a code that was removed.`,
+    );
   } else if (cmd == "list") {
     console.log(
-      list.length ? list.map(([n]) => "- " + n).join("\n") : "No approvers.",
+      list.length
+        ? list
+            .map(([n, h]) => `- ${n}   (approver ref ${codeRef(h)})`)
+            .join("\n")
+        : "No approvers.",
     );
   } else {
     console.log(
-      'Usage: npm run approver -- add "Name" | list | rename "Old" "New" | remove "Name"',
+      'Usage: npm run approver -- add "Name" | list | rename "Old" "New" | remove "Name" | find REF',
     );
     process.exitCode = 1;
   }
