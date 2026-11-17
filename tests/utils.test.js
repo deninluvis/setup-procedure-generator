@@ -501,3 +501,57 @@ test("tracking dots encode and decode the reference", () => {
   assert.equal(bitsRef(bad), "");
   assert.deepEqual(refBits("XYZ"), []);
 });
+
+test('stableJson gives the same text whatever the key order', () => {
+  const { stableJson } = require('../js/utils.js');
+  assert.equal(stableJson({ b: 1, a: [2, { d: 3, c: null }] }), stableJson({ a: [2, { c: null, d: 3 }], b: 1 }));
+  assert.equal(stableJson({ a: undefined, b: 1 }), '{"b":1}');
+});
+
+test('approval fingerprint ignores "Approved by" and the approval, but not content', async () => {
+  const { apFingerprint } = require('../js/utils.js');
+  const p = { name: 'Widget', rev: '1', by: 'Alex', steps: [{ h: 'Fit', t: 'Do it', img: 'data:image/jpeg;base64,AAAA', subs: [] }], tools: [{ n: 'Wrench', s: '', q: '1' }, { n: ' ', s: '', q: '' }] };
+  const fp = await apFingerprint(p, 'product', 'Press');
+  assert.equal(fp, await apFingerprint({ ...p, appr: 'Sam', ap: { st: 'approved' }, id: 'x' }, 'product', 'Press'));
+  assert.equal(fp, await apFingerprint({ ...p, tools: [p.tools[0]] }, 'product', 'Press'), 'empty tool rows do not count');
+  assert.notEqual(fp, await apFingerprint({ ...p, rev: '2' }, 'product', 'Press'));
+  assert.notEqual(fp, await apFingerprint({ ...p, steps: [{ ...p.steps[0], img: 'data:image/jpeg;base64,AAAB' }] }, 'product', 'Press'));
+  assert.notEqual(fp, await apFingerprint({ ...p, steps: [{ ...p.steps[0], warn: '' }] }, 'product', 'Press'), 'adding a note counts');
+  assert.notEqual(fp, await apFingerprint(p, 'product', 'Assembly'));
+});
+
+test('approver codes sign approvals that only check out unchanged and from listed approvers', async () => {
+  const { apKeys, apSign, apCheck } = require('../js/utils.js');
+  const a = await apKeys('abcd-efgh-jkmn-pqrs'), b = await apKeys('ABCD EFGH JKMN PQRS'), other = await apKeys('ZZZZ-ZZZZ-ZZZZ-ZZZZ');
+  assert.equal(a.pub, b.pub, 'case, spaces and dashes do not matter');
+  assert.notEqual(a.pub, other.pub);
+  const payload = { decision: 'approved', fp: 'abc', approver: 'Sam', at: '2026-11-17T10:00:00Z' };
+  const file = { format: 'setup-procedures-approval', version: 1, payload, pub: a.pub, sig: await apSign(a.priv, payload) };
+  const list = [['Sam', a.pub]];
+  assert.equal((await apCheck(file, list)).ok, true);
+  assert.equal((await apCheck(file, list)).name, 'Sam');
+  assert.match((await apCheck({ ...file, payload: { ...payload, fp: 'abd' } }, list)).why, /changed since it was signed/);
+  assert.match((await apCheck(file, [['Other', other.pub]])).why, /not \(or no longer\) on the list/);
+  assert.match((await apCheck({ format: 'x' }, list)).why, /not an approval file/);
+  const forged = { ...file, pub: other.pub, sig: await apSign(other.priv, payload) };
+  assert.equal((await apCheck(forged, list)).ok, false, 'a different code cannot sign for Sam');
+});
+
+test('itemDiff describes what changed in plain words', () => {
+  const { itemDiff } = require('../js/utils.js');
+  const co = { depts: [{ id: 'd1', name: 'Press' }, { id: 'd2', name: 'Assembly' }] };
+  const a = { name: 'Widget', code: 'W1', rev: '3', dept: 'd1', prod: ['x'], pack: [], ppe: [], tools: [{ n: '', s: '', q: '' }], steps: [{ t: 'a' }, { t: 'b' }], by: 'Alex' };
+  assert.deepEqual(itemDiff(a, { ...a, tools: [] }, co, 'product'), [], 'empty tool rows do not count');
+  const b = { ...a, rev: '4', dept: 'd2', prod: ['x', 'y'], ppe: ['gloves'], tools: [{ n: 'Wrench', s: '', q: '1' }], steps: [{ t: 'a' }, { t: 'B' }, { t: 'c' }], by: '', ap: { st: 'approved' }, appr: 'Sam' };
+  assert.deepEqual(itemDiff(a, b, co, 'product'), [
+    'Revision "3" → "4"',
+    'Department "Press" → "Assembly"',
+    'Product photos 1 → 2',
+    'Safety equipment',
+    'Tools required',
+    'Steps 2 → 3',
+    'Step 2 changed',
+    'Prepared by cleared',
+  ]);
+  assert.deepEqual(itemDiff({ ...a, code: '' }, a, co, 'machine'), ['Asset ID set to "W1"']);
+});

@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { chromium } = require("playwright");
-const { codeHash } = require("../../js/utils.js");
+const { codeHash, apKeys } = require("../../js/utils.js");
 
 const ROOT = path.resolve(__dirname, "../..");
 const APP = "file://" + path.join(ROOT, "index.html");
@@ -15,6 +15,10 @@ const PHOTO = path.join(ROOT, "tests/fixtures/photo.jpg");
 const ACCESS =
   (fs
     .readFileSync(path.join(ROOT, "js/access.js"), "utf8")
+    .match(/"([0-9a-f]{64})"/) || [])[1] || "";
+const ADMIN =
+  (fs
+    .readFileSync(path.join(ROOT, "js/admins.js"), "utf8")
     .match(/"([0-9a-f]{64})"/) || [])[1] || "";
 let browser;
 
@@ -37,10 +41,16 @@ async function open(url = APP, opts = {}) {
     external.push(r.request().url());
     return r.abort();
   });
+  // Logged in as an author (older, plain format) or, with role "admin", as
+  // the first admin code.
   if (opts.access !== false)
     await ctx.addInitScript(
-      (h) => localStorage.setItem("sp-access", h),
-      ACCESS,
+      (v) => localStorage.setItem("sp-access", v),
+      JSON.stringify(
+        opts.role == "admin"
+          ? { r: "admin", id: ADMIN, who: "Test User" }
+          : { r: "author", id: ACCESS, who: "Test User" },
+      ),
     );
   const page = await ctx.newPage();
   const errors = [];
@@ -48,6 +58,17 @@ async function open(url = APP, opts = {}) {
   page.on("dialog", (d) => d.accept());
   await page.goto(url);
   return { ctx, page, errors, external };
+}
+
+// Log in on the login screen: code, then name.
+async function enterCode(page, code, name = "Test User") {
+  await page.waitForSelector("#lockCode");
+  await page.fill("#lockCode", code);
+  await page.click("#lock button");
+  await page.waitForSelector("#lockName");
+  await page.fill("#lockName", name);
+  await page.click("#lock button");
+  await page.waitForSelector("#lockName", { state: "detached" });
 }
 
 async function setupCompany(page) {
@@ -123,7 +144,6 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   await page.fill('[data-s="1"]', "Run one test part.");
 
   await page.fill("[data-f=by]", "Alex");
-  await page.fill("[data-f=appr]", "Sam");
   await page.check("[data-wm]");
   const { name, bytes } = await download(page, () =>
     page.click("[data-a=pdf]"),
@@ -229,7 +249,6 @@ test("a machine prints to PDF", async () => {
   await page.check('[data-ppe="helmet"]');
   await page.fill('[data-s="0"]', "Switch off the main power.");
   await page.fill("[data-f=by]", "Alex");
-  await page.fill("[data-f=appr]", "Sam");
   const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
   const s = pdfText(bytes);
   for (const t of [
@@ -348,8 +367,7 @@ test("a correct code opens the app, is remembered, and stops working when remove
   });
   try {
     const { ctx, page, errors } = await open(site.url, { access: false });
-    await page.fill("#lockCode", "test code 1"); // case, spaces and dashes don't matter
-    await page.click("#lock button");
+    await enterCode(page, "test code 1"); // case, spaces and dashes don't matter
     await page.waitForSelector("[data-co=name]");
     assert.match(await page.textContent("h1"), /Welcome/);
     await page.reload();
@@ -358,8 +376,7 @@ test("a correct code opens the app, is remembered, and stops working when remove
     await page.reload();
     await page.waitForSelector("#lockCode");
     assert.match(await page.textContent("#lock"), /no longer works/);
-    await page.fill("#lockCode", "OTHER-CODE-2");
-    await page.click("#lock button");
+    await enterCode(page, "OTHER-CODE-2");
     await page.waitForSelector("[data-co=name]");
     assert.deepEqual(errors, []);
     await ctx.close();
@@ -385,7 +402,6 @@ test("from a web address the app works offline after the first visit", async () 
     await newProduct(page);
     await page.check('[data-ppe="vest"]');
     await page.fill("[data-f=by]", "Alex");
-    await page.fill("[data-f=appr]", "Sam");
     const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
     assert.ok(pdfText(bytes).includes("Hi-vis vest"));
     assert.deepEqual(errors, []);
@@ -393,4 +409,566 @@ test("from a web address the app works offline after the first visit", async () 
   } finally {
     site.close();
   }
+});
+
+test("a photo can be marked up with an arrow, a circle and numbers, and undone", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.setInputFiles('[data-up="step"][data-i="0"]', PHOTO);
+  await page.waitForSelector('[data-a="mk"][data-k="step"]');
+  const before = await page.evaluate(() => P().steps[0].img);
+  await page.click('[data-a="mk"][data-k="step"]');
+  await page.waitForSelector("#mkc");
+  const box = await page.locator("#mkc").boundingBox();
+  const at = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];
+  // arrow
+  await page.mouse.move(...at(0.2, 0.2));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.5, 0.5), { steps: 5 });
+  await page.mouse.up();
+  // circle in yellow
+  await page.click('[data-mkt="circle"]');
+  await page.click('[data-mkc="yellow"]');
+  await page.mouse.move(...at(0.6, 0.6));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.9, 0.9), { steps: 5 });
+  await page.mouse.up();
+  // two numbers, then remove the last one
+  await page.click('[data-mkt="num"]');
+  await page.mouse.click(...at(0.1, 0.8));
+  await page.mouse.click(...at(0.3, 0.8));
+  await page.click('[data-mkx="undo"]');
+  assert.deepEqual(
+    await page.evaluate(() =>
+      MK.shapes.map((s) => s.t + (s.n || "") + ":" + s.c),
+    ),
+    ["arrow:red", "circle:yellow", "num1:yellow"],
+  );
+  await page.click('[data-mkx="save"]');
+  await page.waitForSelector("#mk", { state: "detached" });
+  const after = await page.evaluate(() => P().steps[0].img);
+  assert.ok(after.startsWith("data:image/jpeg") && after != before);
+  assert.match(await page.textContent("#toast"), /Photo marked up in step 1/);
+  await page.click("#toast [data-undo]");
+  assert.equal(await page.evaluate(() => P().steps[0].img), before);
+
+  // Cancel leaves the photo as it was; gallery photos have the button too.
+  await page.setInputFiles('[data-up="prod"]', PHOTO);
+  await page.click('.th [data-a="mk"][data-k="prod"]');
+  await page.waitForSelector("#mkc");
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("#mk", { state: "detached" });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("each PDF is listed in the print log, which filters and downloads as CSV", async () => {
+  const { ctx, page, errors } = await open(APP, { role: "admin" });
+  await setupCompany(page);
+  await newProduct(page);
+  await page.fill("[data-f=code]", "WA-1");
+  await page.fill("[data-f=by]", "Alex");
+  await download(page, () => page.click("[data-a=pdf]"));
+  await page.fill("[data-f=rev]", "2");
+  await download(page, () => page.click("[data-a=pdf]"));
+  await page.click("[data-a=openL]");
+  await page.click("[data-a=home]");
+  await page.click("[data-a=goHome]");
+  assert.match(await page.textContent("#app"), /the print log \(2 PDFs\)/);
+  await page.click("[data-a=goLog]");
+  await page.click("[data-a=ltab][data-t=print]");
+  const rows = await page.$$eval(".log tbody tr", (r) =>
+    r.map((x) =>
+      [...x.cells].map((c) => c.innerText.replace(/\s+/g, " ").trim()),
+    ),
+  );
+  assert.equal(rows.length, 2);
+  const ref = "Ref " + ADMIN.slice(0, 6).toUpperCase();
+  assert.deepEqual(rows[0].slice(1), [
+    "Widget A Product · Line 1",
+    "WA-1",
+    "2",
+    "Draft",
+    "Press Shop",
+    "Test User · Admin 1 · " + ref,
+    "1",
+  ]);
+  assert.equal(rows[1][3], "1");
+  await page.fill("[data-lf]", "nothing like this");
+  assert.equal(await page.locator(".log tbody tr").count(), 0);
+  await page.fill("[data-lf]", "");
+  const csv = await download(page, () => page.click("[data-a=logCsv]"));
+  const text = csv.bytes.toString("utf8");
+  assert.match(csv.name, /^print-log-\d{4}-\d{2}-\d{2}\.csv$/);
+  assert.match(text, /"Date and time","Type","Name"/);
+  assert.match(
+    text,
+    /"Product","Widget A","WA-1","2","Draft","Line 1","Press Shop","Test User","Admin 1"/,
+  );
+  await page.click("[data-a=logClear]");
+  assert.match(await page.textContent("#app"), /No PDFs made yet/);
+  await page.click("#toast [data-undo]");
+  assert.equal(await page.locator(".log tbody tr").count(), 2);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+// Approvals use a test approver whose code is known (served in place of js/approvers.js).
+const stubMail = (page) =>
+  page.evaluate(() => {
+    window.MAILS = [];
+    window.openMail = (to, subject, body) => {
+      APMAIL = { to, subject, body };
+      MAILS.push({ to, subject, body });
+    };
+  });
+const saveTo = (dl) => {
+  const f = path.join(
+    fs.mkdtempSync(path.join(require("os").tmpdir(), "sp-")),
+    dl.name,
+  );
+  fs.writeFileSync(f, dl.bytes);
+  return f;
+};
+
+test("approval: request by email, sign with the approver code, import, and draft again after a change", async () => {
+  const CODE = "TEST-APPR-0001-CODE";
+  const { pub } = await apKeys(CODE);
+  const site = await serve({
+    "/js/approvers.js": `const APPROVERS = [["Test Approver", "${pub}"]];`,
+  });
+  try {
+    // Author: a draft prints with DRAFT.
+    const A = await open(site.url);
+    await setupCompany(A.page);
+    await newProduct(A.page);
+    await A.page.fill('[data-s="0"]', "Tighten the clamps.");
+    await A.page.fill("[data-f=by]", "Alex");
+    await A.page.waitForSelector("#apbox .badge.dr");
+    let s = pdfText(
+      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+    );
+    assert.ok(s.includes("(DRAFT)") && s.includes("Not approved: draft"));
+
+    // Request approval: a .zip is saved and an email opened.
+    await stubMail(A.page);
+    await A.page.click("[data-a=apReq]");
+    await A.page.selectOption('[data-ap="to"]', "Test Approver");
+    await A.page.fill('[data-ap="tomail"]', "boss@example.com");
+    await A.page.fill('[data-ap="mymail"]', "alex@example.com");
+    const req = await download(A.page, () => A.page.click("[data-a=apSend]"));
+    assert.equal(req.name, "Approval request - Widget A - rev 1.zip");
+    const mail = (await A.page.evaluate(() => MAILS))[0];
+    assert.equal(mail.to, "boss@example.com");
+    assert.equal(mail.subject, "Approval request: Widget A rev 1");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Waiting for approval.*Test Approver/,
+    );
+    assert.match(await A.page.textContent(".card, #app"), /Widget A/);
+
+    // Approver: opens the request, reviews, signs.
+    // Approver: logs in with the approver code and lands on Approvals.
+    const B = await open(site.url, { access: false });
+    await enterCode(B.page, CODE.toLowerCase(), "Sam Lee");
+    await B.page.waitForSelector("[data-apreq]", { state: "attached" });
+    await stubMail(B.page);
+    await B.page.setInputFiles("[data-apreq]", saveTo(req));
+    await B.page.waitForSelector(".apform h3");
+    assert.match(
+      await B.page.textContent(".apform"),
+      /Requested by Test User \(alex@example.com\)/,
+    );
+    const rv = await download(B.page, () => B.page.click("[data-a=apPdf]"));
+    assert.ok(rv.name.startsWith("REVIEW_"));
+    assert.ok(pdfText(rv.bytes).includes("FOR REVIEW"));
+    // Signed with the login code: no code box. The name is required.
+    assert.equal(await B.page.locator("#apcode").count(), 0);
+    assert.equal(
+      await B.page.inputValue("[data-apn]"),
+      "Sam Lee",
+      "name from the login",
+    );
+
+    // Rejecting needs a comment; the author sees it.
+    await B.page.check('input[name="apdec"][value="rejected"]');
+    await B.page.click("[data-a=apSign]");
+    await B.page.waitForSelector("p.err");
+    assert.match(await B.page.textContent("p.err"), /Say what must change/);
+    await B.page.fill("[data-apc]", "Add the torque for the second clamp.");
+    const no = await download(B.page, () => B.page.click("[data-a=apSign]"));
+    assert.equal(no.name, "Approval - Widget A - rev 1 - rejected.json");
+    assert.equal(
+      (await B.page.evaluate(() => MAILS))[0].to,
+      "alex@example.com",
+    );
+    await A.page.setInputFiles("[data-apfile]", saveTo(no));
+    await A.page.waitForSelector("#apbox .badge.no");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Add the torque for the second clamp/,
+    );
+
+    // After a reload the approver is still logged in, but must type the code
+    // again to sign (it is never stored); another code is refused.
+    await B.page.reload();
+    await stubMail(B.page);
+    await B.page.setInputFiles("[data-apreq]", saveTo(req));
+    await B.page.waitForSelector("[data-a=apSign]");
+    assert.equal(await B.page.inputValue("[data-apn]"), "Sam Lee");
+    await B.page.fill("[data-apc]", "Looks good.");
+    await B.page.fill("#apcode", "WRONG-CODE-1234");
+    await B.page.click("[data-a=apSign]");
+    await B.page.waitForSelector("p.err");
+    assert.match(
+      await B.page.textContent("p.err"),
+      /not the approver code you logged in with/,
+    );
+    await B.page.fill("[data-apc]", "Looks good.");
+    await B.page.fill("#apcode", CODE);
+    const ok = await download(B.page, () => B.page.click("[data-a=apSign]"));
+    assert.equal(ok.name, "Approval - Widget A - rev 1 - approved.json");
+
+    // A changed copy of the file is refused.
+    const bad = JSON.parse(ok.bytes.toString("utf8"));
+    bad.payload.comment = "Changed";
+    const badFile = path.join(path.dirname(saveTo(ok)), "bad.json");
+    fs.writeFileSync(badFile, JSON.stringify(bad));
+    await A.page.setInputFiles("[data-apfile]", badFile);
+    await A.page.waitForSelector("#apbox p.err");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /changed since it was signed/,
+    );
+
+    // Author imports the approval: Approved, PDF without DRAFT.
+    await A.page.setInputFiles("[data-apfile]", saveTo(ok));
+    await A.page.waitForSelector("#apbox .badge.ok");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Approved by Sam Lee \(Test Approver\).*Looks good/,
+    );
+    s = pdfText(
+      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+    );
+    assert.ok(!s.includes("(DRAFT)") && !s.includes("Not approved"));
+    assert.ok(
+      s.includes("(Sam Lee)") &&
+        !s.includes("Approver code") &&
+        s.includes("(Approver ref " + pub.slice(0, 6).toUpperCase() + ")") &&
+        s.includes("approver ref " + pub.slice(0, 6).toUpperCase() + ")") &&
+        s.includes("digital signature checked"),
+    );
+
+    // Any change makes it a draft again; undoing the change brings it back.
+    await A.page.fill('[data-s="0"]', "Tighten the clamps to 30 Nm.");
+    await A.page.waitForSelector("#apbox .badge.dr");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Changed after it was approved/,
+    );
+    s = pdfText(
+      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+    );
+    assert.ok(s.includes("(DRAFT)"));
+    await A.page.fill('[data-s="0"]', "Tighten the clamps.");
+    await A.page.waitForSelector("#apbox .badge.ok");
+
+    assert.deepEqual(A.errors, []);
+    assert.deepEqual(B.errors, []);
+    await A.ctx.close();
+    await B.ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+test("each code opens its own pages, and Log out lets the next person log in", async () => {
+  const AUTHOR = "TEST-AUTHOR-0001",
+    ADMINC = "TEST-ADMIN-0001",
+    APPR = "TEST-APPROVER-0001",
+    { pub } = await apKeys(APPR);
+  const site = await serve({
+    "/js/access.js": `const ACCESS_CODES = [["Test Author", "${codeHash(AUTHOR)}"]];`,
+    "/js/admins.js": `const ADMIN_CODES = [["Test Admin", "${codeHash(ADMINC)}"]];`,
+    "/js/approvers.js": `const APPROVERS = [["Test Approver", "${pub}"]];`,
+  });
+  const login = async (page, code) => {
+    await enterCode(page, code);
+    await page.waitForSelector(".ubar");
+  };
+  const logout = async (page) => {
+    await page.click("[data-a=logout]");
+    await page.waitForSelector("#lockCode");
+  };
+  try {
+    const { ctx, page, errors } = await open(site.url, { access: false });
+    // Author: products and machines, no print log.
+    await login(page, AUTHOR);
+    assert.match(
+      await page.textContent(".ubar"),
+      /Test User · Author \(Test Author\)/,
+    );
+    await setupCompany(page);
+    assert.ok(await page.isVisible("[data-a=tab][data-t=p]"));
+    assert.equal(await page.locator("[data-a=goLog]").count(), 0);
+    assert.equal(await page.locator("[data-a=clearAll]").count(), 0);
+    await page.evaluate(() => {
+      T = "log";
+      R();
+    });
+    assert.doesNotMatch(await page.textContent("h1"), /Print log/);
+    await page.click("[data-a=goAp]");
+    assert.equal(
+      await page.locator("[data-apreq]").count(),
+      0,
+      "authors do not review",
+    );
+    assert.equal(await page.locator("[data-apfile]").count(), 1);
+    await page.reload();
+    await page.waitForSelector(".ubar"); // still logged in
+    await logout(page);
+
+    // Admin: same data, plus the print log.
+    await login(page, ADMINC);
+    assert.match(
+      await page.textContent(".ubar"),
+      /Test User · Admin \(Test Admin\)/,
+    );
+    assert.match(await page.textContent("#app"), /ACME Ltd/);
+    await page.click("[data-a=goLog]");
+    assert.match(await page.textContent("h1"), /Logs/);
+    await logout(page);
+
+    // Approver: only the Approvals page.
+    await login(page, APPR);
+    assert.match(
+      await page.textContent(".ubar"),
+      /Test User · Approver \(Test Approver\)/,
+    );
+    assert.match(await page.textContent("h1"), /Approvals/);
+    assert.equal(await page.locator("[data-a=goHome]").count(), 0);
+    assert.equal(await page.locator("[data-apreq]").count(), 1);
+    await page.evaluate(() => {
+      T = "h";
+      R();
+    });
+    assert.match(await page.textContent("h1"), /Approvals/);
+    await page.reload();
+    await page.waitForSelector("[data-apreq]", { state: "attached" });
+    await logout(page);
+
+    // A login from before names were asked for: the name is asked once.
+    await page.evaluate(
+      (h) => localStorage.setItem("sp-access", h),
+      codeHash(AUTHOR),
+    );
+    await page.reload();
+    await page.waitForSelector("#lockName");
+    await page.fill("#lockName", "Old Login");
+    await page.click("#lock button");
+    await page.waitForSelector(".ubar");
+    assert.match(await page.textContent(".ubar"), /Old Login · Author/);
+    await logout(page);
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+test("an unused login ends by itself, with a warning first", async () => {
+  const AUTHOR = "TEST-AUTHOR-0002";
+  const site = await serve({
+    "/js/access.js": `const ACCESS_CODES = [["Test Author", "${codeHash(AUTHOR)}"]];`,
+  });
+  try {
+    const { ctx, page, errors } = await open(site.url, { access: false });
+    const login = async () => {
+      await enterCode(page, AUTHOR);
+      await page.waitForSelector(".ubar");
+    };
+    await login();
+    // Short timeout for the test (normally 30 minutes).
+    await page.evaluate(() => {
+      IDLE_MS = 4000;
+      clearInterval(idleTimer);
+      idleTimer = null;
+      startIdleWatch();
+    });
+    await page.waitForSelector("#idlewarn");
+    assert.match(
+      await page.textContent("#idlewarn"),
+      /logged out in less than a minute/,
+    );
+    await page.click("#idlewarn [data-stay]");
+    assert.equal(await page.locator("#idlewarn").count(), 0);
+    assert.ok(await page.isVisible(".ubar"), "still logged in");
+    await page.waitForSelector("#lockCode", { timeout: 15000 });
+    assert.match(
+      await page.textContent("#lock"),
+      /logged out after .* without activity/,
+    );
+
+    // A login left for longer than 30 minutes (browser closed) has ended too.
+    await login();
+    await page.evaluate(() =>
+      localStorage.setItem("sp-active", String(Date.now() - 31 * 60 * 1000)),
+    );
+    await page.reload();
+    await page.waitForSelector("#lockCode");
+    assert.match(
+      await page.textContent("#lock"),
+      /logged out after 30 minutes/,
+    );
+    // A recent login is kept.
+    await login();
+    await page.reload();
+    await page.waitForSelector(".ubar");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+test("admins see activity, print log and code usage; authors' names fill in Prepared by", async () => {
+  const AUTHOR = "TEST-AUTHOR-0003",
+    ADMINC = "TEST-ADMIN-0003";
+  const site = await serve({
+    "/js/access.js": `const ACCESS_CODES = [["Code A", "${codeHash(AUTHOR)}"], ["Code B", "${codeHash("TEST-UNUSED-1")}"]];`,
+    "/js/admins.js": `const ADMIN_CODES = [["Admin X", "${codeHash(ADMINC)}"]];`,
+    "/js/approvers.js": "const APPROVERS = [];",
+  });
+  try {
+    const { ctx, page, errors } = await open(site.url, { access: false });
+    // A failed login, then the author works.
+    await page.fill("#lockCode", "NOT-A-CODE-99");
+    await page.click("#lock button");
+    await page.waitForSelector("#lockErr:not(:empty)");
+    await enterCode(page, AUTHOR, "Alex Kim");
+    await setupCompany(page);
+    await newProduct(page);
+    assert.equal(
+      await page.inputValue("[data-f=by]"),
+      "Alex Kim",
+      "Prepared by from the login name",
+    );
+    await page.fill('[data-s="0"]', "Tighten the clamps.");
+    await page.fill("[data-f=rev]", "2");
+    await page.check('[data-ppe="gloves"]');
+    await download(page, () => page.click("[data-a=pdf]"));
+    await page.fill('[data-s="0"]', "Tighten the clamps to 25 Nm.");
+    await page.click("[data-a=openL]"); // leave the product: the edit is recorded
+    await page.click("[data-a=home]");
+    await page.click("[data-a=goHome]");
+    assert.equal(
+      await page.locator("[data-a=goLog]").count(),
+      0,
+      "no logs for authors",
+    );
+    await download(page, () => page.click("[data-a=bk]"));
+    await page.click("[data-a=tab][data-t=m]");
+    await page.fill("#nw", "Press 3");
+    await page.click("[data-a=addM]");
+    await page.click("[data-a=delP]");
+    await page.click("[data-a=logout]");
+
+    // Admin: Logs page.
+    await enterCode(page, ADMINC, "Pat Admin");
+    await page.click("[data-a=goLog]");
+    assert.match(await page.textContent("h1"), /Logs/);
+    const rows = await page.$$eval(".log tbody tr", (r) =>
+      r.map((x) =>
+        [...x.cells]
+          .map((c) => c.innerText.trim())
+          .slice(1)
+          .join(" | "),
+      ),
+    );
+    const has = (re) =>
+      assert.ok(
+        rows.some((x) => re.test(x)),
+        `activity should have ${re}\n${rows.join("\n")}`,
+      );
+    has(/^Login \| Logged in \| Pat Admin \(Admin X\)$/);
+    has(/^Login \| Logged out \| Alex Kim \(Code A\)$/);
+    has(/^Login \| Failed login: wrong code \| –$/);
+    has(/^Login \| Logged in \| Alex Kim \(Code A\)$/);
+    has(/^Change \| Created product "Widget A" \(Line 1\) \| Alex Kim/);
+    has(
+      /^Change \| Edited product "Widget A" \(Line 1\): Revision "1" → "2"; Safety equipment; Step 1 changed \| Alex Kim/,
+    );
+    has(
+      /^Change \| Edited product "Widget A" \(Line 1\): Step 1 changed \| Alex Kim/,
+    );
+    has(
+      /^Export \/ import \| Exported "setup-procedures-backup-.*\.zip" \| Alex Kim/,
+    );
+    has(/^Deletion \| Deleted machine "Press 3", rev 1 \| Alex Kim/);
+    has(/^Change \| Company details changed|^Change \| Line "Line 1" created/);
+    // Filter by type.
+    await page.selectOption("[data-at]", "delete");
+    assert.equal(await page.locator(".log tbody tr").count(), 1);
+    const csv = await download(page, () => page.click("[data-a=actCsv]"));
+    assert.match(csv.name, /^activity-log-\d{4}-\d{2}-\d{2}\.csv$/);
+    assert.match(
+      csv.bytes.toString("utf8"),
+      /"Deletion","Deleted machine ""Press 3"", rev 1","Alex Kim","Code A","Author"/,
+    );
+
+    // Print log tab: who made the PDF.
+    await page.click("[data-a=ltab][data-t=print]");
+    assert.match(await page.textContent(".log"), /Alex Kim · Code A · Ref/);
+    // Code usage tab.
+    await page.click("[data-a=ltab][data-t=codes]");
+    const usage = await page.$$eval(".log tbody tr", (r) =>
+      r.map((x) => [...x.cells].map((c) => c.innerText.trim())),
+    );
+    const a = usage.find((x) => x[0] == "Code A"),
+      b = usage.find((x) => x[0] == "Code B");
+    assert.deepEqual(
+      [a[1], a[2], a[4], a[6]],
+      ["Author", "1", "1", "Alex Kim"],
+    );
+    assert.deepEqual([b[2], b[4]], ["0", "0"]);
+    assert.match(
+      await page.textContent("#app"),
+      /1 code has not been used here/,
+    );
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+test("undo warns before also undoing later changes", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.click("[data-a=addTool]");
+  await page.keyboard.type("Wrench");
+  await page.click('[data-a=rmTool][data-i="0"]');
+  // Undo straight away: no question.
+  let asked = 0;
+  page.removeAllListeners("dialog");
+  page.on("dialog", (d) => {
+    asked++;
+    d.dismiss();
+  });
+  await page.click("#toast [data-undo]");
+  assert.equal(asked, 0);
+  assert.equal(await page.inputValue('[data-tool="0"][data-tk="n"]'), "Wrench");
+  // Remove again, then keep working: Ctrl+Z asks, and Cancel keeps the work.
+  await page.click('[data-a=rmTool][data-i="0"]');
+  await page.fill('[data-s="0"]', "Later work");
+  await page.click("h1");
+  await page.keyboard.press("Control+z");
+  assert.equal(asked, 1);
+  assert.equal(await page.inputValue('[data-s="0"]'), "Later work");
+  assert.equal(await page.locator("[data-tool]").count(), 0);
+  assert.deepEqual(errors, []);
+  await ctx.close();
 });

@@ -30,6 +30,11 @@ const sniff = (b) =>
             ? "image/svg+xml"
             : "";
 
+// The data for a full backup: the print log only goes into backups made by
+// an admin (authors cannot see it).
+const backupState = () =>
+  isAdmin() ? S : { ...S, log: undefined, act: undefined };
+
 // plan: { data, files } from planBackup() or planItems().
 async function exportZip(plan, name, btn, done) {
   const label = btn.textContent;
@@ -49,6 +54,7 @@ async function exportZip(plan, name, btn, done) {
       data: new TextEncoder().encode(README_TXT()),
     });
     await dl(name, Zip.make(files));
+    logAct("data", `Exported "${name}"`);
     if (done) done();
   } catch (e) {
     alert("Could not create the export file.");
@@ -440,7 +446,8 @@ const itemHelp = (mm) => {
     `How to fill in this ${it}`,
     `<ol>
 <li><b>Details.</b> Enter the ${it} name, pick the <b>Department</b>, and fill in the ${mm ? "machine ID / asset number" : "product code"}. Raise the <b>Revision</b> number whenever you change the procedure, so printed copies can be told apart.</li>
-<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it.</li>
+<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it. <b>✎</b> (or <b>✎ Mark up</b> on a step photo) lets you draw arrows, circles and numbers on it to point at the exact part.</li>
+<li><b>Approval.</b> The box at the top shows whether this is a <b>Draft</b>, <b>Waiting for approval</b>, <b>Approved</b> or <b>Rejected</b>. Drafts print with a DRAFT watermark. Press <b>Request approval</b>, choose the approver and their email, then attach the saved file to the email that opens. When the approver's file comes back, press <b>Import approval file</b>. Any change after approval makes it a draft again.</li>
 <li><b>Safety equipment (PPE).</b> Tick what must be worn, such as safety glasses or gloves. Each one prints as a safety sign at the top of the PDF. Anything else goes in <b>Other safety equipment</b>.</li>
 <li><b>Tools required.</b> Press <b>＋ Add tool</b> and enter the tool, its size or specification and the quantity. Press Enter to add the next one. Tool names you used before are suggested. In the PDF they print as a checklist with a box to tick before the procedure.</li>
 <li><b>Steps.</b> Write one step per action, in order:
@@ -594,7 +601,7 @@ async function exportSelected(btn) {
   if (!list.length && !co) return alert("Tick at least one thing to export.");
   if (allKeys("x").every((k) => EXS.has(k)))
     return exportZip(
-      planBackup(S),
+      planBackup(backupState()),
       `setup-procedures-backup-${dateStamp()}.zip`,
       btn,
       () => {
@@ -674,7 +681,11 @@ async function applyImport() {
     )
       return;
     remember("All data replaced with the backup");
+    const log = S.log,
+      act = S.act;
     S = IMP.full;
+    S.log = log || []; // the logs stay with this browser
+    S.act = act || [];
     S.lastBackup = Date.now(); // this data is already in a backup file
     msg = "All data was replaced with the backup.";
     LASTMISS = IMP.missingList;
@@ -715,6 +726,7 @@ async function applyImport() {
     S.co.depts = S.co.depts.filter((d) => d.name.trim());
     S.co.done = true;
   }
+  logAct("data", `Imported: ${msg}`);
   if (!(await writeNow())) return;
   IMP = null;
   XMSG = esc(msg);

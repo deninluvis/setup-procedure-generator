@@ -8,6 +8,10 @@ document.addEventListener("click", (e) => {
     j = +t.dataset.j,
     nw = ($("#nw") || {}).value;
   let focus = null; // element to focus after re-rendering
+  if (!/^ap/.test(a)) {
+    APMSG = null; // approval messages and the request form close on other actions
+    REQ = false;
+  }
   if (a == "home") {
     V = { l: null, p: null };
   } else if (a == "openL") {
@@ -18,6 +22,7 @@ document.addEventListener("click", (e) => {
     if (!nw || !nw.trim()) return;
     const l = { id: id(), name: nw.trim(), products: [] };
     S.lines.push(l);
+    logAct("change", `Line "${l.name}" created`);
     V = { l: l.id, p: null };
   } else if (a == "addP") {
     if (!nw || !nw.trim()) return;
@@ -31,20 +36,37 @@ document.addEventListener("click", (e) => {
       prod: [],
       pack: [],
       steps: [{ t: "", img: "" }],
-      by: "",
+      by: (SESSION && SESSION.who) || "",
       appr: "",
     };
     L().products.push(p);
+    logAct("change", `Created ${itemLabel(p, "product", L())}`);
     V.p = p.id;
   } else if (a == "delL") {
     if (!confirm("Delete this line and all its products?")) return;
     remember(`Line "${L().name}" deleted`);
+    logAct(
+      "delete",
+      `Line "${L().name}" deleted, with ${count(L().products.length, "product", "products")}${
+        L().products.length
+          ? ": " +
+            L()
+              .products.map((p) => p.name)
+              .join(", ")
+          : ""
+      }`,
+    );
     S.lines = S.lines.filter((x) => x.id != V.l);
     V = { l: null, p: null };
   } else if (a == "delP") {
     if (!confirm("Delete this " + (T == "m" ? "machine" : "product") + "?"))
       return;
     remember(`${T == "m" ? "Machine" : "Product"} "${P().name}" deleted`);
+    flushItem(); // record edits made before deleting
+    logAct(
+      "delete",
+      `Deleted ${itemLabel(P(), T == "m" ? "machine" : "product", T == "m" ? null : L())}, rev ${P().rev || "-"}`,
+    );
     if (T == "m") {
       S.machines = S.machines.filter((x) => x.id != MID);
       MID = null;
@@ -150,6 +172,7 @@ document.addEventListener("click", (e) => {
           ? `; ${count(used, "item has", "items have")} no department now`
           : ""),
     );
+    logAct("delete", `Department "${d.name || "(empty)"}" removed`);
     // Pin older items to their current department before the list changes.
     [...S.machines, ...S.lines.flatMap((l) => l.products)].forEach((p) => {
       if (p.dept === undefined) p.dept = deptOf(p, S.co);
@@ -185,14 +208,15 @@ document.addEventListener("click", (e) => {
       prod: [],
       pack: [],
       steps: [{ t: "", img: "" }],
-      by: "",
+      by: (SESSION && SESSION.who) || "",
       appr: "",
     };
     S.machines.push(m);
+    logAct("change", `Created ${itemLabel(m, "machine")}`);
     MID = m.id;
   } else if (a == "bk") {
     exportZip(
-      planBackup(S),
+      planBackup(backupState()),
       `setup-procedures-backup-${dateStamp()}.zip`,
       t,
       () => {
@@ -212,6 +236,80 @@ document.addEventListener("click", (e) => {
       t,
     );
     return;
+  } else if (a == "goAp") {
+    T = "ap";
+    APR = null;
+  } else if (a == "apReq") {
+    REQ = true;
+    APMSG = null;
+    R(true);
+    const el = $('[data-ap="to"]');
+    if (el) el.focus();
+    return;
+  } else if (a == "apReqCancel") {
+    REQ = false;
+    R(true);
+    return;
+  } else if (a == "apSend") {
+    requestApproval(t);
+    return;
+  } else if (a == "apSign") {
+    signApproval(t);
+    return;
+  } else if (a == "apPdf") {
+    reviewPdf();
+    return;
+  } else if (a == "apMail") {
+    if (APMAIL) openMail(APMAIL.to, APMAIL.subject, APMAIL.body);
+    return;
+  } else if (a == "mk") {
+    openMarkup(t.dataset.k, i, j);
+    return;
+  } else if (a == "logout") {
+    if (!confirm("Log out? The next person logs in with their own code."))
+      return;
+    logout();
+    return;
+  } else if (a == "ltab") {
+    LTAB = t.dataset.t;
+    R(true);
+    $(`[data-a=ltab][data-t="${LTAB}"]`).focus();
+    return;
+  } else if (a == "actCsv") {
+    actCsv();
+    return;
+  } else if (a == "codesCsv") {
+    codesCsv();
+    return;
+  } else if (a == "actClear") {
+    if (!isAdmin()) return;
+    if (
+      !confirm(
+        "Clear the whole activity log? This cannot be undone after you close the page.",
+      )
+    )
+      return;
+    remember("Activity log cleared");
+    S.act = [];
+    logAct("data", "Activity log cleared");
+  } else if (a == "goLog") {
+    if (!isAdmin()) return;
+    T = "log";
+    LTAB = "act";
+    LF = "";
+  } else if (a == "logCsv") {
+    logCsv();
+    return;
+  } else if (a == "logClear") {
+    if (
+      !confirm(
+        "Clear the whole print log? This cannot be undone after you close the page.",
+      )
+    )
+      return;
+    remember("Print log cleared");
+    S.log = [];
+    logAct("data", "Print log cleared");
   } else if (a == "goX") {
     T = "x";
     EXS = new Set(allKeys("x"));
@@ -268,6 +366,7 @@ document.addEventListener("click", (e) => {
     );
     return;
   } else if (a == "clearAll") {
+    if (!isAdmin()) return;
     if (
       !confirm(
         "Delete ALL lines, products, steps and photos saved in this browser? You can undo this until you close or reload the page.",
@@ -275,15 +374,21 @@ document.addEventListener("click", (e) => {
     )
       return;
     remember("All data cleared");
+    flushItem();
+    // The logs stay: they record what happened, including this.
     S = {
       lines: [],
       machines: [],
       co: { name: "", depts: [{ id: id(), name: "" }] },
+      log: S.log,
+      act: S.act,
     };
+    logAct("data", "All data cleared");
     T = "co";
     MID = null;
     V = { l: null, p: null };
   } else if (a == "pdf") {
+    flushItem(true); // record changes up to this PDF
     return mkPdf();
   }
   save();
@@ -300,6 +405,15 @@ document.addEventListener("input", (e) => {
   if (t.dataset.hs) {
     HS = t.value;
     $("#hres").innerHTML = homeResults();
+    return;
+  }
+  if (t.dataset.lf) {
+    LF = t.value;
+    const pos = t.selectionStart;
+    R(true);
+    const f = $("[data-lf]");
+    f.focus();
+    f.setSelectionRange(pos, pos);
     return;
   }
   if (t.dataset.xf) {

@@ -12,7 +12,10 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 - Safety equipment (PPE) printed as safety signs at the top of the PDF
 - Works offline: everything it needs is in the repository, and it can be installed as an app
-- Access codes: a code is asked for before the app opens
+- Log in and log out with access (author), admin or approver codes; each opens its own pages
+- Mark up photos with arrows, circles and numbers
+- Logs for admins: activity (logins, changes, approvals, deletions, exports), print log and code usage
+- Approvals by email: drafts print with a DRAFT watermark until an approver signs them off
 
 ## Project structure
 
@@ -30,9 +33,16 @@ js/transfer.js      Export & import page and .zip backups
 js/pdf.js           PDF export
 js/events.js        Clicks, typing and other user actions
 js/access.js        Access codes (scrambled)
-js/lock.js          Access code screen
+js/admins.js        Admin codes (scrambled)
+js/lock.js          Log in / log out and roles
+js/log.js           Print log
+js/activity.js      Activity log, change history and the Logs page
+js/markup.js        Photo markup editor
+js/approval.js      Draft / approval requests and signed approvals
+js/approvers.js     Approvers (public keys only)
 js/app.js           Start-up
 scripts/access-code.js  Make, list and remove access codes
+scripts/approver-code.js  Make, rename and remove approver codes
 sw.js               Offline support when served from a web address
 manifest.webmanifest, icons/   Install as an app
 vendor/             jsPDF and the IBM Plex Sans font, stored locally
@@ -73,17 +83,38 @@ To publish on GitHub Pages: repository **Settings → Pages → Build and deploy
 Deploy from a branch**, pick `main` and `/ (root)`, then **Save**. The address appears on
 the same page after a minute or two.
 
-## Access codes
+## Logging in
 
-The app asks for an access code before it opens. Codes are not case-sensitive, and
-spaces and dashes don't matter. A correct code is remembered in that browser, so it is
-asked for only once.
+The app opens with a **Log in** screen. Each person logs in with their own code, and
+the code decides what they can do:
 
-This keeps out casual visitors only. The repository is public, so someone technical
-can read the app's code and get around it. Your procedures are never on the website:
-they stay in each person's browser.
+| Code | Opens | Can do |
+|---|---|---|
+| **Access code** (author) | Home page | Products, machines, PDFs, approval requests, backups |
+| **Admin code** | Home page | Everything an author can do, plus the **Logs** and **Clear all saved data** |
+| **Approver code** | Approvals page only | Review approval requests and sign decisions |
 
-Manage codes from the repository folder (needs Node.js):
+After the code, the app asks **Who are you?**: type your name (it is suggested next
+time on that computer). The name is shown at the top of every page, fills in **Prepared
+by** on new products and machines and the approver's signing name, and is recorded in
+the logs together with the code. The name is not checked: the code is the proof of who
+logged in.
+
+The top of every page shows who is logged in, with a **Log out** button. On a shared
+computer, log out when you finish; the next person logs in with their own code. A login
+is remembered in that browser until Log out, or until **30 minutes without activity**
+(no click, key press, touch or scroll, also with the browser closed): then it ends by
+itself. A warning with **Stay logged in** shows a minute before. Everything is saved as
+you type, so no work is lost. Codes are not case-sensitive, and spaces
+and dashes don't matter. Procedures are shared by everyone who uses that browser.
+
+Access and admin codes keep out casual visitors only: the repository is public, so
+someone technical can read the app's code and get around them. Approver codes are
+different: approvals are digitally signed (see **Approval** below). The logs are
+hidden from authors and only included in full backups made by an admin.
+
+Manage access codes from the repository folder (needs Node.js); admin codes work the same
+way with `npm run admin -- add / list / remove / find` instead of `npm run code`:
 
 1. Make a new code: `npm run code -- add "Workshop tablet"`.
    The code is shown once (for example `K7QM-4XPA-2R9D`). Write it down: only a
@@ -165,14 +196,95 @@ With no codes listed in `js/access.js`, the app opens without asking.
    remembered in this browser.
    Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
    their full resolution, so they stay sharp when zoomed at any size.
-10. Press **Download PDF**.
+10. Press **Download PDF**. Each PDF is added to the **Print log**.
 11. Use **Export backup** on the home page regularly. Data lives only in this browser.
+
+**Approval:** every product and machine starts as a **Draft**: its PDF has a large red
+DRAFT watermark and "Not approved: draft" in the Approved by box. The status box at the
+top of its page shows where it is.
+
+1. **Author: request approval.** Press **Request approval**, choose the approver, enter
+   their email and yours, and press **Save request and open email**. The app saves
+   `Approval request - <name> - rev <n>.zip` and opens an email to the approver. Attach
+   that file (from your Downloads folder) and send it. The status is now **Waiting for
+   approval**.
+2. **Approver: review and decide.** Log in with your approver code: the **Approvals**
+   page opens. Press **Choose request file** and pick the .zip from the email. It is opened only for checking; nothing is added to the
+   approver's own data. **Download PDF to review** shows it as it will print. Choose
+   **Approve** or **Reject** (rejecting needs a comment), type the comment and **your
+   name** (it is printed on the PDF as "Approved by" and remembered in that browser)
+   and press **Sign and save decision**. It is signed with the code you logged in with
+   (after reloading the page, you type the code again to sign). The app saves
+   `Approval - <name> - rev <n> - approved.json` (or `rejected`) and opens a reply email:
+   attach the file and send it.
+3. **Author: import the decision.** Press **Import approval file** on the product's page
+   (or Home → Approvals) and choose the .json. The app checks that it was signed with a
+   listed approver's code, that the file was not changed, and that the procedure is
+   exactly what was approved. It then shows **Approved** (or **Rejected** with the
+   comment), for example "Approved by Sam Lee (Approver 1)". Approved PDFs have no
+   watermark and print the name the approver typed, with "digital signature checked".
+   Which approver code signed it is not printed: it is hidden in the PDF as
+   `Approver ref 06DB68` (invisible text, found by searching the PDF for "Approver ref",
+   and in the file properties' Keywords). Look it up with
+   `npm run approver -- find 06DB68` or `npm run approver -- list`.
+4. **Any change** after approval (text, photo, tool, PPE, revision…) makes it a draft
+   again, with "Changed after it was approved". Undoing the change makes it approved again.
+
+Approver codes are like passwords for signing: an approval file cannot be made or
+altered without one, even by someone who reads the app's code, because only a public
+key is stored in `js/approvers.js`. Keep each code secret and never email it. Manage
+them with:
+
+- `npm run approver -- add "Sam Lee"`: makes a new code (shown once; write it down).
+- `npm run approver -- rename "Approver 1" "Sam Lee"`: renames the code in the list
+  (the code stays the same). Optional: approvers type their own name when signing.
+- `npm run approver -- remove "Sam Lee"`: approvals signed with that code stop counting,
+  so those procedures become drafts.
+- `npm run approver -- list`: names with their approver references
+- `npm run approver -- find 06DB68`: which approver code a reference belongs to
+
+**Mark up a photo:** press **✎** on a product or packaging photo, or **✎ Mark up** under
+a step or sub-step photo. A full-screen editor opens:
+
+1. Pick a tool: **Arrow** (drag from where the arrow starts to the point it shows),
+   **Circle** (drag across the part) or **Number** (tap; numbers go 1, 2, 3…).
+2. Pick a colour: red, yellow, black or white. Each mark has a thin outline so it
+   shows on light and dark backgrounds.
+3. **Undo** (or Ctrl+Z) removes the last mark; **Clear** removes them all.
+4. **Save** draws the marks into the photo, so they appear in the PDF and backups.
+   **Cancel** (or Esc) leaves the photo as it was. After saving, **Undo** in the bar
+   at the bottom brings back the photo without marks.
+
+**Logs (admins only):** home page → **Open logs**. Three tabs, each with a filter and a
+**Download (Excel / CSV)** button:
+
+- **Activity:** who did what, and when (name and code), newest first:
+  - **Login:** logged in, logged out, logged out automatically, failed logins (wrong code).
+  - **Change:** lines, products and machines created; edits, recorded when you leave the
+    page, make a PDF or log out, with what changed (for example `Revision "1" → "2"; Steps
+    1 → 2; Step 1 changed; Safety equipment`); company details; Undo.
+  - **Approval:** requests sent (to whom), approvals and rejections imported (by whom,
+    with the comment), decisions signed on this computer, approval files refused and why.
+  - **Deletion:** products, machines, lines (with their products) and departments.
+  - **Export / import:** every exported file, imports, "replace all", clearing data or logs.
+- **Print log:** every PDF made: when, what, revision, Draft or Approved, and who made it
+  (name, code and reference).
+- **Code usage:** every access, admin and approver code with its logins, last login, PDFs
+  and the names used with it on this computer. Codes never used here are greyed out:
+  candidates for removal.
+
+The logs are kept in this browser (activity up to 5000 entries, print log up to 2000);
+each computer has its own. They stay when data is cleared or replaced by a backup, and
+only go into full backups made by an admin. **Clear activity log** / **Clear log** empty
+them (Undo brings them back until the page is closed).
 
 **Undo:** after removing or replacing something (a step, sub-step, warning or note,
 photo, product, machine, line, department, the logo, an import, or clearing all data), a
 bar at the bottom shows what happened with an **Undo** button for 10 seconds. Ctrl+Z
 (⌘Z on a Mac) also undoes when you are not typing in a field. Up to 20 actions can be
-undone, until the page is closed or reloaded.
+undone, until the page is closed or reloaded. Undo puts back everything as it was before
+that action: if you changed more since then, it asks first, and **Cancel** keeps your
+later work.
 
 ## Storage
 

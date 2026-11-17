@@ -104,12 +104,57 @@ function refDots(d, ref, cx, y) {
   }
 }
 
-async function mkPdf() {
-  const p = P();
-  if (!p.by.trim() || !p.appr.trim()) {
-    alert('Enter both "Prepared by" and "Approved by" before downloading.');
+// "DRAFT" in large, faint red letters from the top left to the bottom right
+// of the page (crossing the company watermark, which runs the other way).
+function draftMark(d, W, H) {
+  const ang = (-Math.atan2(H, W) * 180) / Math.PI,
+    rad = (ang * Math.PI) / 180,
+    dir = [Math.cos(rad), -Math.sin(rad)],
+    up = [-Math.sin(rad), -Math.cos(rad)],
+    size = 120;
+  d.setFont("helvetica", "bold");
+  d.setFontSize(size);
+  const w = d.getTextWidth("DRAFT"),
+    base = -size * 0.3528 * 0.36; // baseline below the centre
+  let gs = false;
+  try {
+    d.saveGraphicsState();
+    d.setGState(new d.GState({ opacity: 0.14 }));
+    gs = true;
+  } catch (e) {}
+  d.setTextColor(...(gs ? [200, 0, 0] : [250, 215, 215]));
+  d.text(
+    "DRAFT",
+    W / 2 + up[0] * base - (dir[0] * w) / 2,
+    H / 2 + up[1] * base - (dir[1] * w) / 2,
+    { angle: ang },
+  );
+  if (gs) d.restoreGraphicsState();
+  d.setFont("helvetica", "normal");
+}
+
+// PDF of the product/machine being edited, or (for an approver reviewing a
+// request) of o = { p, mm, line, coName, dept, logo, review: true }.
+// Only an approval whose signature and content check out prints the
+// approver's name; anything else is a DRAFT.
+async function mkPdf(o) {
+  const own = !o;
+  if (own && !String(P().by || "").trim()) {
+    alert('Enter "Prepared by" before downloading.');
     return;
   }
+  const c = o || {
+      p: P(),
+      mm: T == "m",
+      line: T == "m" ? "" : L().name,
+      coName: S.co.name,
+      dept: deptName(deptOf(P(), S.co), S.co),
+      logo: S.logo,
+    },
+    p = c.p,
+    mm = c.mm,
+    ap = own ? await apState(p, mm ? "machine" : "product") : { st: "review" },
+    approved = ap.st == "approved";
   const d = new window.jspdf.jsPDF({ unit: "mm", format: "a4" }),
     W = 210,
     M = 18,
@@ -195,12 +240,12 @@ async function mkPdf() {
   // Company logo at the top right; the title wraps before reaching it.
   let lw = 0,
     lh = 0;
-  if (S.logo) {
-    [lw, lh] = fit(S.logo, 45, 18);
-    d.addImage(S.logo, "PNG", W - M - lw, M, lw, lh);
+  if (c.logo) {
+    [lw, lh] = fit(c.logo, 45, 18);
+    d.addImage(c.logo, "PNG", W - M - lw, M, lw, lh);
   }
   // Top line: company · department · Setup procedure
-  const top = [S.co.name, deptName(deptOf(p, S.co), S.co), "Setup procedure"]
+  const top = [c.coName, c.dept, "Setup procedure"]
     .map((x) => String(x || "").trim())
     .filter(Boolean)
     .join("  ·  ");
@@ -208,9 +253,8 @@ async function mkPdf() {
   y += 8;
   para(p.name || "Untitled", M, CW - (lw ? lw + 6 : 0), 20, 1);
   y = Math.max(y + 4, M + lh + 4);
-  const mm = T == "m",
-    meta = [
-      mm ? ["Type", "Machine"] : ["Line", L().name],
+  const meta = [
+      mm ? ["Type", "Machine"] : ["Line", c.line],
       [mm ? "Asset ID" : "Product code", p.code || "-"],
       ["Revision", p.rev || "-"],
       ["Date", p.date || "-"],
@@ -507,7 +551,7 @@ async function mkPdf() {
   const c2 = (CW - 10) / 2;
   [
     ["Prepared by", p.by, M],
-    ["Approved by", p.appr, M + c2 + 10],
+    ["Approved by", approved ? ap.name : "", M + c2 + 10],
   ].forEach(([lb, nm, x]) => {
     d.setFont("helvetica", "normal");
     d.setFontSize(8);
@@ -516,7 +560,24 @@ async function mkPdf() {
     d.setFont("helvetica", "bold");
     d.setFontSize(12);
     tc(K);
-    d.text(d.splitTextToSize(nm, c2)[0], x, y + 10);
+    d.text(d.splitTextToSize(String(nm || ""), c2)[0], x, y + 10);
+    if (lb == "Approved by") {
+      d.setFont("helvetica", "normal");
+      d.setFontSize(8);
+      tc(approved ? G : [200, 0, 0]);
+      d.text(
+        approved
+          ? `Approved ${logTime(ap.at)} · digital signature checked`
+          : "Not approved: draft",
+        x,
+        y + 15,
+      );
+      // Which approver code signed it: hidden text, like the author's reference.
+      if (approved)
+        d.text("Approver ref " + ap.aref, x, y + 19, {
+          renderingMode: "invisible",
+        });
+    }
     d.setDrawColor(...K);
     d.setLineWidth(0.3);
     d.line(x, y + 24, x + c2, y + 24);
@@ -537,23 +598,36 @@ async function mkPdf() {
   d.setProperties({
     title: (p.name || "Setup procedure") + " Rev " + (p.rev || "-"),
     subject: "Setup procedure",
-    author: S.co.name || "",
+    author: c.coName || "",
     creator: "Setup Procedures",
-    keywords: (ref ? "Ref " + ref + ", " : "") + "printed " + printed,
+    keywords:
+      (ref ? "Ref " + ref + ", " : "") +
+      "printed " +
+      printed +
+      (approved ? ", approver ref " + ap.aref : ""),
   });
   const n = d.getNumberOfPages(),
-    wm = WM ? wmLines(p) : [];
+    wm = WM
+      ? [c.coName, c.dept].map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
   for (let i = 1; i <= n; i++) {
     d.setPage(i);
     if (wm.length) watermark(d, wm, W, 297);
-    if (ref) {
-      // Hidden text: not visible or printed, but found by searching the PDF.
+    if (!approved) draftMark(d, W, 297);
+    // Hidden text: not visible or printed, but found by searching the PDF.
+    const hidden = [
+      ref && `Ref ${ref} printed ${printed}`,
+      approved && `Approver ref ${ap.aref}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    if (hidden) {
       d.setFont("helvetica", "normal");
       d.setFontSize(6);
       for (const hy of [10, 150])
-        d.text(`Ref ${ref} printed ${printed}`, M, hy, {
-          renderingMode: "invisible",
-        });
+        d.text(hidden, M, hy, { renderingMode: "invisible" });
+    }
+    if (ref) {
       // Tracking dots at the top and bottom of every page.
       refDots(d, ref, W / 2, 7);
       refDots(d, ref, W / 2, 291.6);
@@ -564,14 +638,22 @@ async function mkPdf() {
     d.setFont("helvetica", "normal");
     d.setFontSize(8);
     tc(G);
-    d.text((p.name || "") + "  Rev " + (p.rev || "-"), M, 289);
+    d.text(
+      (p.name || "") +
+        "  Rev " +
+        (p.rev || "-") +
+        (approved ? "" : c.review ? "  ·  FOR REVIEW (DRAFT)" : "  ·  DRAFT"),
+      M,
+      289,
+    );
     d.text("Page " + i + " of " + n, W - M, 289, { align: "right" });
   }
-  await dl(
+  const file =
+    (c.review ? "REVIEW_" : "") +
     (p.name || "setup-procedure").replace(/[^\w-]+/g, "_") +
-      "_rev" +
-      (p.rev || "1") +
-      ".pdf",
-    d.output("blob"),
-  );
+    "_rev" +
+    (p.rev || "1") +
+    ".pdf";
+  await dl(file, d.output("blob"));
+  if (own) logPdf(p, file, n, ref, approved ? "Approved" : "Draft");
 }

@@ -571,6 +571,7 @@ input[type="radio"] {
   display: none;
 }
 #toast .tb,
+#idlewarn .tb,
 #toast .tx {
   font: inherit;
   font-weight: 700;
@@ -669,4 +670,277 @@ input[type="radio"] {
 }
 .lock .err:empty {
   display: none;
+}
+/* Space between the last box and the buttons (Log in / Continue). */
+.lock button[type="submit"] {
+  margin-top: 16px;
+}
+.lock .lk[data-relog] {
+  margin-left: 12px;
+}
+/* Mark up button on gallery photos (bottom left). */
+.th button.mk {
+  top: auto;
+  right: auto;
+  bottom: 4px;
+  left: 4px;
+}
+/* Photo markup editor (full screen). */
+body.mkopen {
+  overflow: hidden;
+}
+#mk {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #111;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) 8px env(safe-area-inset-bottom, 0px);
+}
+.mkbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 8px 0 4px;
+  align-items: center;
+}
+.mkgrp {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mkend {
+  margin-left: auto;
+}
+.mkb {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid #666;
+  background: #222;
+  color: #fff;
+  cursor: pointer;
+}
+.mkb.on {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+.mkb.mks {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+}
+.mkc {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #666;
+  cursor: pointer;
+}
+.mkc.on {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+.mkhint {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #bbb;
+}
+.mkwrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#mkc {
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  background: #000;
+}
+/* Print log table. */
+.logw {
+  overflow-x: auto;
+  margin: 8px 0 12px;
+}
+.log {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+.log th,
+.log td {
+  border-bottom: 1px solid var(--bd);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.log th {
+  font-size: 12px;
+  color: var(--mut);
+  white-space: nowrap;
+}
+.log td:first-child,
+.plog td:nth-child(3),
+.alog td:nth-child(2) {
+  white-space: nowrap;
+}
+.log td .m {
+  display: block;
+  font-size: 12px;
+}
+/* Approval status. */
+.badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.badge.ok {
+  color: #13753a;
+}
+.badge.wait {
+  color: #9a5b00;
+}
+.badge.no,
+.badge.dr {
+  color: var(--dg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .badge.ok {
+    color: #6fdc96;
+  }
+  :root:not([data-theme="light"]) .badge.wait {
+    color: #ffc266;
+  }
+}
+.apbox {
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 4px 14px 10px;
+  margin: 8px 0 14px;
+}
+.apform {
+  border-top: 1px solid var(--bd);
+  margin-top: 10px;
+  padding-top: 4px;
+}
+.apform h3 {
+  margin: 8px 0 4px;
+}
+.apc {
+  font-style: italic;
+  border-left: 3px solid var(--bd);
+  padding-left: 10px;
+}
+.apby {
+  margin: 6px 0;
+}
+/* "Logged in: … · Log out" at the top of every page. */
+.ubar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--bd);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+.ubar .lk {
+  margin: 0;
+}
+/* "You will be logged out" warning (same look as the undo bar). */
+#idlewarn {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--tx);
+  color: var(--bg);
+  padding: 10px 14px;
+  border-radius: 10px;
+  max-width: calc(100% - 32px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+/* Tabs on the Logs page. */
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+  border-bottom: 1px solid var(--bd);
+}
+.tabb {
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  color: var(--mut);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.tabb.on {
+  color: var(--tx);
+  border-bottom-color: var(--ac);
+}
+.log tr.unused td {
+  color: var(--mut);
+}
+.log tr.act-delete td:nth-child(2) {
+  color: var(--dg);
+  font-weight: 600;
+}
+.nw {
+  white-space: nowrap;
+}
+.alog td:nth-child(4) {
+  min-width: 9em;
+}
+/* On phones, log tables become one card per row, with labels. */
+@media (max-width: 600px) {
+  .log thead {
+    display: none;
+  }
+  .log,
+  .log tbody,
+  .log tr,
+  .log td {
+    display: block;
+  }
+  .log tr {
+    border-bottom: 1px solid var(--bd);
+    padding: 8px 0;
+  }
+  .log th,
+  .log td {
+    border: 0;
+    padding: 1px 0;
+    min-width: 0;
+  }
+  .log td[data-l]::before {
+    content: attr(data-l) ": ";
+    color: var(--mut);
+  }
+  .alog td:nth-child(1),
+  .alog td:nth-child(2) {
+    display: inline-block;
+    margin-right: 8px;
+    font-weight: 600;
+  }
 }

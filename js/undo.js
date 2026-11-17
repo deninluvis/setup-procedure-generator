@@ -12,20 +12,36 @@ const copyData = (o) =>
       ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, copyData(v)]))
       : o;
 function remember(msg) {
-  UNDO.push({ S: copyData(S), T, V: { ...V }, MID, msg });
+  UNDO.push({ S: copyData(S), T, V: { ...V }, MID, msg, e: EDITS });
   if (UNDO.length > 20) UNDO.shift();
   toast(msg, true);
 }
 async function undo() {
-  const u = UNDO.pop();
+  const u = UNDO[UNDO.length - 1];
   if (!u) return;
+  // Undo puts back everything as it was before that removal. If more was
+  // changed since (more than the removal itself), say so first.
+  if (
+    EDITS - u.e > 1 &&
+    !confirm(
+      `Undo "${u.msg}"? Changes made after it will be undone too. To keep them, press Cancel.`,
+    )
+  )
+    return;
+  UNDO.pop();
+  // The logs are not undone (except clearing them).
+  const log = S.log,
+    act = S.act;
   S = u.S;
+  if (u.msg != "Print log cleared") S.log = log;
+  if (u.msg != "Activity log cleared") S.act = act;
   T = u.T;
   V = u.V;
   MID = u.MID;
   IMP = null;
   R(); // show it straight away, then save
   toast(`Undone: ${u.msg}`, false);
+  logAct("change", `Undone: ${u.msg}`);
   await writeNow();
 }
 let toastTimer = null;

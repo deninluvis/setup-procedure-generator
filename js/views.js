@@ -4,7 +4,7 @@
 const add = (ph, a) =>
   `<div class="row"><input id="nw" placeholder="${ph}"><button class="b" data-a="${a}">Add</button></div>`;
 const gal = (arr, k) =>
-  `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
+  `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button><button class="mk" data-a="mk" data-k="${k}" data-i="${i}" aria-label="Mark up photo" title="Mark up">✎</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
 
 // Company details (logo, name, department): set once, printed on every PDF.
 const logoField = () =>
@@ -37,7 +37,14 @@ ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
-<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
+<h2>Approvals</h2><p class="m">${(() => {
+    const w = allItems().filter((x) => x.p.ap && x.p.ap.st == "pending").length;
+    return w
+      ? `${count(w, "procedure is", "procedures are")} waiting for approval. `
+      : "";
+  })()}Import an approval file you received from an approver.</p><button class="b2" data-a="goAp">Open approvals</button>
+${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}
+${isAdmin() ? `<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>` : ""}`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
   [p.code, deptName(deptOf(p, S.co), S.co)]
@@ -56,9 +63,9 @@ const deptSel = (p) => {
     .join("")}</select></label>`;
 };
 // One step on the product/machine page, with its sub-steps (3.1, 3.2, …).
-const photoBtn = (img, rm, up) =>
+const photoBtn = (img, rm, up, mk) =>
   img
-    ? `<img class="simg" src="${img}" alt=""><button class="lk" ${rm}>Remove photo</button>`
+    ? `<img class="simg" src="${img}" alt=""><div class="row"><button class="lk" data-a="mk" ${mk}>✎ Mark up</button><button class="lk" ${rm}>Remove photo</button></div>`
     : `<label class="b2">＋ Add photo<input type="file" accept="image/*" hidden ${up}></label>`;
 // Warning, Caution or Note on a step or sub-step (o.warn = text, o.wtype = type).
 // Same colours on the page and in the PDF.
@@ -110,7 +117,7 @@ const stepHtml = (s, i) => {
     NaN,
     `step ${i + 1}`,
   )}<textarea data-s="${i}"  }<textarea data-s="${i}" placeholder="Describe this step" aria-label="Step ${i + 1} description">${esc(s.t)}</textarea>
-${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`)}
+${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`, `data-k="step" data-i="${i}"`)}
 ${subs
   .map(
     (
@@ -118,7 +125,7 @@ ${subs
       j,
     ) => `<div class="sub"><div class="sh"><span class="n2">${i + 1}.${j + 1}</span><span class="sp"></span><button class="sm" data-a="subUp" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} up">↑</button><button class="sm" data-a="subDn" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} down">↓</button><button class="sm" data-a="rmSub" data-i="${i}" data-j="${j}" aria-label="Delete sub-step ${i + 1}.${j + 1}">✕</button></div>
 ${noteHtml(u, i, j, `sub-step ${i + 1}.${j + 1}`)}<textarea data-ss="${i}" data-sj="${j}" rows="2" placeholder="Describe sub-step ${i + 1}.${j + 1}" aria-label="Sub-step ${i + 1}.${j + 1}">${esc(u.t)}</textarea>
-${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" data-i="${i}" data-j="${j}"`)} ${u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : ""}</div>`,
+${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" data-i="${i}" data-j="${j}"`, `data-k="sub" data-i="${i}" data-j="${j}"`)} ${u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : ""}</div>`,
   )
   .join("")}
 <div class="row" style="flex-wrap:wrap">${s.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}">⚠ Add warning or note</button>` : ""}<button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
@@ -155,7 +162,7 @@ const MV = () =>
   S.machines
     .map(
       (m) =>
-        `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)}</b><span class="m">${cardMeta(m)}${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
+        `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)} ${apBadge(m)}</b><span class="m">${cardMeta(m)}${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
     )
     .join("") +
   add("Machine name", "addM");
@@ -187,8 +194,16 @@ function R(keep) {
         ? [ae.selectionStart, ae.selectionEnd]
         : null;
   let h = "";
+  // Approvers only see the Approvals page; the print log is for admins.
+  if (isApprover()) T = "ap";
+  else if (T == "log" && !isAdmin()) T = "h";
+  actTrack();
   if (T == "x") {
     h = XV();
+  } else if (T == "log") {
+    h = LogsV();
+  } else if (T == "ap") {
+    h = ApV();
   } else if (T == "co") {
     h = CoV();
   } else if (T == "h") {
@@ -212,7 +227,7 @@ function R(keep) {
       l.products
         .map(
           (p) =>
-            `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)}</b><span class="m">${cardMeta(p)}${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
+            `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)} ${apBadge(p)}</b><span class="m">${cardMeta(p)}${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
       add("Product name", "addP") +
@@ -224,7 +239,7 @@ function R(keep) {
       (mm
         ? `<button class="lk" data-a="mhome">← All machines</button>`
         : `<button class="lk" data-a="openL" data-id="${V.l}">← ${esc(L().name)}</button>`) +
-      `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>${itemHelp(mm)}
+      `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>${apBox(p)}${itemHelp(mm)}
 <label class="f">${mm ? "Machine name" : "Product name"}<input data-f="name" value="${esc(p.name)}"></label>
 ${deptSel(p)}
 <div class="two"><label class="f">${mm ? "Machine ID / asset no." : "Product code"}<input data-f="code" value="${esc(p.code)}"></label><label class="f">Revision<input data-f="rev" value="${esc(p.rev)}"></label></div>
@@ -237,12 +252,17 @@ ${toolsHtml(p)}
       `<button class="b2" data-a="addS">＋ Add step</button>
 <h2>Sign-off</h2><div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>
 <p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
-<div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><label class="f">Approved by<input data-f="appr" value="${esc(p.appr)}"></label></div>
+<div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><div><span class="f">Approved by</span><p class="apby">${(() => {
+        const r = AP_NOW.get(p.id);
+        return r && r.st == "approved"
+          ? `<b>${esc(r.name)}</b> <span class="m">(${apDay(r.at)}, signature checked)</span>`
+          : `<span class="m">Filled in when the ${mm ? "machine" : "product"} is approved (see the top of this page).</span>`;
+      })()}</p></div></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
 ${wmBox(p)}${psBox()}
 <div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
-  $("#app").innerHTML = h;
+  $("#app").innerHTML = userBar() + h;
   document
     .querySelectorAll("[data-ind]")
     .forEach((e) => (e.indeterminate = true));
@@ -258,6 +278,7 @@ ${wmBox(p)}${psBox()}
     }
   }
   if (T == "h") showStorage();
+  if ((T == "p" && V.p) || (T == "m" && MID)) apRefresh();
 }
 
 // Storage meter on the home page.
