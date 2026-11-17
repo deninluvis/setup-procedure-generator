@@ -22,6 +22,7 @@ document.addEventListener("click", (e) => {
     if (!nw || !nw.trim()) return;
     const l = { id: id(), name: nw.trim(), products: [] };
     S.lines.push(l);
+    logAct("change", `Line "${l.name}" created`);
     V = { l: l.id, p: null };
   } else if (a == "addP") {
     if (!nw || !nw.trim()) return;
@@ -35,20 +36,37 @@ document.addEventListener("click", (e) => {
       prod: [],
       pack: [],
       steps: [{ t: "", img: "" }],
-      by: "",
+      by: (SESSION && SESSION.who) || "",
       appr: "",
     };
     L().products.push(p);
+    logAct("change", `Created ${itemLabel(p, "product", L())}`);
     V.p = p.id;
   } else if (a == "delL") {
     if (!confirm("Delete this line and all its products?")) return;
     remember(`Line "${L().name}" deleted`);
+    logAct(
+      "delete",
+      `Line "${L().name}" deleted, with ${count(L().products.length, "product", "products")}${
+        L().products.length
+          ? ": " +
+            L()
+              .products.map((p) => p.name)
+              .join(", ")
+          : ""
+      }`,
+    );
     S.lines = S.lines.filter((x) => x.id != V.l);
     V = { l: null, p: null };
   } else if (a == "delP") {
     if (!confirm("Delete this " + (T == "m" ? "machine" : "product") + "?"))
       return;
     remember(`${T == "m" ? "Machine" : "Product"} "${P().name}" deleted`);
+    flushItem(); // record edits made before deleting
+    logAct(
+      "delete",
+      `Deleted ${itemLabel(P(), T == "m" ? "machine" : "product", T == "m" ? null : L())}, rev ${P().rev || "-"}`,
+    );
     if (T == "m") {
       S.machines = S.machines.filter((x) => x.id != MID);
       MID = null;
@@ -154,6 +172,7 @@ document.addEventListener("click", (e) => {
           ? `; ${count(used, "item has", "items have")} no department now`
           : ""),
     );
+    logAct("delete", `Department "${d.name || "(empty)"}" removed`);
     // Pin older items to their current department before the list changes.
     [...S.machines, ...S.lines.flatMap((l) => l.products)].forEach((p) => {
       if (p.dept === undefined) p.dept = deptOf(p, S.co);
@@ -189,10 +208,11 @@ document.addEventListener("click", (e) => {
       prod: [],
       pack: [],
       steps: [{ t: "", img: "" }],
-      by: "",
+      by: (SESSION && SESSION.who) || "",
       appr: "",
     };
     S.machines.push(m);
+    logAct("change", `Created ${itemLabel(m, "machine")}`);
     MID = m.id;
   } else if (a == "bk") {
     exportZip(
@@ -250,9 +270,32 @@ document.addEventListener("click", (e) => {
       return;
     logout();
     return;
+  } else if (a == "ltab") {
+    LTAB = t.dataset.t;
+    R(true);
+    $(`[data-a=ltab][data-t="${LTAB}"]`).focus();
+    return;
+  } else if (a == "actCsv") {
+    actCsv();
+    return;
+  } else if (a == "codesCsv") {
+    codesCsv();
+    return;
+  } else if (a == "actClear") {
+    if (!isAdmin()) return;
+    if (
+      !confirm(
+        "Clear the whole activity log? This cannot be undone after you close the page.",
+      )
+    )
+      return;
+    remember("Activity log cleared");
+    S.act = [];
+    logAct("data", "Activity log cleared");
   } else if (a == "goLog") {
     if (!isAdmin()) return;
     T = "log";
+    LTAB = "act";
     LF = "";
   } else if (a == "logCsv") {
     logCsv();
@@ -266,6 +309,7 @@ document.addEventListener("click", (e) => {
       return;
     remember("Print log cleared");
     S.log = [];
+    logAct("data", "Print log cleared");
   } else if (a == "goX") {
     T = "x";
     EXS = new Set(allKeys("x"));
@@ -330,15 +374,21 @@ document.addEventListener("click", (e) => {
     )
       return;
     remember("All data cleared");
+    flushItem();
+    // The logs stay: they record what happened, including this.
     S = {
       lines: [],
       machines: [],
       co: { name: "", depts: [{ id: id(), name: "" }] },
+      log: S.log,
+      act: S.act,
     };
+    logAct("data", "All data cleared");
     T = "co";
     MID = null;
     V = { l: null, p: null };
   } else if (a == "pdf") {
+    flushItem(true); // record changes up to this PDF
     return mkPdf();
   }
   save();

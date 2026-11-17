@@ -17,6 +17,7 @@ function logPdf(p, file, pages, ref, status) {
     dept: deptName(deptOf(p, S.co), S.co) || "",
     ref: ref || "",
     who: accessName(),
+    person: (SESSION && SESSION.who) || "",
     file,
     pages,
     status: status || "",
@@ -33,7 +34,7 @@ const logTime = (iso) => {
     : `${dateStamp(d)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 const logWho = (e) =>
-  [e.who, e.ref && "Ref " + e.ref].filter(Boolean).join(" · ");
+  [e.person, e.who, e.ref && "Ref " + e.ref].filter(Boolean).join(" · ");
 const logShown = () => {
   const q = LF.trim().toLowerCase(),
     all = S.log || [];
@@ -51,12 +52,11 @@ function LogV() {
   const all = S.log || [],
     list = logShown();
   return (
-    `<button class="lk" data-a="goHome">← Home</button><h1>Print log</h1>` +
-    `<p class="m">Every PDF made in this browser, newest first: when, what, which revision, and which access code was used. The log is saved with your data and included in full backups. Up to ${LOG_MAX} entries are kept.</p>` +
+    `<p class="m">Every PDF made in this browser, newest first: when, what, which revision, who made it and with which code. Up to ${LOG_MAX} entries are kept.</p>` +
     (all.length
       ? `<input type="search" data-lf="1" value="${esc(LF)}" placeholder="Filter: name, code, date, department or access code" aria-label="Filter the print log">` +
         `<p class="m">${LF.trim() ? `${count(list.length, "match", "matches")} of ${all.length}` : count(all.length, "PDF", "PDFs")}</p>` +
-        `<div class="logw"><table class="log"><thead><tr><th>Date and time</th><th>Product / machine</th><th>Code</th><th>Rev</th><th>Status</th><th>Department</th><th>Access code</th><th>Pages</th></tr></thead><tbody>` +
+        `<div class="logw"><table class="log plog"><thead><tr><th>Date and time</th><th>Product / machine</th><th>Code</th><th>Rev</th><th>Status</th><th>Department</th><th>Made by</th><th>Pages</th></tr></thead><tbody>` +
         list
           .slice(0, 500)
           .map(
@@ -86,7 +86,8 @@ async function logCsv() {
         "Status",
         "Line",
         "Department",
-        "Access code",
+        "Name",
+        "Code",
         "Reference",
         "File",
         "Pages",
@@ -100,6 +101,7 @@ async function logCsv() {
         e.status,
         e.line,
         e.dept,
+        e.person,
         e.who,
         e.ref,
         e.file,

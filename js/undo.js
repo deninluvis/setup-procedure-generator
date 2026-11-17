@@ -19,13 +19,19 @@ function remember(msg) {
 async function undo() {
   const u = UNDO.pop();
   if (!u) return;
+  // The logs are not undone (except clearing them).
+  const log = S.log,
+    act = S.act;
   S = u.S;
+  if (u.msg != "Print log cleared") S.log = log;
+  if (u.msg != "Activity log cleared") S.act = act;
   T = u.T;
   V = u.V;
   MID = u.MID;
   IMP = null;
   R(); // show it straight away, then save
   toast(`Undone: ${u.msg}`, false);
+  logAct("change", `Undone: ${u.msg}`);
   await writeNow();
 }
 let toastTimer = null;

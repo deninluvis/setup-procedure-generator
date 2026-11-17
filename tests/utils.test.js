@@ -536,3 +536,22 @@ test('approver codes sign approvals that only check out unchanged and from liste
   const forged = { ...file, pub: other.pub, sig: await apSign(other.priv, payload) };
   assert.equal((await apCheck(forged, list)).ok, false, 'a different code cannot sign for Sam');
 });
+
+test('itemDiff describes what changed in plain words', () => {
+  const { itemDiff } = require('../js/utils.js');
+  const co = { depts: [{ id: 'd1', name: 'Press' }, { id: 'd2', name: 'Assembly' }] };
+  const a = { name: 'Widget', code: 'W1', rev: '3', dept: 'd1', prod: ['x'], pack: [], ppe: [], tools: [{ n: '', s: '', q: '' }], steps: [{ t: 'a' }, { t: 'b' }], by: 'Alex' };
+  assert.deepEqual(itemDiff(a, { ...a, tools: [] }, co, 'product'), [], 'empty tool rows do not count');
+  const b = { ...a, rev: '4', dept: 'd2', prod: ['x', 'y'], ppe: ['gloves'], tools: [{ n: 'Wrench', s: '', q: '1' }], steps: [{ t: 'a' }, { t: 'B' }, { t: 'c' }], by: '', ap: { st: 'approved' }, appr: 'Sam' };
+  assert.deepEqual(itemDiff(a, b, co, 'product'), [
+    'Revision "3" → "4"',
+    'Department "Press" → "Assembly"',
+    'Product photos 1 → 2',
+    'Safety equipment',
+    'Tools required',
+    'Steps 2 → 3',
+    'Step 2 changed',
+    'Prepared by cleared',
+  ]);
+  assert.deepEqual(itemDiff({ ...a, code: '' }, a, co, 'machine'), ['Asset ID set to "W1"']);
+});

@@ -9,6 +9,7 @@
 //   log.js      print log;  markup.js  photo markup
 //   approval.js draft / approval requests and signed approvals
 //   approvers.js approvers' public keys
+//   activity.js activity log, change history, Logs page (admins)
 //   events.js   click / input / change handlers
 //   access.js   access codes (scrambled);  lock.js  access code screen
 // Start: ask for the access code if needed, then load saved data and show
@@ -17,6 +18,9 @@ loadView();
 const startApp = () =>
   Store.load().then((d) => {
     initState(d);
+    DATA_READY = true;
+    flushActQueue();
+    if (JUST_LOGGED) logAct("login", "Logged in");
     if (isApprover()) T = "ap";
     R();
     startIdleWatch();

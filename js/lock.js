@@ -41,16 +41,31 @@ function readSession() {
   } catch (e) {}
   if (!s || typeof s != "object") s = { r: "author", id: v };
   const hit = (roleLists()[s.r] || []).find((x) => x[1] === s.id);
-  return hit ? { r: s.r, id: s.id, name: hit[0] } : null;
+  return hit
+    ? { r: s.r, id: s.id, name: hit[0], who: String(s.who || "").trim() }
+    : null;
 }
+// Logged in with a valid code and a name (who). An older login without a
+// name asks for it (see showLock).
 function hasAccess() {
-  SESSION = noCodes() ? { r: "admin", id: "", name: "" } : readSession();
+  if (noCodes()) {
+    SESSION = { r: "admin", id: "", name: "", who: "" };
+    return true;
+  }
+  SESSION = readSession();
   // A login left unused for too long (even with the browser closed) has ended.
-  if (SESSION && SESSION.name && Date.now() - lastSeen() >= IDLE_MS) {
+  if (SESSION && Date.now() - lastSeen() >= IDLE_MS) {
+    queueAct(
+      actEntry(
+        "login",
+        `Logged out automatically after ${Math.round(IDLE_MS / 60000)} minutes without activity`,
+        SESSION,
+      ),
+    );
     endLogin(true);
     return false;
   }
-  return !!SESSION;
+  return !!SESSION && !!SESSION.who;
 }
 const isAdmin = () => !!SESSION && SESSION.r == "admin";
 const isApprover = () => !!SESSION && SESSION.r == "approver";
@@ -69,7 +84,23 @@ function endLogin(idle) {
   SESSION = null;
   APCODE = "";
 }
-function logout(idle) {
+// Log out (idle = automatically): note it in the activity log, then reload.
+async function logout(idle) {
+  try {
+    if (DATA_READY) {
+      flushItem();
+      logAct(
+        "login",
+        idle
+          ? `Logged out automatically after ${Math.round(IDLE_MS / 60000)} minutes without activity`
+          : "Logged out",
+      );
+      await writeNow();
+    } else if (SESSION && SESSION.who)
+      queueAct(
+        actEntry("login", idle ? "Logged out automatically" : "Logged out"),
+      );
+  } catch (e) {}
   endLogin(idle);
   location.reload();
 }
@@ -128,7 +159,7 @@ function startIdleWatch() {
 // "Logged in: Author · Code 4   Log out", at the top of every page.
 const userBar = () =>
   SESSION && SESSION.name
-    ? `<div class="ubar"><span class="m">Logged in: <b>${ROLE_NAMES[SESSION.r]}</b> · ${esc(SESSION.name)}</span><button class="lk" data-a="logout">Log out</button></div>`
+    ? `<div class="ubar"><span class="m">Logged in: <b>${esc(SESSION.who || SESSION.name)}</b> · ${ROLE_NAMES[SESSION.r]}${SESSION.who ? ` (${esc(SESSION.name)})` : ""}</span><button class="lk" data-a="logout">Log out</button></div>`
     : "";
 
 // Which code is this? -> { r, id, name } or null. Approver codes are checked
@@ -150,7 +181,12 @@ async function findCode(code) {
 }
 
 // Show the login screen; calls open() once a valid code is entered.
+let JUST_LOGGED = false; // a new login: noted in the activity log at start-up
+const NAMES_KEY = "sp-names"; // last name typed with each code, on this computer
+
 function showLock(open) {
+  const pend = readSession(); // logged in, but no name yet (older login)
+  if (pend && !pend.who) return askName(pend, open);
   const old = savedSession();
   let idle = false;
   try {
@@ -184,18 +220,55 @@ function showLock(open) {
     ]);
     btn.disabled = false;
     if (!s) {
+      queueAct(actEntry("login", "Failed login: wrong code", null));
       $("#lockErr").textContent =
         "That code is not right. Check it and try again.";
       input.select();
       return;
     }
-    SESSION = s;
     if (s.r == "approver") APCODE = code;
-    const v = JSON.stringify({ r: s.r, id: s.id });
+    askName(s, open);
+  });
+}
+
+// Second step: "Who are you?" The name is shown at the top of every page,
+// fills in "Prepared by" and is recorded in the logs with the code.
+function askName(s, open) {
+  let names = {};
+  try {
+    names = JSON.parse(localStorage.getItem(NAMES_KEY) || "{}") || {};
+  } catch (e) {}
+  $("#app").innerHTML =
+    `<form id="lock" class="lock" autocomplete="off"><h1>Who are you?</h1>` +
+    `<p class="m">Code accepted: <b>${ROLE_NAMES[s.r]}</b> (${esc(s.name)}). Enter your name. It is shown at the top of every page and recorded with what you do.</p>` +
+    `<label class="f">Your name<input id="lockName" maxlength="60" autocomplete="name" value="${esc(names[s.id] || "")}" required></label>` +
+    `<p class="err" id="lockErr" role="alert"></p>` +
+    `<button class="b" type="submit">Continue</button> <button class="lk" type="button" data-relog="1">Use another code</button></form>`;
+  const input = $("#lockName");
+  input.focus();
+  input.select();
+  $("[data-relog]").addEventListener("click", () => {
+    endLogin(false);
+    showLock(open);
+  });
+  $("#lock").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const who = input.value.trim().replace(/\s+/g, " ");
+    if (who.length < 2) {
+      $("#lockErr").textContent = "Enter your name.";
+      return;
+    }
+    names[s.id] = who;
+    try {
+      localStorage.setItem(NAMES_KEY, JSON.stringify(names));
+    } catch (x) {}
+    SESSION = { ...s, who };
+    const v = JSON.stringify({ r: s.r, id: s.id, who });
     memSession = v;
     try {
       localStorage.setItem(ACCESS_KEY, v);
     } catch (x) {}
+    JUST_LOGGED = true;
     open();
   });
 }

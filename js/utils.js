@@ -837,8 +837,73 @@ async function apCheck(file, approvers) {
   return { ok: true, name: typed || a[0], slot: a[0], payload: file.payload };
 }
 
+// ---------- Change history ----------
+// What changed between two copies of a product/machine, in plain words, for
+// the activity log. co = company (for department names); kind = "machine" or
+// "product". The approval fields (ap, appr) are left out: approvals are
+// logged on their own.
+function itemDiff(a, b, co, kind) {
+  const out = [],
+    s = (x) => String(x ?? "").trim(),
+    same = (x, y) => stableJson(x ?? null) == stableJson(y ?? null),
+    field = (k, label) => {
+      if (s(a[k]) != s(b[k]))
+        out.push(
+          s(a[k]) && s(b[k])
+            ? `${label} "${s(a[k])}" → "${s(b[k])}"`
+            : s(b[k])
+              ? `${label} set to "${s(b[k])}"`
+              : `${label} cleared`,
+        );
+    },
+    photos = (k, label) => {
+      const x = a[k] || [],
+        y = b[k] || [];
+      if (!same(x, y))
+        out.push(
+          x.length != y.length
+            ? `${label} ${x.length} → ${y.length}`
+            : `${label} changed`,
+        );
+    },
+    mm = kind == "machine";
+  field("name", "Name");
+  field("code", mm ? "Asset ID" : "Product code");
+  field("rev", "Revision");
+  field("date", "Date");
+  if (
+    deptName(deptOf(a, co), co) != deptName(deptOf(b, co), co) &&
+    (a.dept || b.dept)
+  )
+    out.push(
+      `Department "${deptName(deptOf(a, co), co)}" → "${deptName(deptOf(b, co), co)}"`,
+    );
+  photos("prod", mm ? "Machine photos" : "Product photos");
+  photos("pack", mm ? "Control panel photos" : "Packaging photos");
+  if (!same(a.ppe || [], b.ppe || []) || s(a.ppeo) != s(b.ppeo))
+    out.push("Safety equipment");
+  const tools = (p) =>
+    (p.tools || []).filter((t) => s(t.n) || s(t.s) || s(t.q));
+  if (!same(tools(a), tools(b))) out.push("Tools required");
+  const as = a.steps || [],
+    bs = b.steps || [];
+  if (as.length != bs.length) out.push(`Steps ${as.length} → ${bs.length}`);
+  const changed = [];
+  for (let i = 0; i < Math.min(as.length, bs.length); i++)
+    if (!same(as[i], bs[i])) changed.push(i + 1);
+  if (changed.length)
+    out.push(
+      `${changed.length == 1 ? "Step" : "Steps"} ${changed.join(", ")} changed`,
+    );
+  if (s(a.th) != s(b.th) || s(a.tm) != s(b.tm) || s(a.tech) != s(b.tech))
+    out.push("Time / technicians required");
+  field("by", "Prepared by");
+  return out;
+}
+
 if (typeof module !== "undefined")
   module.exports = {
+    itemDiff,
     stableJson,
     apContent,
     apImages,

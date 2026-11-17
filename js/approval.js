@@ -164,7 +164,7 @@ function apReqForm(p) {
   return `<div class="apform"><h3>Request approval</h3>
 <label class="f">Approver<select data-ap="to">${(last ? "" : `<option value="">Choose…</option>`) + APPROVERS.map((a) => `<option${a[0] == last ? " selected" : ""}>${esc(a[0])}</option>`).join("")}</select></label>
 <label class="f">Approver's email<input type="email" data-ap="tomail" value="${esc((pr.mail || {})[last] || "")}" placeholder="name@company.com"></label>
-<div class="two"><label class="f">Your name<input data-ap="me" value="${esc(me.name || p.by || "")}"></label><label class="f">Your email<input type="email" data-ap="mymail" value="${esc(me.email || "")}" placeholder="For the approver's reply"></label></div>
+<div class="two"><label class="f">Your name<input data-ap="me" value="${esc((SESSION && SESSION.who) || me.name || p.by || "")}"></label><label class="f">Your email<input type="email" data-ap="mymail" value="${esc(me.email || "")}" placeholder="For the approver's reply"></label></div>
 <p class="m">Pressing the button saves <b>Approval request - ${esc(p.name || "Untitled")} - rev ${esc(p.rev || "1")}.zip</b> and opens an email to the approver. <b>Attach that file</b> (from your Downloads folder) and send it.</p>
 <div class="row" style="flex-wrap:wrap"><button class="b" data-a="apSend">Save request and open email</button><button class="b2" data-a="apReqCancel">Cancel</button></div></div>`;
 }
@@ -216,6 +216,11 @@ async function requestApproval(btn) {
       mail: { ...(pr.mail || {}), [to]: tomail },
     });
     p.ap = { st: "pending", to, req: at, fp: r.fp };
+    flushItem(true);
+    logAct(
+      "approval",
+      `Approval requested for ${itemLabel(p, kind, kind == "product" ? L() : null)}, rev ${p.rev || "-"}, from ${to}${tomail ? ` (${tomail})` : ""}`,
+    );
     REQ = false;
     APMSG = {
       text: `Request saved as "${file}". Attach it to the email and send it to ${to}.`,
@@ -303,7 +308,7 @@ async function loadRequest(f) {
       company: c.company,
       decision: "approved",
       comment: "",
-      name: apPrefs().signer || "",
+      name: (SESSION && SESSION.who) || apPrefs().signer || "",
     };
   R();
 }
@@ -378,6 +383,10 @@ async function signApproval(btn) {
       new Blob([JSON.stringify(file, null, 1)], { type: "application/json" }),
     );
     APR.done = name;
+    logAct(
+      "approval",
+      `${dec == "approved" ? "Approved" : "Rejected"} ${pack.kind} "${p.name || "Untitled"}" rev ${p.rev || "-"} as ${signer} (requested by ${req.from || "?"})${comment ? `: "${comment}"` : ""}`,
+    );
     APMSG = null;
     R(true);
     openMail(
@@ -399,6 +408,7 @@ async function signApproval(btn) {
 async function importApproval(f) {
   const fail = (text) => {
     APMSG = { text, err: true };
+    logAct("approval", `Approval file "${f.name}" refused: ${text}`);
     R(true);
   };
   if (!subtle())
@@ -442,6 +452,10 @@ async function importApproval(f) {
     ok = pl.decision == "approved";
   remember(
     `${ok ? "Approval" : "Rejection"} imported for ${p.name || "Untitled"}`,
+  );
+  logAct(
+    "approval",
+    `${ok ? "Approval" : "Rejection"} by ${chk.name} (${chk.slot}) imported for ${itemLabel(p, hit.kind, hit.l)}, rev ${p.rev || "-"}${pl.comment ? `: "${pl.comment}"` : ""}`,
   );
   p.ap = {
     st: ok ? "approved" : "rejected",

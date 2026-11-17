@@ -14,7 +14,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Works offline: everything it needs is in the repository, and it can be installed as an app
 - Log in and log out with access (author), admin or approver codes; each opens its own pages
 - Mark up photos with arrows, circles and numbers
-- Print log: a list of every PDF made, with the access code used
+- Logs for admins: activity (logins, changes, approvals, deletions, exports), print log and code usage
 - Approvals by email: drafts print with a DRAFT watermark until an approver signs them off
 
 ## Project structure
@@ -36,6 +36,7 @@ js/access.js        Access codes (scrambled)
 js/admins.js        Admin codes (scrambled)
 js/lock.js          Log in / log out and roles
 js/log.js           Print log
+js/activity.js      Activity log, change history and the Logs page
 js/markup.js        Photo markup editor
 js/approval.js      Draft / approval requests and signed approvals
 js/approvers.js     Approvers (public keys only)
@@ -90,8 +91,14 @@ the code decides what they can do:
 | Code | Opens | Can do |
 |---|---|---|
 | **Access code** (author) | Home page | Products, machines, PDFs, approval requests, backups |
-| **Admin code** | Home page | Everything an author can do, plus the **Print log** and **Clear all saved data** |
+| **Admin code** | Home page | Everything an author can do, plus the **Logs** and **Clear all saved data** |
 | **Approver code** | Approvals page only | Review approval requests and sign decisions |
+
+After the code, the app asks **Who are you?**: type your name (it is suggested next
+time on that computer). The name is shown at the top of every page, fills in **Prepared
+by** on new products and machines and the approver's signing name, and is recorded in
+the logs together with the code. The name is not checked: the code is the proof of who
+logged in.
 
 The top of every page shows who is logged in, with a **Log out** button. On a shared
 computer, log out when you finish; the next person logs in with their own code. A login
@@ -103,7 +110,7 @@ and dashes don't matter. Procedures are shared by everyone who uses that browser
 
 Access and admin codes keep out casual visitors only: the repository is public, so
 someone technical can read the app's code and get around them. Approver codes are
-different: approvals are digitally signed (see **Approval** below). The print log is
+different: approvals are digitally signed (see **Approval** below). The logs are
 hidden from authors and only included in full backups made by an admin.
 
 Manage access codes from the repository folder (needs Node.js); admin codes work the same
@@ -248,13 +255,28 @@ a step or sub-step photo. A full-screen editor opens:
    **Cancel** (or Esc) leaves the photo as it was. After saving, **Undo** in the bar
    at the bottom brings back the photo without marks.
 
-**Print log (admins only):** home page → **Open print log** lists every PDF made in this browser,
-newest first: date and time, product or machine, code, revision, department and the
-code used (name and reference). Type in the filter box to narrow it down.
-**Download log (Excel / CSV)** saves it as a file that opens in Excel. The log is saved
-in this browser (up to 2000 entries) and is only included in full backups made by an
-admin; importing a backup keeps this browser's log. **Clear log** empties
-it (Undo brings it back).
+**Logs (admins only):** home page → **Open logs**. Three tabs, each with a filter and a
+**Download (Excel / CSV)** button:
+
+- **Activity:** who did what, and when (name and code), newest first:
+  - **Login:** logged in, logged out, logged out automatically, failed logins (wrong code).
+  - **Change:** lines, products and machines created; edits, recorded when you leave the
+    page, make a PDF or log out, with what changed (for example `Revision "1" → "2"; Steps
+    1 → 2; Step 1 changed; Safety equipment`); company details; Undo.
+  - **Approval:** requests sent (to whom), approvals and rejections imported (by whom,
+    with the comment), decisions signed on this computer, approval files refused and why.
+  - **Deletion:** products, machines, lines (with their products) and departments.
+  - **Export / import:** every exported file, imports, "replace all", clearing data or logs.
+- **Print log:** every PDF made: when, what, revision, Draft or Approved, and who made it
+  (name, code and reference).
+- **Code usage:** every access, admin and approver code with its logins, last login, PDFs
+  and the names used with it on this computer. Codes never used here are greyed out:
+  candidates for removal.
+
+The logs are kept in this browser (activity up to 5000 entries, print log up to 2000);
+each computer has its own. They stay when data is cleared or replaced by a backup, and
+only go into full backups made by an admin. **Clear activity log** / **Clear log** empty
+them (Undo brings them back until the page is closed).
 
 **Undo:** after removing or replacing something (a step, sub-step, warning or note,
 photo, product, machine, line, department, the logo, an import, or clearing all data), a

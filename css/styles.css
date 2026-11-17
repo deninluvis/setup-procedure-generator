@@ -780,7 +780,8 @@ body.mkopen {
   white-space: nowrap;
 }
 .log td:first-child,
-.log td:nth-child(3) {
+.plog td:nth-child(3),
+.alog td:nth-child(2) {
   white-space: nowrap;
 }
 .log td .m {
@@ -868,4 +869,33 @@ body.mkopen {
   border-radius: 10px;
   max-width: calc(100% - 32px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+/* Tabs on the Logs page. */
+.tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+  border-bottom: 1px solid var(--bd);
+}
+.tabb {
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  color: var(--mut);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.tabb.on {
+  color: var(--tx);
+  border-bottom-color: var(--ac);
+}
+.log tr.unused td {
+  color: var(--mut);
+}
+.log tr.act-delete td:nth-child(2) {
+  color: var(--dg);
+  font-weight: 600;
 }

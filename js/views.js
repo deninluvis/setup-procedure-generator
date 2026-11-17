@@ -43,7 +43,7 @@ ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was
       ? `${count(w, "procedure is", "procedures are")} waiting for approval. `
       : "";
   })()}Import an approval file you received from an approver.</p><button class="b2" data-a="goAp">Open approvals</button>
-${isAdmin() ? `<h2>Print log</h2><p class="m">${count((S.log || []).length, "PDF", "PDFs")} made in this browser.</p><button class="b2" data-a="goLog">Open print log</button>` : ""}
+${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}
 ${isAdmin() ? `<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>` : ""}`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
@@ -197,10 +197,11 @@ function R(keep) {
   // Approvers only see the Approvals page; the print log is for admins.
   if (isApprover()) T = "ap";
   else if (T == "log" && !isAdmin()) T = "h";
+  actTrack();
   if (T == "x") {
     h = XV();
   } else if (T == "log") {
-    h = LogV();
+    h = LogsV();
   } else if (T == "ap") {
     h = ApV();
   } else if (T == "co") {

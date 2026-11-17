@@ -32,7 +32,8 @@ const sniff = (b) =>
 
 // The data for a full backup: the print log only goes into backups made by
 // an admin (authors cannot see it).
-const backupState = () => (isAdmin() ? S : { ...S, log: undefined });
+const backupState = () =>
+  isAdmin() ? S : { ...S, log: undefined, act: undefined };
 
 // plan: { data, files } from planBackup() or planItems().
 async function exportZip(plan, name, btn, done) {
@@ -53,6 +54,7 @@ async function exportZip(plan, name, btn, done) {
       data: new TextEncoder().encode(README_TXT()),
     });
     await dl(name, Zip.make(files));
+    logAct("data", `Exported "${name}"`);
     if (done) done();
   } catch (e) {
     alert("Could not create the export file.");
@@ -679,9 +681,11 @@ async function applyImport() {
     )
       return;
     remember("All data replaced with the backup");
-    const log = S.log;
+    const log = S.log,
+      act = S.act;
     S = IMP.full;
-    S.log = log || []; // the print log stays with this browser
+    S.log = log || []; // the logs stay with this browser
+    S.act = act || [];
     S.lastBackup = Date.now(); // this data is already in a backup file
     msg = "All data was replaced with the backup.";
     LASTMISS = IMP.missingList;
@@ -722,6 +726,7 @@ async function applyImport() {
     S.co.depts = S.co.depts.filter((d) => d.name.trim());
     S.co.done = true;
   }
+  logAct("data", `Imported: ${msg}`);
   if (!(await writeNow())) return;
   IMP = null;
   XMSG = esc(msg);
