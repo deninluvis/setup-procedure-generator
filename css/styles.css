@@ -670,3 +670,119 @@ input[type="radio"] {
 .lock .err:empty {
   display: none;
 }
+/* Mark up button on gallery photos (bottom left). */
+.th button.mk {
+  top: auto;
+  right: auto;
+  bottom: 4px;
+  left: 4px;
+}
+/* Photo markup editor (full screen). */
+body.mkopen {
+  overflow: hidden;
+}
+#mk {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #111;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top, 0px) 8px env(safe-area-inset-bottom, 0px);
+}
+.mkbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 8px 0 4px;
+  align-items: center;
+}
+.mkgrp {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mkend {
+  margin-left: auto;
+}
+.mkb {
+  font: inherit;
+  font-size: 14px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid #666;
+  background: #222;
+  color: #fff;
+  cursor: pointer;
+}
+.mkb.on {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+.mkb.mks {
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+}
+.mkc {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid #666;
+  cursor: pointer;
+}
+.mkc.on {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+.mkhint {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #bbb;
+}
+.mkwrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#mkc {
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+  background: #000;
+}
+/* Print log table. */
+.logw {
+  overflow-x: auto;
+  margin: 8px 0 12px;
+}
+.log {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+.log th,
+.log td {
+  border-bottom: 1px solid var(--bd);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.log th {
+  font-size: 12px;
+  color: var(--mut);
+  white-space: nowrap;
+}
+.log td:first-child,
+.log td:nth-child(3) {
+  white-space: nowrap;
+}
+.log td .m {
+  display: block;
+  font-size: 12px;
+}

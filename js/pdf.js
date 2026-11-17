@@ -567,11 +567,11 @@ async function mkPdf() {
     d.text((p.name || "") + "  Rev " + (p.rev || "-"), M, 289);
     d.text("Page " + i + " of " + n, W - M, 289, { align: "right" });
   }
-  await dl(
+  const file =
     (p.name || "setup-procedure").replace(/[^\w-]+/g, "_") +
-      "_rev" +
-      (p.rev || "1") +
-      ".pdf",
-    d.output("blob"),
-  );
+    "_rev" +
+    (p.rev || "1") +
+    ".pdf";
+  await dl(file, d.output("blob"));
+  logPdf(p, file, n, ref);
 }

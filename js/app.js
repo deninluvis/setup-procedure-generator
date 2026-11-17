@@ -6,6 +6,7 @@
 //   undo.js     undo stack and toast bar
 //   transfer.js export & import (.zip)
 //   pdf.js      PDF export
+//   log.js      print log;  markup.js  photo markup
 //   events.js   click / input / change handlers
 //   access.js   access codes (scrambled);  lock.js  access code screen
 // Start: ask for the access code if needed, then load saved data and show

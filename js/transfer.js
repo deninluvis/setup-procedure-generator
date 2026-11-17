@@ -440,7 +440,7 @@ const itemHelp = (mm) => {
     `How to fill in this ${it}`,
     `<ol>
 <li><b>Details.</b> Enter the ${it} name, pick the <b>Department</b>, and fill in the ${mm ? "machine ID / asset number" : "product code"}. Raise the <b>Revision</b> number whenever you change the procedure, so printed copies can be told apart.</li>
-<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it.</li>
+<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it. <b>✎</b> (or <b>✎ Mark up</b> on a step photo) lets you draw arrows, circles and numbers on it to point at the exact part.</li>
 <li><b>Safety equipment (PPE).</b> Tick what must be worn, such as safety glasses or gloves. Each one prints as a safety sign at the top of the PDF. Anything else goes in <b>Other safety equipment</b>.</li>
 <li><b>Tools required.</b> Press <b>＋ Add tool</b> and enter the tool, its size or specification and the quantity. Press Enter to add the next one. Tool names you used before are suggested. In the PDF they print as a checklist with a box to tick before the procedure.</li>
 <li><b>Steps.</b> Write one step per action, in order:

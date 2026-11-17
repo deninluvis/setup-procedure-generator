@@ -4,7 +4,7 @@
 const add = (ph, a) =>
   `<div class="row"><input id="nw" placeholder="${ph}"><button class="b" data-a="${a}">Add</button></div>`;
 const gal = (arr, k) =>
-  `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
+  `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button><button class="mk" data-a="mk" data-k="${k}" data-i="${i}" aria-label="Mark up photo" title="Mark up">✎</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
 
 // Company details (logo, name, department): set once, printed on every PDF.
 const logoField = () =>
@@ -37,6 +37,7 @@ ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
+<h2>Print log</h2><p class="m">${count((S.log || []).length, "PDF", "PDFs")} made in this browser.</p><button class="b2" data-a="goLog">Open print log</button>
 <div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
@@ -56,9 +57,9 @@ const deptSel = (p) => {
     .join("")}</select></label>`;
 };
 // One step on the product/machine page, with its sub-steps (3.1, 3.2, …).
-const photoBtn = (img, rm, up) =>
+const photoBtn = (img, rm, up, mk) =>
   img
-    ? `<img class="simg" src="${img}" alt=""><button class="lk" ${rm}>Remove photo</button>`
+    ? `<img class="simg" src="${img}" alt=""><div class="row"><button class="lk" data-a="mk" ${mk}>✎ Mark up</button><button class="lk" ${rm}>Remove photo</button></div>`
     : `<label class="b2">＋ Add photo<input type="file" accept="image/*" hidden ${up}></label>`;
 // Warning, Caution or Note on a step or sub-step (o.warn = text, o.wtype = type).
 // Same colours on the page and in the PDF.
@@ -110,7 +111,7 @@ const stepHtml = (s, i) => {
     NaN,
     `step ${i + 1}`,
   )}<textarea data-s="${i}"  }<textarea data-s="${i}" placeholder="Describe this step" aria-label="Step ${i + 1} description">${esc(s.t)}</textarea>
-${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`)}
+${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`, `data-k="step" data-i="${i}"`)}
 ${subs
   .map(
     (
@@ -118,7 +119,7 @@ ${subs
       j,
     ) => `<div class="sub"><div class="sh"><span class="n2">${i + 1}.${j + 1}</span><span class="sp"></span><button class="sm" data-a="subUp" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} up">↑</button><button class="sm" data-a="subDn" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} down">↓</button><button class="sm" data-a="rmSub" data-i="${i}" data-j="${j}" aria-label="Delete sub-step ${i + 1}.${j + 1}">✕</button></div>
 ${noteHtml(u, i, j, `sub-step ${i + 1}.${j + 1}`)}<textarea data-ss="${i}" data-sj="${j}" rows="2" placeholder="Describe sub-step ${i + 1}.${j + 1}" aria-label="Sub-step ${i + 1}.${j + 1}">${esc(u.t)}</textarea>
-${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" data-i="${i}" data-j="${j}"`)} ${u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : ""}</div>`,
+${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" data-i="${i}" data-j="${j}"`, `data-k="sub" data-i="${i}" data-j="${j}"`)} ${u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : ""}</div>`,
   )
   .join("")}
 <div class="row" style="flex-wrap:wrap">${s.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}">⚠ Add warning or note</button>` : ""}<button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
@@ -189,6 +190,8 @@ function R(keep) {
   let h = "";
   if (T == "x") {
     h = XV();
+  } else if (T == "log") {
+    h = LogV();
   } else if (T == "co") {
     h = CoV();
   } else if (T == "h") {

@@ -3,7 +3,7 @@
 // Every app file is stored on first visit. Online, the newest files are
 // fetched (and stored again); offline, the stored copies are used.
 // Add new app files to FILES and change VERSION when this list changes.
-const VERSION = "v2";
+const VERSION = "v3";
 const CACHE = "setup-procedures-" + VERSION;
 const FILES = [
   "./",
@@ -27,6 +27,8 @@ const FILES = [
   "js/undo.js",
   "js/transfer.js",
   "js/pdf.js",
+  "js/log.js",
+  "js/markup.js",
   "js/events.js",
   "js/access.js",
   "js/lock.js",

@@ -13,6 +13,8 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Safety equipment (PPE) printed as safety signs at the top of the PDF
 - Works offline: everything it needs is in the repository, and it can be installed as an app
 - Access codes: a code is asked for before the app opens
+- Mark up photos with arrows, circles and numbers
+- Print log: a list of every PDF made, with the access code used
 
 ## Project structure
 
@@ -31,6 +33,8 @@ js/pdf.js           PDF export
 js/events.js        Clicks, typing and other user actions
 js/access.js        Access codes (scrambled)
 js/lock.js          Access code screen
+js/log.js           Print log
+js/markup.js        Photo markup editor
 js/app.js           Start-up
 scripts/access-code.js  Make, list and remove access codes
 sw.js               Offline support when served from a web address
@@ -165,8 +169,27 @@ With no codes listed in `js/access.js`, the app opens without asking.
    remembered in this browser.
    Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
    their full resolution, so they stay sharp when zoomed at any size.
-10. Press **Download PDF**.
+10. Press **Download PDF**. Each PDF is added to the **Print log**.
 11. Use **Export backup** on the home page regularly. Data lives only in this browser.
+
+**Mark up a photo:** press **✎** on a product or packaging photo, or **✎ Mark up** under
+a step or sub-step photo. A full-screen editor opens:
+
+1. Pick a tool: **Arrow** (drag from where the arrow starts to the point it shows),
+   **Circle** (drag across the part) or **Number** (tap; numbers go 1, 2, 3…).
+2. Pick a colour: red, yellow, black or white. Each mark has a thin outline so it
+   shows on light and dark backgrounds.
+3. **Undo** (or Ctrl+Z) removes the last mark; **Clear** removes them all.
+4. **Save** draws the marks into the photo, so they appear in the PDF and backups.
+   **Cancel** (or Esc) leaves the photo as it was. After saving, **Undo** in the bar
+   at the bottom brings back the photo without marks.
+
+**Print log:** home page → **Open print log** lists every PDF made in this browser,
+newest first: date and time, product or machine, code, revision, department and the
+access code used (name and reference). Type in the filter box to narrow it down.
+**Download log (Excel / CSV)** saves it as a file that opens in Excel. The log is saved
+with your data and included in full backups (up to 2000 entries). **Clear log** empties
+it (Undo brings it back).
 
 **Undo:** after removing or replacing something (a step, sub-step, warning or note,
 photo, product, machine, line, department, the logo, an import, or clearing all data), a

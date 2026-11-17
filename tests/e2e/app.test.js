@@ -394,3 +394,105 @@ test("from a web address the app works offline after the first visit", async () 
     site.close();
   }
 });
+
+test("a photo can be marked up with an arrow, a circle and numbers, and undone", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.setInputFiles('[data-up="step"][data-i="0"]', PHOTO);
+  await page.waitForSelector('[data-a="mk"][data-k="step"]');
+  const before = await page.evaluate(() => P().steps[0].img);
+  await page.click('[data-a="mk"][data-k="step"]');
+  await page.waitForSelector("#mkc");
+  const box = await page.locator("#mkc").boundingBox();
+  const at = (fx, fy) => [box.x + box.width * fx, box.y + box.height * fy];
+  // arrow
+  await page.mouse.move(...at(0.2, 0.2));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.5, 0.5), { steps: 5 });
+  await page.mouse.up();
+  // circle in yellow
+  await page.click('[data-mkt="circle"]');
+  await page.click('[data-mkc="yellow"]');
+  await page.mouse.move(...at(0.6, 0.6));
+  await page.mouse.down();
+  await page.mouse.move(...at(0.9, 0.9), { steps: 5 });
+  await page.mouse.up();
+  // two numbers, then remove the last one
+  await page.click('[data-mkt="num"]');
+  await page.mouse.click(...at(0.1, 0.8));
+  await page.mouse.click(...at(0.3, 0.8));
+  await page.click('[data-mkx="undo"]');
+  assert.deepEqual(
+    await page.evaluate(() =>
+      MK.shapes.map((s) => s.t + (s.n || "") + ":" + s.c),
+    ),
+    ["arrow:red", "circle:yellow", "num1:yellow"],
+  );
+  await page.click('[data-mkx="save"]');
+  await page.waitForSelector("#mk", { state: "detached" });
+  const after = await page.evaluate(() => P().steps[0].img);
+  assert.ok(after.startsWith("data:image/jpeg") && after != before);
+  assert.match(await page.textContent("#toast"), /Photo marked up in step 1/);
+  await page.click("#toast [data-undo]");
+  assert.equal(await page.evaluate(() => P().steps[0].img), before);
+
+  // Cancel leaves the photo as it was; gallery photos have the button too.
+  await page.setInputFiles('[data-up="prod"]', PHOTO);
+  await page.click('.th [data-a="mk"][data-k="prod"]');
+  await page.waitForSelector("#mkc");
+  await page.keyboard.press("Escape");
+  await page.waitForSelector("#mk", { state: "detached" });
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("each PDF is listed in the print log, which filters and downloads as CSV", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.fill("[data-f=code]", "WA-1");
+  await page.fill("[data-f=by]", "Alex");
+  await page.fill("[data-f=appr]", "Sam");
+  await download(page, () => page.click("[data-a=pdf]"));
+  await page.fill("[data-f=rev]", "2");
+  await download(page, () => page.click("[data-a=pdf]"));
+  await page.click("[data-a=openL]");
+  await page.click("[data-a=home]");
+  await page.click("[data-a=goHome]");
+  assert.match(await page.textContent("#app"), /2 PDFs made in this browser/);
+  await page.click("[data-a=goLog]");
+  const rows = await page.$$eval(".log tbody tr", (r) =>
+    r.map((x) =>
+      [...x.cells].map((c) => c.innerText.replace(/\s+/g, " ").trim()),
+    ),
+  );
+  assert.equal(rows.length, 2);
+  const ref = "Ref " + ACCESS.slice(0, 6).toUpperCase();
+  assert.deepEqual(rows[0].slice(1), [
+    "Widget A Product · Line 1",
+    "WA-1",
+    "2",
+    "Press Shop",
+    "Code 1 · " + ref,
+    "1",
+  ]);
+  assert.equal(rows[1][3], "1");
+  await page.fill("[data-lf]", "nothing like this");
+  assert.equal(await page.locator(".log tbody tr").count(), 0);
+  await page.fill("[data-lf]", "");
+  const csv = await download(page, () => page.click("[data-a=logCsv]"));
+  const text = csv.bytes.toString("utf8");
+  assert.match(csv.name, /^print-log-\d{4}-\d{2}-\d{2}\.csv$/);
+  assert.match(text, /"Date and time","Type","Name"/);
+  assert.match(
+    text,
+    /"Product","Widget A","WA-1","2","Line 1","Press Shop","Code 1"/,
+  );
+  await page.click("[data-a=logClear]");
+  assert.match(await page.textContent("#app"), /No PDFs made yet/);
+  await page.click("#toast [data-undo]");
+  assert.equal(await page.locator(".log tbody tr").count(), 2);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});

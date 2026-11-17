@@ -212,6 +212,24 @@ document.addEventListener("click", (e) => {
       t,
     );
     return;
+  } else if (a == "mk") {
+    openMarkup(t.dataset.k, i, j);
+    return;
+  } else if (a == "goLog") {
+    T = "log";
+    LF = "";
+  } else if (a == "logCsv") {
+    logCsv();
+    return;
+  } else if (a == "logClear") {
+    if (
+      !confirm(
+        "Clear the whole print log? This cannot be undone after you close the page.",
+      )
+    )
+      return;
+    remember("Print log cleared");
+    S.log = [];
   } else if (a == "goX") {
     T = "x";
     EXS = new Set(allKeys("x"));
@@ -300,6 +318,15 @@ document.addEventListener("input", (e) => {
   if (t.dataset.hs) {
     HS = t.value;
     $("#hres").innerHTML = homeResults();
+    return;
+  }
+  if (t.dataset.lf) {
+    LF = t.value;
+    const pos = t.selectionStart;
+    R(true);
+    const f = $("[data-lf]");
+    f.focus();
+    f.setSelectionRange(pos, pos);
     return;
   }
   if (t.dataset.xf) {
