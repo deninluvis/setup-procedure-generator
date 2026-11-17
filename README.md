@@ -105,6 +105,23 @@ from the code, so the code itself is never printed. To look it up:
 A removed code's reference no longer appears in `list`, so note it down first if you may
 need it later.
 
+The reference is also hidden in three harder-to-remove places:
+
+- **Hidden text:** invisible text at the top and middle of every page:
+  `Ref 6AA165 printed 2026-11-17 12:51`. It is not seen or printed, but searching the PDF
+  for "Ref" finds it.
+- **Watermark:** when **Add watermark to the PDF** is ticked, a small `REF 6AA165` line
+  is printed under the company and department names.
+- **Tracking dots:** a row of tiny grey dots at the top and bottom of every page, also on
+  printed copies and photocopies. To read them:
+  1. Look with a magnifier, or zoom in on the PDF or a photo of the page.
+  2. The row starts and ends with a pair of dots, one above the other. Skip those.
+  3. Between them are 28 dots in 7 groups of 4. For each dot write **0** if it is in the
+     upper row, **1** if it is in the lower row.
+  4. Run `npm run code -- dots "0110 1010 1010 0001 0110 0101 0110"` (or send me the
+     numbers). It names the code, or says the dots were misread: the last group is a
+     check, so a single mistake is caught.
+
 With no codes listed in `js/access.js`, the app opens without asking.
 
 ## How to use

@@ -124,6 +124,7 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
 
   await page.fill("[data-f=by]", "Alex");
   await page.fill("[data-f=appr]", "Sam");
+  await page.check("[data-wm]");
   const { name, bytes } = await download(page, () =>
     page.click("[data-a=pdf]"),
   );
@@ -154,6 +155,15 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   assert.ok(
     s.includes("/Keywords (" + ref),
     "file properties show the reference",
+  );
+  assert.ok(
+    s.includes("(" + ref + " printed "),
+    "hidden text has the reference",
+  );
+  assert.ok(s.includes("3 Tr"), "hidden text is drawn invisible");
+  assert.ok(
+    s.includes("(" + ref.toUpperCase() + ")"),
+    "watermark has the reference",
   );
   assert.ok(pageCount(s) >= 1);
 

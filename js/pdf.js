@@ -34,8 +34,11 @@ const wmBox = (p) => {
 // Large, faint diagonal text across the middle of a page: the company name,
 // and the department on a second, smaller line. Drawn over the content so it
 // also shows on photos, but light enough to read through.
-function watermark(d, lines, W, H) {
-  const ang = (Math.atan2(H, W) * 180) / Math.PI, // corner to corner
+// With an access code reference, a small "REF ..." line is added under the
+// names, so a printed copy cannot be cropped without spoiling the page.
+function watermark(d, names, W, H, ref) {
+  const lines = ref ? [...names, "Ref " + ref] : names,
+    ang = (Math.atan2(H, W) * 180) / Math.PI, // corner to corner
     rad = (ang * Math.PI) / 180,
     dir = [Math.cos(rad), -Math.sin(rad)], // along the text (jsPDF y points down)
     up = [-Math.sin(rad), -Math.cos(rad)], // towards the top of the letters
@@ -43,7 +46,7 @@ function watermark(d, lines, W, H) {
     sizes = [];
   d.setFont("helvetica", "bold");
   lines.forEach((t, i) => {
-    const want = i == 0 ? 64 : 36;
+    const want = ref && i == lines.length - 1 ? 16 : i == 0 ? 64 : 36;
     d.setFontSize(want);
     const w = d.getTextWidth(t.toUpperCase());
     sizes.push(Math.max(10, Math.min(want, (want * maxW) / w)));
@@ -73,6 +76,35 @@ function watermark(d, lines, W, H) {
   });
   if (gs) d.restoreGraphicsState();
   d.setFont("helvetica", "normal");
+}
+
+// Tracking dots: the reference (refBits in utils.js) as a row of tiny grey
+// dots, one per bit: a dot in the upper row = 0, in the lower row = 1. Each
+// end has a dot in both rows, and the bits come in groups of 4 with a wider
+// gap. Read with a magnifier, then: npm run code -- dots "0110 1010 ...".
+function refDots(d, ref, cx, y) {
+  const bits = refBits(ref);
+  if (!bits.length) return;
+  const step = 0.9,
+    gap = 0.9, // extra space between groups of 4
+    row = 0.9, // distance between the upper and lower row
+    r = 0.22,
+    width = (bits.length + 3) * step + 6 * gap,
+    pos = [];
+  let x = cx - width / 2;
+  pos.push([x, 2]); // start: both rows
+  x += step * 1.5;
+  bits.forEach((b, i) => {
+    if (i && i % 4 == 0) x += gap;
+    pos.push([x, b]);
+    x += step;
+  });
+  pos.push([x + step * 0.5, 2]); // end: both rows
+  d.setFillColor(150, 150, 150);
+  for (const [px, b] of pos) {
+    if (b != 1) d.circle(px, y, r, "F");
+    if (b != 0) d.circle(px, y + row, r, "F");
+  }
 }
 
 async function mkPdf() {
@@ -515,7 +547,19 @@ async function mkPdf() {
     wm = WM ? wmLines(p) : [];
   for (let i = 1; i <= n; i++) {
     d.setPage(i);
-    if (wm.length) watermark(d, wm, W, 297);
+    if (wm.length) watermark(d, wm, W, 297, ref);
+    if (ref) {
+      // Hidden text: not visible or printed, but found by searching the PDF.
+      d.setFont("helvetica", "normal");
+      d.setFontSize(6);
+      for (const hy of [10, 150])
+        d.text(`Ref ${ref} printed ${printed}`, M, hy, {
+          renderingMode: "invisible",
+        });
+      // Tracking dots at the top and bottom of every page.
+      refDots(d, ref, W / 2, 7);
+      refDots(d, ref, W / 2, 291.6);
+    }
     d.setDrawColor(...LN);
     d.setLineWidth(0.2);
     d.line(M, 284, W - M, 284);

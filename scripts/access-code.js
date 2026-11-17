@@ -5,12 +5,13 @@
 //   npm run code -- list              list the names
 //   npm run code -- remove "Name"     the code stops working
 //   npm run code -- find REF          which code made a PDF ("Ref ..." in its footer)
+//   npm run code -- dots "0110 ..."   same, from the tracking dots (28 bits)
 // Only a scrambled version of each code is saved, in js/access.js. Write the
 // code down when it is shown: it cannot be read back from the file.
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { codeHash, normCode, codeRef } = require("../js/utils.js");
+const { codeHash, normCode, codeRef, bitsRef } = require("../js/utils.js");
 
 const FILE = path.join(__dirname, "../js/access.js");
 // Each entry is ["Name", "<64 hex characters>"], on one line or spread over
@@ -77,12 +78,21 @@ if (cmd == "add" && name) {
       ? list.map(([n, h]) => `- ${n}   (PDF ref ${codeRef(h)})`).join("\n")
       : "No access codes: the app opens without asking.",
   );
-} else if (cmd == "find" && name) {
-  const ref = name
-      .replace(/^ref\s*/i, "")
-      .trim()
-      .toUpperCase(),
+} else if ((cmd == "find" || cmd == "dots") && name) {
+  const ref =
+      cmd == "dots"
+        ? bitsRef(process.argv.slice(3).join(""))
+        : name
+            .replace(/^ref\s*/i, "")
+            .trim()
+            .toUpperCase(),
     hit = list.find(([, h]) => codeRef(h) == ref);
+  if (!ref) {
+    console.log(
+      "Those dots do not make a valid reference: there must be 28, and the check digit must match. Read them again.",
+    );
+    process.exit(1);
+  }
   console.log(
     hit
       ? `Ref ${ref} = "${hit[0]}".`
@@ -90,7 +100,7 @@ if (cmd == "add" && name) {
   );
 } else {
   console.log(
-    'Usage: npm run code -- add "Name" [CODE] | list | remove "Name" | find REF',
+    'Usage: npm run code -- add "Name" [CODE] | list | remove "Name" | find REF | dots "0110 ..."',
   );
   process.exitCode = 1;
 }
