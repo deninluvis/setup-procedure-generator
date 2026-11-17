@@ -671,6 +671,13 @@ input[type="radio"] {
 .lock .err:empty {
   display: none;
 }
+/* Space between the last box and the buttons (Log in / Continue). */
+.lock button[type="submit"] {
+  margin-top: 16px;
+}
+.lock .lk[data-relog] {
+  margin-left: 12px;
+}
 /* Mark up button on gallery photos (bottom left). */
 .th button.mk {
   top: auto;
