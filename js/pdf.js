@@ -75,6 +75,35 @@ function watermark(d, lines, W, H) {
   d.setFont("helvetica", "normal");
 }
 
+// Tracking dots: the reference (refBits in utils.js) as a row of tiny grey
+// dots, one per bit: a dot in the upper row = 0, in the lower row = 1. Each
+// end has a dot in both rows, and the bits come in groups of 4 with a wider
+// gap. Read with a magnifier, then: npm run code -- dots "0110 1010 ...".
+function refDots(d, ref, cx, y) {
+  const bits = refBits(ref);
+  if (!bits.length) return;
+  const step = 0.9,
+    gap = 0.9, // extra space between groups of 4
+    row = 0.9, // distance between the upper and lower row
+    r = 0.22,
+    width = (bits.length + 3) * step + 6 * gap,
+    pos = [];
+  let x = cx - width / 2;
+  pos.push([x, 2]); // start: both rows
+  x += step * 1.5;
+  bits.forEach((b, i) => {
+    if (i && i % 4 == 0) x += gap;
+    pos.push([x, b]);
+    x += step;
+  });
+  pos.push([x + step * 0.5, 2]); // end: both rows
+  d.setFillColor(150, 150, 150);
+  for (const [px, b] of pos) {
+    if (b != 1) d.circle(px, y, r, "F");
+    if (b != 0) d.circle(px, y + row, r, "F");
+  }
+}
+
 async function mkPdf() {
   const p = P();
   if (!p.by.trim() || !p.appr.trim()) {
@@ -498,11 +527,36 @@ async function mkPdf() {
     d.text("Date", x + c2 * 0.65, y + 28);
   });
   y += 36;
+  // Which access code made this PDF: a short reference in the footer and in
+  // the file's properties (look it up with: npm run code -- find REF).
+  const ref = accessRef(),
+    now = new Date(),
+    printed =
+      now.toISOString().slice(0, 10) + " " + now.toTimeString().slice(0, 5);
+  d.setProperties({
+    title: (p.name || "Setup procedure") + " Rev " + (p.rev || "-"),
+    subject: "Setup procedure",
+    author: S.co.name || "",
+    creator: "Setup Procedures",
+    keywords: (ref ? "Ref " + ref + ", " : "") + "printed " + printed,
+  });
   const n = d.getNumberOfPages(),
     wm = WM ? wmLines(p) : [];
   for (let i = 1; i <= n; i++) {
     d.setPage(i);
     if (wm.length) watermark(d, wm, W, 297);
+    if (ref) {
+      // Hidden text: not visible or printed, but found by searching the PDF.
+      d.setFont("helvetica", "normal");
+      d.setFontSize(6);
+      for (const hy of [10, 150])
+        d.text(`Ref ${ref} printed ${printed}`, M, hy, {
+          renderingMode: "invisible",
+        });
+      // Tracking dots at the top and bottom of every page.
+      refDots(d, ref, W / 2, 7);
+      refDots(d, ref, W / 2, 291.6);
+    }
     d.setDrawColor(...LN);
     d.setLineWidth(0.2);
     d.line(M, 284, W - M, 284);
@@ -510,7 +564,14 @@ async function mkPdf() {
     d.setFontSize(8);
     tc(G);
     d.text((p.name || "") + "  Rev " + (p.rev || "-"), M, 289);
-    d.text("Page " + i + " of " + n, W - M, 289, { align: "right" });
+    d.text(
+      (ref ? "Ref " + ref + "   " : "") + "Page " + i + " of " + n,
+      W - M,
+      289,
+      {
+        align: "right",
+      },
+    );
   }
   await dl(
     (p.name || "setup-procedure").replace(/[^\w-]+/g, "_") +

@@ -643,8 +643,39 @@ const normCode = (c) =>
 // What is stored in js/access.js: the scrambled code, never the code itself.
 const codeHash = (c) => sha256("setup-procedures-access:" + normCode(c));
 
+// Reference printed on PDFs: the first 6 characters of the scrambled code.
+// It shows which access code made a PDF without revealing the code.
+const codeRef = (hash) =>
+  String(hash || "")
+    .slice(0, 6)
+    .toUpperCase();
+
+// Tracking dots: the reference as 28 bits = 6 hex digits (4 bits each, most
+// significant first) + a check digit (sum of the digits, mod 16).
+const refBits = (ref) => {
+  const digits = [...String(ref).toUpperCase()].map((c) => parseInt(c, 16));
+  if (digits.length != 6 || digits.some(isNaN)) return [];
+  digits.push(digits.reduce((a, b) => a + b, 0) % 16);
+  return digits.flatMap((v) => [8, 4, 2, 1].map((m) => (v & m ? 1 : 0)));
+};
+// Back from 28 bits (or a text of 0s and 1s, spaces ignored) to the
+// reference; "" if the count or the check digit is wrong.
+const bitsRef = (bits) => {
+  const b = typeof bits == "string" ? [...bits.replace(/\s+/g, "")] : bits;
+  if (b.length != 28 || b.some((x) => x != 0 && x != 1)) return "";
+  const v = [];
+  for (let i = 0; i < 28; i += 4)
+    v.push(b.slice(i, i + 4).reduce((a, x) => a * 2 + +x, 0));
+  const check = v.pop();
+  if (v.reduce((a, x) => a + x, 0) % 16 != check) return "";
+  return v.map((x) => x.toString(16).toUpperCase()).join("");
+};
+
 if (typeof module !== "undefined")
   module.exports = {
+    refBits,
+    bitsRef,
+    codeRef,
     sha256,
     normCode,
     codeHash,

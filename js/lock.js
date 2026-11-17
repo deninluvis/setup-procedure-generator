@@ -13,6 +13,12 @@ const savedAccess = () => {
 };
 const validCode = (h) => ACCESS_CODES.some((c) => c[1] === h);
 const hasAccess = () => !ACCESS_CODES.length || validCode(savedAccess());
+// Reference of the access code used in this browser, for the PDF footer
+// ("" when no code is needed).
+const accessRef = () => {
+  const h = savedAccess();
+  return ACCESS_CODES.length && validCode(h) ? codeRef(h) : "";
+};
 
 // Show the code screen; calls open() once a valid code is entered.
 function showLock(open) {
