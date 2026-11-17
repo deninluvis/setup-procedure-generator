@@ -162,8 +162,8 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   );
   assert.ok(s.includes("3 Tr"), "hidden text is drawn invisible");
   assert.ok(
-    s.includes("(" + ref.toUpperCase() + ")"),
-    "watermark has the reference",
+    !s.includes("(" + ref.toUpperCase() + ")"),
+    "watermark has no reference",
   );
   assert.ok(pageCount(s) >= 1);
 

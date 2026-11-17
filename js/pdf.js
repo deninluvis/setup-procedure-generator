@@ -34,11 +34,8 @@ const wmBox = (p) => {
 // Large, faint diagonal text across the middle of a page: the company name,
 // and the department on a second, smaller line. Drawn over the content so it
 // also shows on photos, but light enough to read through.
-// With an access code reference, a small "REF ..." line is added under the
-// names, so a printed copy cannot be cropped without spoiling the page.
-function watermark(d, names, W, H, ref) {
-  const lines = ref ? [...names, "Ref " + ref] : names,
-    ang = (Math.atan2(H, W) * 180) / Math.PI, // corner to corner
+function watermark(d, lines, W, H) {
+  const ang = (Math.atan2(H, W) * 180) / Math.PI, // corner to corner
     rad = (ang * Math.PI) / 180,
     dir = [Math.cos(rad), -Math.sin(rad)], // along the text (jsPDF y points down)
     up = [-Math.sin(rad), -Math.cos(rad)], // towards the top of the letters
@@ -46,7 +43,7 @@ function watermark(d, names, W, H, ref) {
     sizes = [];
   d.setFont("helvetica", "bold");
   lines.forEach((t, i) => {
-    const want = ref && i == lines.length - 1 ? 16 : i == 0 ? 64 : 36;
+    const want = i == 0 ? 64 : 36;
     d.setFontSize(want);
     const w = d.getTextWidth(t.toUpperCase());
     sizes.push(Math.max(10, Math.min(want, (want * maxW) / w)));
@@ -547,7 +544,7 @@ async function mkPdf() {
     wm = WM ? wmLines(p) : [];
   for (let i = 1; i <= n; i++) {
     d.setPage(i);
-    if (wm.length) watermark(d, wm, W, 297, ref);
+    if (wm.length) watermark(d, wm, W, 297);
     if (ref) {
       // Hidden text: not visible or printed, but found by searching the PDF.
       d.setFont("helvetica", "normal");

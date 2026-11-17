@@ -105,13 +105,11 @@ from the code, so the code itself is never printed. To look it up:
 A removed code's reference no longer appears in `list`, so note it down first if you may
 need it later.
 
-The reference is also hidden in three harder-to-remove places:
+The reference is also hidden in two harder-to-remove places:
 
 - **Hidden text:** invisible text at the top and middle of every page:
   `Ref 6AA165 printed 2026-11-17 12:51`. It is not seen or printed, but searching the PDF
   for "Ref" finds it.
-- **Watermark:** when **Add watermark to the PDF** is ticked, a small `REF 6AA165` line
-  is printed under the company and department names.
 - **Tracking dots:** a row of tiny grey dots at the top and bottom of every page, also on
   printed copies and photocopies. To read them:
   1. Look with a magnifier, or zoom in on the PDF or a photo of the page.
