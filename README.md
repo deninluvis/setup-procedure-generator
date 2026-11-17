@@ -94,6 +94,17 @@ Manage codes from the repository folder (needs Node.js):
    Browsers that used it ask for a code again the next time they open the app online.
 4. Commit and push the change, and merge it into `main` so the website picks it up.
 
+**Which code made a PDF?** Every PDF shows a short reference in its footer, next to the
+page number, for example `Ref 6AA165   Page 1 of 4`. The same reference and the date and
+time it was made are in the PDF's file properties (Keywords). The reference is worked out
+from the code, so the code itself is never printed. To look it up:
+
+- `npm run code -- find 6AA165` prints the name of the code, for example "Code 1".
+- `npm run code -- list` shows every code's name with its PDF reference.
+
+A removed code's reference no longer appears in `list`, so note it down first if you may
+need it later.
+
 With no codes listed in `js/access.js`, the app opens without asking.
 
 ## How to use

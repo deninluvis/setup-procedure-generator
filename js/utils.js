@@ -643,8 +643,16 @@ const normCode = (c) =>
 // What is stored in js/access.js: the scrambled code, never the code itself.
 const codeHash = (c) => sha256("setup-procedures-access:" + normCode(c));
 
+// Reference printed on PDFs: the first 6 characters of the scrambled code.
+// It shows which access code made a PDF without revealing the code.
+const codeRef = (hash) =>
+  String(hash || "")
+    .slice(0, 6)
+    .toUpperCase();
+
 if (typeof module !== "undefined")
   module.exports = {
+    codeRef,
     sha256,
     normCode,
     codeHash,

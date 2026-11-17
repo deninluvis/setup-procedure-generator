@@ -498,6 +498,19 @@ async function mkPdf() {
     d.text("Date", x + c2 * 0.65, y + 28);
   });
   y += 36;
+  // Which access code made this PDF: a short reference in the footer and in
+  // the file's properties (look it up with: npm run code -- find REF).
+  const ref = accessRef(),
+    now = new Date(),
+    printed =
+      now.toISOString().slice(0, 10) + " " + now.toTimeString().slice(0, 5);
+  d.setProperties({
+    title: (p.name || "Setup procedure") + " Rev " + (p.rev || "-"),
+    subject: "Setup procedure",
+    author: S.co.name || "",
+    creator: "Setup Procedures",
+    keywords: (ref ? "Ref " + ref + ", " : "") + "printed " + printed,
+  });
   const n = d.getNumberOfPages(),
     wm = WM ? wmLines(p) : [];
   for (let i = 1; i <= n; i++) {
@@ -510,7 +523,14 @@ async function mkPdf() {
     d.setFontSize(8);
     tc(G);
     d.text((p.name || "") + "  Rev " + (p.rev || "-"), M, 289);
-    d.text("Page " + i + " of " + n, W - M, 289, { align: "right" });
+    d.text(
+      (ref ? "Ref " + ref + "   " : "") + "Page " + i + " of " + n,
+      W - M,
+      289,
+      {
+        align: "right",
+      },
+    );
   }
   await dl(
     (p.name || "setup-procedure").replace(/[^\w-]+/g, "_") +

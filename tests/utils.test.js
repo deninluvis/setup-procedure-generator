@@ -263,3 +263,10 @@ test('access codes ignore case, spaces and dashes', () => {
   assert.equal(codeHash('ab12-cd34'), codeHash('AB12 CD34'));
   assert.notEqual(codeHash('AB12CD34'), codeHash('AB12CD35'));
 });
+
+test('codeRef is the first 6 characters of the scrambled code', () => {
+  const { codeRef, codeHash } = require('../js/utils.js');
+  assert.equal(codeRef('6aa16572f037'), '6AA165');
+  assert.equal(codeRef(''), '');
+  assert.equal(codeRef(codeHash('A1B2C3')).length, 6);
+});

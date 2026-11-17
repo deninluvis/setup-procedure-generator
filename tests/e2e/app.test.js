@@ -146,6 +146,15 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   ])
     assert.ok(s.includes(t), `PDF should contain "${t}"`);
   assert.ok(!s.includes("Ear protection"), "unticked PPE is not printed");
+  const ref = "Ref " + ACCESS.slice(0, 6).toUpperCase();
+  assert.ok(
+    s.includes(ref + "   Page 1 of"),
+    "footer shows the access code reference",
+  );
+  assert.ok(
+    s.includes("/Keywords (" + ref),
+    "file properties show the reference",
+  );
   assert.ok(pageCount(s) >= 1);
 
   assert.deepEqual(external, [], "no internet requests");

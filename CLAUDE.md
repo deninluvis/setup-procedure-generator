@@ -53,6 +53,7 @@ Classic `<script>` files (not ES modules) share globals, including top-level `le
 ### Access codes
 - `js/access.js` lists `ACCESS_CODES = [[name, codeHash(code)]]`; it is written by `scripts/access-code.js` (`npm run code -- add|list|remove`), never by hand. Plain codes are never committed. `codeHash` = SHA-256 (pure JS `sha256` in `utils.js`, since `crypto.subtle` may be missing on `file://`) of a fixed prefix + `normCode` (upper case, no spaces/dashes).
 - `app.js` calls `startApp()` only if `hasAccess()`; otherwise `showLock` (`lock.js`) renders a form into `#app` and stores the valid hash in localStorage `sp-access`. An empty list disables the screen.
+- PDFs carry `Ref <codeRef(hash)>` (first 6 hex characters of the hash, upper case) in the footer and in the `Keywords` property with the print time; `accessRef()` in `lock.js`, empty when no code is needed. `npm run code -- find REF` maps a reference to its name; `add` rejects codes whose reference clashes.
 - It is a deterrent only (public repo, client-side check). E2E tests set `sp-access` via `addInitScript` from the first hash in `access.js`; lock tests serve a replaced `access.js` through `serve()`.
 
 ### Undo
