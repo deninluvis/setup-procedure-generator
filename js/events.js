@@ -8,6 +8,10 @@ document.addEventListener("click", (e) => {
     j = +t.dataset.j,
     nw = ($("#nw") || {}).value;
   let focus = null; // element to focus after re-rendering
+  if (!/^ap/.test(a)) {
+    APMSG = null; // approval messages and the request form close on other actions
+    REQ = false;
+  }
   if (a == "home") {
     V = { l: null, p: null };
   } else if (a == "openL") {
@@ -211,6 +215,32 @@ document.addEventListener("click", (e) => {
       `${safeName(l.name, "Line")} - line - ${dateStamp()}.zip`,
       t,
     );
+    return;
+  } else if (a == "goAp") {
+    T = "ap";
+    APR = null;
+  } else if (a == "apReq") {
+    REQ = true;
+    APMSG = null;
+    R(true);
+    const el = $('[data-ap="to"]');
+    if (el) el.focus();
+    return;
+  } else if (a == "apReqCancel") {
+    REQ = false;
+    R(true);
+    return;
+  } else if (a == "apSend") {
+    requestApproval(t);
+    return;
+  } else if (a == "apSign") {
+    signApproval(t);
+    return;
+  } else if (a == "apPdf") {
+    reviewPdf();
+    return;
+  } else if (a == "apMail") {
+    if (APMAIL) openMail(APMAIL.to, APMAIL.subject, APMAIL.body);
     return;
   } else if (a == "mk") {
     openMarkup(t.dataset.k, i, j);

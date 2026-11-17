@@ -786,3 +786,54 @@ body.mkopen {
   display: block;
   font-size: 12px;
 }
+/* Approval status. */
+.badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.badge.ok {
+  color: #13753a;
+}
+.badge.wait {
+  color: #9a5b00;
+}
+.badge.no,
+.badge.dr {
+  color: var(--dg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .badge.ok {
+    color: #6fdc96;
+  }
+  :root:not([data-theme="light"]) .badge.wait {
+    color: #ffc266;
+  }
+}
+.apbox {
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 4px 14px 10px;
+  margin: 8px 0 14px;
+}
+.apform {
+  border-top: 1px solid var(--bd);
+  margin-top: 10px;
+  padding-top: 4px;
+}
+.apform h3 {
+  margin: 8px 0 4px;
+}
+.apc {
+  font-style: italic;
+  border-left: 3px solid var(--bd);
+  padding-left: 10px;
+}
+.apby {
+  margin: 6px 0;
+}

@@ -7,6 +7,8 @@
 //   transfer.js export & import (.zip)
 //   pdf.js      PDF export
 //   log.js      print log;  markup.js  photo markup
+//   approval.js draft / approval requests and signed approvals
+//   approvers.js approvers' public keys
 //   events.js   click / input / change handlers
 //   access.js   access codes (scrambled);  lock.js  access code screen
 // Start: ask for the access code if needed, then load saved data and show

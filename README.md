@@ -15,6 +15,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Access codes: a code is asked for before the app opens
 - Mark up photos with arrows, circles and numbers
 - Print log: a list of every PDF made, with the access code used
+- Approvals by email: drafts print with a DRAFT watermark until an approver signs them off
 
 ## Project structure
 
@@ -35,8 +36,11 @@ js/access.js        Access codes (scrambled)
 js/lock.js          Access code screen
 js/log.js           Print log
 js/markup.js        Photo markup editor
+js/approval.js      Draft / approval requests and signed approvals
+js/approvers.js     Approvers (public keys only)
 js/app.js           Start-up
 scripts/access-code.js  Make, list and remove access codes
+scripts/approver-code.js  Make, rename and remove approver codes
 sw.js               Offline support when served from a web address
 manifest.webmanifest, icons/   Install as an app
 vendor/             jsPDF and the IBM Plex Sans font, stored locally
@@ -171,6 +175,42 @@ With no codes listed in `js/access.js`, the app opens without asking.
    their full resolution, so they stay sharp when zoomed at any size.
 10. Press **Download PDF**. Each PDF is added to the **Print log**.
 11. Use **Export backup** on the home page regularly. Data lives only in this browser.
+
+**Approval:** every product and machine starts as a **Draft**: its PDF has a large red
+DRAFT watermark and "Not approved: draft" in the Approved by box. The status box at the
+top of its page shows where it is.
+
+1. **Author: request approval.** Press **Request approval**, choose the approver, enter
+   their email and yours, and press **Save request and open email**. The app saves
+   `Approval request - <name> - rev <n>.zip` and opens an email to the approver. Attach
+   that file (from your Downloads folder) and send it. The status is now **Waiting for
+   approval**.
+2. **Approver: review and decide.** Home → **Approvals** → **Choose request file** and
+   pick the .zip from the email. It is opened only for checking; nothing is added to the
+   approver's own data. **Download PDF to review** shows it as it will print. Choose
+   **Approve** or **Reject** (rejecting needs a comment), type the comment, enter your
+   **approver code** and press **Sign and save decision**. The app saves
+   `Approval - <name> - rev <n> - approved.json` (or `rejected`) and opens a reply email:
+   attach the file and send it.
+3. **Author: import the decision.** Press **Import approval file** on the product's page
+   (or Home → Approvals) and choose the .json. The app checks that it was signed with a
+   listed approver's code, that the file was not changed, and that the procedure is
+   exactly what was approved. It then shows **Approved** (or **Rejected** with the
+   comment). Approved PDFs have no watermark and print the approver's name with
+   "digital signature checked".
+4. **Any change** after approval (text, photo, tool, PPE, revision…) makes it a draft
+   again, with "Changed after it was approved". Undoing the change makes it approved again.
+
+Approver codes are like passwords for signing: an approval file cannot be made or
+altered without one, even by someone who reads the app's code, because only a public
+key is stored in `js/approvers.js`. Keep each code secret and never email it. Manage
+them with:
+
+- `npm run approver -- add "Sam Lee"`: makes a new code (shown once; write it down).
+- `npm run approver -- rename "Approver 1" "Sam Lee"`: the code stays the same.
+- `npm run approver -- remove "Sam Lee"`: approvals signed with that code stop counting,
+  so those procedures become drafts.
+- `npm run approver -- list`
 
 **Mark up a photo:** press **✎** on a product or packaging photo, or **✎ Mark up** under
 a step or sub-step photo. A full-screen editor opens:

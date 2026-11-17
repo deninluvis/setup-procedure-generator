@@ -671,8 +671,180 @@ const bitsRef = (bits) => {
   return v.map((x) => x.toString(16).toUpperCase()).join("");
 };
 
+// ---------- Approvals ----------
+// An approver code is turned into an Ed25519 signing key: only the matching
+// public key is listed in js/approvers.js. An approval file is signed with it,
+// so it cannot be made or changed without the code. Uses the built-in Web
+// Crypto (browser and Node); crypto.subtle is null where it is missing.
+const subtle = () =>
+  (typeof globalThis != "undefined" &&
+    globalThis.crypto &&
+    globalThis.crypto.subtle) ||
+  null;
+const hexToBytes = (h) =>
+  new Uint8Array((String(h).match(/../g) || []).map((x) => parseInt(x, 16)));
+const bytesToHex = (b) =>
+  [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
+const b64urlToBytes = (s) => {
+  const b = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(b, (c) => c.charCodeAt(0));
+};
+// JSON with keys in a fixed order, so the same data always gives the same text.
+const stableJson = (v) =>
+  Array.isArray(v)
+    ? "[" + v.map(stableJson).join(",") + "]"
+    : v && typeof v == "object"
+      ? "{" +
+        Object.keys(v)
+          .filter((k) => v[k] !== undefined)
+          .sort()
+          .map((k) => JSON.stringify(k) + ":" + stableJson(v[k]))
+          .join(",") +
+        "}"
+      : JSON.stringify(v === undefined ? null : v);
+
+// What an approval covers: everything printed in the procedure (photos as a
+// hash of their bytes, from imgHash), but not "Approved by" or the approval
+// itself. kind = "product" / "machine"; dept = department name.
+const apContent = (p, kind, dept, imgHash) => {
+  const s = (x) => String(x ?? "").trim(),
+    img = (x) => (x ? imgHash(x) : ""),
+    note = (o) =>
+      o.warn === undefined
+        ? {}
+        : { warn: s(o.warn), wtype: s(o.wtype) || "warning" };
+  return {
+    kind,
+    dept: s(dept),
+    name: s(p.name),
+    code: s(p.code),
+    rev: s(p.rev),
+    date: s(p.date),
+    prod: (p.prod || []).map(img),
+    pack: (p.pack || []).map(img),
+    ppe: (p.ppe || []).map(s),
+    ppeo: s(p.ppeo),
+    tools: (p.tools || [])
+      .filter((t) => s(t.n))
+      .map((t) => ({ n: s(t.n), s: s(t.s), q: s(t.q) })),
+    steps: (p.steps || []).map((st) => ({
+      h: s(st.h),
+      t: s(st.t),
+      img: img(st.img),
+      ...note(st),
+      subs: (st.subs || []).map((u) => ({
+        t: s(u.t),
+        img: img(u.img),
+        ...note(u),
+      })),
+    })),
+    th: s(p.th),
+    tm: s(p.tm),
+    tech: s(p.tech),
+    by: s(p.by),
+  };
+};
+// Images in an item (data URLs), for hashing before apContent.
+const apImages = (p) =>
+  [
+    ...(p.prod || []),
+    ...(p.pack || []),
+    ...(p.steps || []).flatMap((st) => [
+      st.img,
+      ...(st.subs || []).map((u) => u.img),
+    ]),
+  ].filter(Boolean);
+// SHA-256 of an image's bytes (the part after "base64,"), as hex.
+const imgDigest = async (dataUrl) => {
+  const b64 = String(dataUrl).slice(String(dataUrl).indexOf(",") + 1);
+  return bytesToHex(
+    await subtle().digest("SHA-256", new TextEncoder().encode(b64)),
+  );
+};
+// Fingerprint of an item's content. cache: optional Map(dataUrl -> hash).
+async function apFingerprint(p, kind, dept, cache = new Map()) {
+  for (const x of apImages(p))
+    if (!cache.has(x)) cache.set(x, await imgDigest(x));
+  return sha256(stableJson(apContent(p, kind, dept, (x) => cache.get(x))));
+}
+
+const ED_PKCS8 = "302e020100300506032b657004220420";
+// Signing key and public key (hex) for an approver code.
+async function apKeys(code) {
+  const seed = sha256("setup-procedures-approver:" + normCode(code)),
+    priv = await subtle().importKey(
+      "pkcs8",
+      hexToBytes(ED_PKCS8 + seed),
+      { name: "Ed25519" },
+      true,
+      ["sign"],
+    ),
+    jwk = await subtle().exportKey("jwk", priv);
+  return { priv, pub: bytesToHex(b64urlToBytes(jwk.x)) };
+}
+const apSign = async (priv, payload) =>
+  bytesToHex(
+    await subtle().sign(
+      { name: "Ed25519" },
+      priv,
+      new TextEncoder().encode(stableJson(payload)),
+    ),
+  );
+async function apVerify(pub, payload, sig) {
+  try {
+    const key = await subtle().importKey(
+      "raw",
+      hexToBytes(pub),
+      { name: "Ed25519" },
+      false,
+      ["verify"],
+    );
+    return await subtle().verify(
+      { name: "Ed25519" },
+      key,
+      hexToBytes(sig),
+      new TextEncoder().encode(stableJson(payload)),
+    );
+  } catch (e) {
+    return false;
+  }
+}
+// Check an approval file against the approvers list ([[name, pub]]).
+// -> { ok, why, name, payload }
+async function apCheck(file, approvers) {
+  if (
+    !file ||
+    file.format != "setup-procedures-approval" ||
+    !file.payload ||
+    typeof file.pub != "string" ||
+    typeof file.sig != "string"
+  )
+    return { ok: false, why: "This is not an approval file." };
+  const a = approvers.find((x) => x[1] === file.pub);
+  if (!a)
+    return {
+      ok: false,
+      why: "This approval was signed with an approver code that is not (or no longer) on the list of approvers.",
+    };
+  if (!(await apVerify(file.pub, file.payload, file.sig)))
+    return {
+      ok: false,
+      why: "This approval file has been changed since it was signed, so it cannot be trusted.",
+    };
+  return { ok: true, name: a[0], payload: file.payload };
+}
+
 if (typeof module !== "undefined")
   module.exports = {
+    stableJson,
+    apContent,
+    apImages,
+    apFingerprint,
+    apKeys,
+    apSign,
+    apVerify,
+    apCheck,
+    bytesToHex,
     refBits,
     bitsRef,
     codeRef,

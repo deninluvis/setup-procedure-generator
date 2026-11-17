@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { chromium } = require("playwright");
-const { codeHash } = require("../../js/utils.js");
+const { codeHash, apKeys } = require("../../js/utils.js");
 
 const ROOT = path.resolve(__dirname, "../..");
 const APP = "file://" + path.join(ROOT, "index.html");
@@ -123,7 +123,6 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   await page.fill('[data-s="1"]', "Run one test part.");
 
   await page.fill("[data-f=by]", "Alex");
-  await page.fill("[data-f=appr]", "Sam");
   await page.check("[data-wm]");
   const { name, bytes } = await download(page, () =>
     page.click("[data-a=pdf]"),
@@ -229,7 +228,6 @@ test("a machine prints to PDF", async () => {
   await page.check('[data-ppe="helmet"]');
   await page.fill('[data-s="0"]', "Switch off the main power.");
   await page.fill("[data-f=by]", "Alex");
-  await page.fill("[data-f=appr]", "Sam");
   const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
   const s = pdfText(bytes);
   for (const t of [
@@ -385,7 +383,6 @@ test("from a web address the app works offline after the first visit", async () 
     await newProduct(page);
     await page.check('[data-ppe="vest"]');
     await page.fill("[data-f=by]", "Alex");
-    await page.fill("[data-f=appr]", "Sam");
     const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
     assert.ok(pdfText(bytes).includes("Hi-vis vest"));
     assert.deepEqual(errors, []);
@@ -453,7 +450,6 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
   await newProduct(page);
   await page.fill("[data-f=code]", "WA-1");
   await page.fill("[data-f=by]", "Alex");
-  await page.fill("[data-f=appr]", "Sam");
   await download(page, () => page.click("[data-a=pdf]"));
   await page.fill("[data-f=rev]", "2");
   await download(page, () => page.click("[data-a=pdf]"));
@@ -473,6 +469,7 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
     "Widget A Product · Line 1",
     "WA-1",
     "2",
+    "Draft",
     "Press Shop",
     "Code 1 · " + ref,
     "1",
@@ -487,7 +484,7 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
   assert.match(text, /"Date and time","Type","Name"/);
   assert.match(
     text,
-    /"Product","Widget A","WA-1","2","Line 1","Press Shop","Code 1"/,
+    /"Product","Widget A","WA-1","2","Draft","Line 1","Press Shop","Code 1"/,
   );
   await page.click("[data-a=logClear]");
   assert.match(await page.textContent("#app"), /No PDFs made yet/);
@@ -495,4 +492,159 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
   assert.equal(await page.locator(".log tbody tr").count(), 2);
   assert.deepEqual(errors, []);
   await ctx.close();
+});
+
+// Approvals use a test approver whose code is known (served in place of js/approvers.js).
+const stubMail = (page) =>
+  page.evaluate(() => {
+    window.MAILS = [];
+    window.openMail = (to, subject, body) => {
+      APMAIL = { to, subject, body };
+      MAILS.push({ to, subject, body });
+    };
+  });
+const saveTo = (dl) => {
+  const f = path.join(
+    fs.mkdtempSync(path.join(require("os").tmpdir(), "sp-")),
+    dl.name,
+  );
+  fs.writeFileSync(f, dl.bytes);
+  return f;
+};
+
+test("approval: request by email, sign with the approver code, import, and draft again after a change", async () => {
+  const CODE = "TEST-APPR-0001-CODE";
+  const { pub } = await apKeys(CODE);
+  const site = await serve({
+    "/js/approvers.js": `const APPROVERS = [["Test Approver", "${pub}"]];`,
+  });
+  try {
+    // Author: a draft prints with DRAFT.
+    const A = await open(site.url);
+    await setupCompany(A.page);
+    await newProduct(A.page);
+    await A.page.fill('[data-s="0"]', "Tighten the clamps.");
+    await A.page.fill("[data-f=by]", "Alex");
+    await A.page.waitForSelector("#apbox .badge.dr");
+    let s = pdfText(
+      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+    );
+    assert.ok(s.includes("(DRAFT)") && s.includes("Not approved: draft"));
+
+    // Request approval: a .zip is saved and an email opened.
+    await stubMail(A.page);
+    await A.page.click("[data-a=apReq]");
+    await A.page.selectOption('[data-ap="to"]', "Test Approver");
+    await A.page.fill('[data-ap="tomail"]', "boss@example.com");
+    await A.page.fill('[data-ap="mymail"]', "alex@example.com");
+    const req = await download(A.page, () => A.page.click("[data-a=apSend]"));
+    assert.equal(req.name, "Approval request - Widget A - rev 1.zip");
+    const mail = (await A.page.evaluate(() => MAILS))[0];
+    assert.equal(mail.to, "boss@example.com");
+    assert.equal(mail.subject, "Approval request: Widget A rev 1");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Waiting for approval.*Test Approver/,
+    );
+    assert.match(await A.page.textContent(".card, #app"), /Widget A/);
+
+    // Approver: opens the request, reviews, signs.
+    const B = await open(site.url);
+    await setupCompany(B.page);
+    await stubMail(B.page);
+    await B.page.click("[data-a=goAp]");
+    await B.page.setInputFiles("[data-apreq]", saveTo(req));
+    await B.page.waitForSelector(".apform h3");
+    assert.match(
+      await B.page.textContent(".apform"),
+      /Requested by Alex \(alex@example.com\)/,
+    );
+    const rv = await download(B.page, () => B.page.click("[data-a=apPdf]"));
+    assert.ok(rv.name.startsWith("REVIEW_"));
+    assert.ok(pdfText(rv.bytes).includes("FOR REVIEW"));
+    await B.page.fill("#apcode", "WRONG-CODE");
+    await B.page.click("[data-a=apSign]");
+    await B.page.waitForSelector("p.err");
+    assert.match(
+      await B.page.textContent("p.err"),
+      /approver code is not right/,
+    );
+
+    // Rejecting needs a comment; the author sees it.
+    await B.page.check('input[name="apdec"][value="rejected"]');
+    await B.page.fill("#apcode", CODE);
+    await B.page.click("[data-a=apSign]");
+    await B.page.waitForSelector("p.err");
+    assert.match(await B.page.textContent("p.err"), /Say what must change/);
+    await B.page.fill("[data-apc]", "Add the torque for the second clamp.");
+    await B.page.fill("#apcode", CODE);
+    const no = await download(B.page, () => B.page.click("[data-a=apSign]"));
+    assert.equal(no.name, "Approval - Widget A - rev 1 - rejected.json");
+    assert.equal(
+      (await B.page.evaluate(() => MAILS))[0].to,
+      "alex@example.com",
+    );
+    await A.page.setInputFiles("[data-apfile]", saveTo(no));
+    await A.page.waitForSelector("#apbox .badge.no");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Add the torque for the second clamp/,
+    );
+
+    // Approve the same request (code typed in lower case still works).
+    await B.page.setInputFiles("[data-apreq]", saveTo(req));
+    await B.page.waitForSelector("[data-a=apSign]");
+    await B.page.fill("[data-apc]", "Looks good.");
+    await B.page.fill("#apcode", CODE.toLowerCase());
+    const ok = await download(B.page, () => B.page.click("[data-a=apSign]"));
+    assert.equal(ok.name, "Approval - Widget A - rev 1 - approved.json");
+
+    // A changed copy of the file is refused.
+    const bad = JSON.parse(ok.bytes.toString("utf8"));
+    bad.payload.comment = "Changed";
+    const badFile = path.join(path.dirname(saveTo(ok)), "bad.json");
+    fs.writeFileSync(badFile, JSON.stringify(bad));
+    await A.page.setInputFiles("[data-apfile]", badFile);
+    await A.page.waitForSelector("#apbox p.err");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /changed since it was signed/,
+    );
+
+    // Author imports the approval: Approved, PDF without DRAFT.
+    await A.page.setInputFiles("[data-apfile]", saveTo(ok));
+    await A.page.waitForSelector("#apbox .badge.ok");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Approved by Test Approver.*Looks good/,
+    );
+    s = pdfText(
+      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+    );
+    assert.ok(!s.includes("(DRAFT)") && !s.includes("Not approved"));
+    assert.ok(
+      s.includes("(Test Approver)") && s.includes("digital signature checked"),
+    );
+
+    // Any change makes it a draft again; undoing the change brings it back.
+    await A.page.fill('[data-s="0"]', "Tighten the clamps to 30 Nm.");
+    await A.page.waitForSelector("#apbox .badge.dr");
+    assert.match(
+      await A.page.textContent("#apbox"),
+      /Changed after it was approved/,
+    );
+    s = pdfText(
+      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+    );
+    assert.ok(s.includes("(DRAFT)"));
+    await A.page.fill('[data-s="0"]', "Tighten the clamps.");
+    await A.page.waitForSelector("#apbox .badge.ok");
+
+    assert.deepEqual(A.errors, []);
+    assert.deepEqual(B.errors, []);
+    await A.ctx.close();
+    await B.ctx.close();
+  } finally {
+    site.close();
+  }
 });
