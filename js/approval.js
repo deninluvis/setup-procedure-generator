@@ -72,6 +72,7 @@ async function apState(p, kind) {
         st: chk.payload.fp == fp ? "approved" : "changed",
         fp,
         name: chk.name,
+        slot: chk.slot,
         at: chk.payload.at,
         comment: chk.payload.comment || "",
       };
@@ -82,6 +83,7 @@ async function apState(p, kind) {
       st: "rejected",
       fp,
       name: a.by,
+      slot: a.slot,
       at: a.at,
       comment: a.comment || "",
     };
@@ -107,6 +109,9 @@ function apBadge(p) {
   return `<span class="badge ${cls}">${txt}</span>`;
 }
 
+// " (Approver 1)" after a typed name, so it is clear which code signed it.
+const apSlot = (r) =>
+  r.slot && r.slot != r.name ? ` <span class="m">(${esc(r.slot)})</span>` : "";
 const apMsgHtml = () =>
   APMSG
     ? `<p class="${APMSG.err ? "err" : "ok"}" role="status">${esc(APMSG.text)}</p>`
@@ -124,11 +129,11 @@ function apBoxInner(p) {
     h = `<p><span class="badge dr">Draft</span></p><p class="m">This browser cannot check approvals, so PDFs print as drafts. Use a recent Chrome, Edge, Firefox or Safari.</p>`;
   else if (r.st == "approved")
     h =
-      `<p><span class="badge ok">Approved</span> by <b>${esc(r.name)}</b> on ${apDay(r.at)}. Digital signature checked.</p>` +
+      `<p><span class="badge ok">Approved</span> by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}. Digital signature checked.</p>` +
       (r.comment ? `<p class="apc">“${esc(r.comment)}”</p>` : "") +
       `<p class="m">Any change to this ${itemKind(p)} makes it a draft again.</p>`;
   else if (r.st == "changed")
-    h = `<p><span class="badge dr">Draft</span> Changed after it was approved by <b>${esc(r.name)}</b> on ${apDay(r.at)}.</p><p class="m">PDFs print with a DRAFT watermark. Undo the change, or request approval again.</p><div class="row" style="flex-wrap:wrap">${reqBtn("Request approval again")}${apImportBtn("Import approval file")}</div>`;
+    h = `<p><span class="badge dr">Draft</span> Changed after it was approved by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p><p class="m">PDFs print with a DRAFT watermark. Undo the change, or request approval again.</p><div class="row" style="flex-wrap:wrap">${reqBtn("Request approval again")}${apImportBtn("Import approval file")}</div>`;
   else if (r.st == "pending")
     h =
       `<p><span class="badge wait">Waiting for approval</span> Sent to <b>${esc(r.to)}</b> on ${apDay(r.at)}.</p>` +
@@ -138,7 +143,7 @@ function apBoxInner(p) {
       `<div class="row" style="flex-wrap:wrap">${apImportBtn("Import approval file")}<button class="b2" data-a="apReq">Request again</button>${APMAIL ? `<button class="b2" data-a="apMail">Open the email again</button>` : ""}</div>`;
   else if (r.st == "rejected")
     h =
-      `<p><span class="badge no">Rejected</span> by <b>${esc(r.name)}</b> on ${apDay(r.at)}.</p>` +
+      `<p><span class="badge no">Rejected</span> by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p>` +
       (r.comment ? `<p class="apc">“${esc(r.comment)}”</p>` : "") +
       `<p class="m">Make the changes, then request approval again. PDFs print with a DRAFT watermark.</p><div class="row" style="flex-wrap:wrap">${reqBtn("Request approval again")}${apImportBtn("Import approval file")}</div>`;
   else
@@ -256,6 +261,7 @@ function ApV() {
       h += `<div class="row"><button class="b2" data-a="apPdf">Download PDF to review</button></div>
 <div class="radios"><label><input type="radio" name="apdec" value="approved"${APR.decision == "approved" ? " checked" : ""}> Approve</label><label><input type="radio" name="apdec" value="rejected"${APR.decision == "rejected" ? " checked" : ""}> Reject (say what must change)</label></div>
 <label class="f">Comment${APR.decision == "rejected" ? "" : " (optional)"}<textarea data-apc="1" rows="3">${esc(APR.comment || "")}</textarea></label>
+<label class="f">Your name (printed on the PDF as "Approved by")<input data-apn="1" maxlength="60" value="${esc(APR.name || "")}" autocomplete="name"></label>
 <label class="f">Your approver code<input type="password" id="apcode" autocomplete="off" spellcheck="false"></label>
 <p class="m">Your approver code signs the decision. Never send it by email.</p>
 <button class="b" data-a="apSign">Sign and save decision</button>`;
@@ -284,6 +290,7 @@ async function loadRequest(f) {
       company: c.company,
       decision: "approved",
       comment: "",
+      name: apPrefs().signer || "",
     };
   R();
 }
@@ -305,6 +312,9 @@ function reviewPdf() {
 async function signApproval(btn) {
   const code = ($("#apcode") || {}).value || "",
     comment = String(APR.comment || "").trim(),
+    signer = String(APR.name || "")
+      .trim()
+      .slice(0, 60),
     dec = APR.decision,
     show = (text) => {
       APMSG = { text, err: true };
@@ -316,6 +326,7 @@ async function signApproval(btn) {
     );
   if (dec == "rejected" && !comment)
     return show("Say what must change in the comment before rejecting.");
+  if (!signer) return show("Enter your name.");
   if (!code.trim()) return show("Enter your approver code.");
   btn.disabled = true;
   try {
@@ -328,6 +339,7 @@ async function signApproval(btn) {
         decision: dec,
         comment,
         approver: a[0],
+        signer,
         at: new Date().toISOString(),
         fp: await apFingerprint(p, pack.kind, pack.dept),
         item: {
@@ -362,7 +374,7 @@ async function signApproval(btn) {
           ? `I have approved "${p.name}" revision ${p.rev || "1"}.`
           : `I have not approved "${p.name}" revision ${p.rev || "1"}.`) +
         (comment ? `\n\nComment: ${comment}` : "") +
-        `\n\nImport the attached file "${name}" in the Setup Procedures app: Home → Approvals → Import approval file (or on the ${pack.kind}'s page).\n\n${a[0]}`,
+        `\n\nImport the attached file "${name}" in the Setup Procedures app: Home → Approvals → Import approval file (or on the ${pack.kind}'s page).\n\n${signer}`,
     );
   } finally {
     btn.disabled = false;
@@ -420,6 +432,7 @@ async function importApproval(f) {
   p.ap = {
     st: ok ? "approved" : "rejected",
     by: chk.name,
+    slot: chk.slot,
     at: pl.at,
     comment: pl.comment || "",
     fp: pl.fp,
@@ -467,6 +480,10 @@ async function apRefresh() {
 }
 document.addEventListener("input", (e) => {
   if (e.target.dataset.apc !== undefined && APR) APR.comment = e.target.value;
+  if (e.target.dataset.apn !== undefined && APR) {
+    APR.name = e.target.value;
+    apSavePrefs({ signer: e.target.value });
+  }
   if ((T == "p" && V.p) || (T == "m" && MID)) {
     clearTimeout(apTimer);
     apTimer = setTimeout(apRefresh, 500);

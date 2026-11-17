@@ -562,6 +562,12 @@ test("approval: request by email, sign with the approver code, import, and draft
     const rv = await download(B.page, () => B.page.click("[data-a=apPdf]"));
     assert.ok(rv.name.startsWith("REVIEW_"));
     assert.ok(pdfText(rv.bytes).includes("FOR REVIEW"));
+    // The approver must type their name; it is remembered next time.
+    await B.page.fill("#apcode", CODE);
+    await B.page.click("[data-a=apSign]");
+    await B.page.waitForSelector("p.err");
+    assert.match(await B.page.textContent("p.err"), /Enter your name/);
+    await B.page.fill("[data-apn]", "Sam Lee");
     await B.page.fill("#apcode", "WRONG-CODE");
     await B.page.click("[data-a=apSign]");
     await B.page.waitForSelector("p.err");
@@ -594,6 +600,7 @@ test("approval: request by email, sign with the approver code, import, and draft
     // Approve the same request (code typed in lower case still works).
     await B.page.setInputFiles("[data-apreq]", saveTo(req));
     await B.page.waitForSelector("[data-a=apSign]");
+    assert.equal(await B.page.inputValue("[data-apn]"), "Sam Lee");
     await B.page.fill("[data-apc]", "Looks good.");
     await B.page.fill("#apcode", CODE.toLowerCase());
     const ok = await download(B.page, () => B.page.click("[data-a=apSign]"));
@@ -616,14 +623,16 @@ test("approval: request by email, sign with the approver code, import, and draft
     await A.page.waitForSelector("#apbox .badge.ok");
     assert.match(
       await A.page.textContent("#apbox"),
-      /Approved by Test Approver.*Looks good/,
+      /Approved by Sam Lee \(Test Approver\).*Looks good/,
     );
     s = pdfText(
       (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
     );
     assert.ok(!s.includes("(DRAFT)") && !s.includes("Not approved"));
     assert.ok(
-      s.includes("(Test Approver)") && s.includes("digital signature checked"),
+      s.includes("(Sam Lee)") &&
+        s.includes("(Approver code: Test Approver)") &&
+        s.includes("digital signature checked"),
     );
 
     // Any change makes it a draft again; undoing the change brings it back.

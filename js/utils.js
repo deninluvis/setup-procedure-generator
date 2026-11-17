@@ -810,7 +810,7 @@ async function apVerify(pub, payload, sig) {
   }
 }
 // Check an approval file against the approvers list ([[name, pub]]).
-// -> { ok, why, name, payload }
+// -> { ok, why, name, slot, payload }
 async function apCheck(file, approvers) {
   if (
     !file ||
@@ -831,7 +831,10 @@ async function apCheck(file, approvers) {
       ok: false,
       why: "This approval file has been changed since it was signed, so it cannot be trusted.",
     };
-  return { ok: true, name: a[0], payload: file.payload };
+  // name: the name the approver typed when signing (signed with the decision);
+  // slot: the approver code's name in the list (e.g. "Approver 1").
+  const typed = String(file.payload.signer || "").trim();
+  return { ok: true, name: typed || a[0], slot: a[0], payload: file.payload };
 }
 
 if (typeof module !== "undefined")

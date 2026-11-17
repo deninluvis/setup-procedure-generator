@@ -572,6 +572,8 @@ async function mkPdf(o) {
         x,
         y + 15,
       );
+      if (approved && ap.slot && ap.slot != ap.name)
+        d.text("Approver code: " + ap.slot, x, y + 19);
     }
     d.setDrawColor(...K);
     d.setLineWidth(0.3);

@@ -188,16 +188,19 @@ top of its page shows where it is.
 2. **Approver: review and decide.** Home → **Approvals** → **Choose request file** and
    pick the .zip from the email. It is opened only for checking; nothing is added to the
    approver's own data. **Download PDF to review** shows it as it will print. Choose
-   **Approve** or **Reject** (rejecting needs a comment), type the comment, enter your
-   **approver code** and press **Sign and save decision**. The app saves
+   **Approve** or **Reject** (rejecting needs a comment), type the comment and **your
+   name** (it is printed on the PDF as "Approved by" and remembered in that browser),
+   enter your **approver code** and press **Sign and save decision**. The app saves
    `Approval - <name> - rev <n> - approved.json` (or `rejected`) and opens a reply email:
    attach the file and send it.
 3. **Author: import the decision.** Press **Import approval file** on the product's page
    (or Home → Approvals) and choose the .json. The app checks that it was signed with a
    listed approver's code, that the file was not changed, and that the procedure is
    exactly what was approved. It then shows **Approved** (or **Rejected** with the
-   comment). Approved PDFs have no watermark and print the approver's name with
-   "digital signature checked".
+   comment), for example "Approved by Sam Lee (Approver 1)". Approved PDFs have no
+   watermark and print the name the approver typed, with "digital signature checked"
+   and the approver code's name (for example "Approver code: Approver 1"), so you can
+   tell which code signed it.
 4. **Any change** after approval (text, photo, tool, PPE, revision…) makes it a draft
    again, with "Changed after it was approved". Undoing the change makes it approved again.
 
@@ -207,7 +210,8 @@ key is stored in `js/approvers.js`. Keep each code secret and never email it. Ma
 them with:
 
 - `npm run approver -- add "Sam Lee"`: makes a new code (shown once; write it down).
-- `npm run approver -- rename "Approver 1" "Sam Lee"`: the code stays the same.
+- `npm run approver -- rename "Approver 1" "Sam Lee"`: renames the code in the list
+  (the code stays the same). Optional: approvers type their own name when signing.
 - `npm run approver -- remove "Sam Lee"`: approvals signed with that code stop counting,
   so those procedures become drafts.
 - `npm run approver -- list`
