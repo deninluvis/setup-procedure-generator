@@ -22,7 +22,7 @@ the `claude` branch.
 ## Architecture
 
 Classic `<script>` files (not ES modules) share globals, including top-level `let`/`const`; load order in `index.html` matters:
-`vendor/jspdf` → `utils.js` → `storage.js` → `zip.js` → `state.js` → `ppe.js` → `views.js` → `undo.js` → `transfer.js` → `pdf.js` → `events.js` → `app.js` (start-up). Code that runs at load time may only use globals from earlier files; functions may use any. A new script must also be added to `FILES` in `sw.js` (and bump `VERSION`).
+`vendor/jspdf` → `utils.js` → `storage.js` → `zip.js` → `state.js` → `ppe.js` → `views.js` → `undo.js` → `transfer.js` → `pdf.js` → `events.js` → `access.js` → `lock.js` → `app.js` (start-up). Code that runs at load time may only use globals from earlier files; functions may use any. A new script must also be added to `FILES` in `sw.js` (and bump `VERSION`).
 `utils.js` and `zip.js` end with `if (typeof module !== "undefined") module.exports = …` so the Node tests can `require` them. Keep that guard, and keep `utils.js` free of DOM access.
 
 ### State and rendering (`state.js`, `views.js`, `events.js`)
@@ -49,6 +49,11 @@ Classic `<script>` files (not ES modules) share globals, including top-level `le
 - Note colours are defined twice and must stay in sync: `NOTE_PDF` in `mkPdf` and the `--dg`/`--cau`/`--nt` CSS variables. Photo print sizes come from `PHOTO_SIZES`.
 - The built-in Helvetica font has no symbol glyphs; the warning triangle and info circle are drawn with shapes.
 - PPE signs (`ppe.js`) are SVG strings: inline on the page, converted to PNG through a canvas (`ppePng`, cached) for the PDF.
+
+### Access codes
+- `js/access.js` lists `ACCESS_CODES = [[name, codeHash(code)]]`; it is written by `scripts/access-code.js` (`npm run code -- add|list|remove`), never by hand. Plain codes are never committed. `codeHash` = SHA-256 (pure JS `sha256` in `utils.js`, since `crypto.subtle` may be missing on `file://`) of a fixed prefix + `normCode` (upper case, no spaces/dashes).
+- `app.js` calls `startApp()` only if `hasAccess()`; otherwise `showLock` (`lock.js`) renders a form into `#app` and stores the valid hash in localStorage `sp-access`. An empty list disables the screen.
+- It is a deterrent only (public repo, client-side check). E2E tests set `sp-access` via `addInitScript` from the first hash in `access.js`; lock tests serve a replaced `access.js` through `serve()`.
 
 ### Undo
 `remember(msg)` must be called before a destructive change. It stores a deep copy of `S` (strings are shared, not copied) plus `T`/`V`/`MID` on a 20-entry stack and shows the toast. `undo()` restores state and re-renders. Small removals rely on Undo instead of `confirm()`; large ones (delete product/machine/line, replace all, clear all) confirm and also call `remember`.

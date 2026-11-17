@@ -12,6 +12,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 - Safety equipment (PPE) printed as safety signs at the top of the PDF
 - Works offline: everything it needs is in the repository, and it can be installed as an app
+- Access codes: a code is asked for before the app opens
 
 ## Project structure
 
@@ -28,7 +29,10 @@ js/undo.js          Undo and the message bar at the bottom
 js/transfer.js      Export & import page and .zip backups
 js/pdf.js           PDF export
 js/events.js        Clicks, typing and other user actions
+js/access.js        Access codes (scrambled)
+js/lock.js          Access code screen
 js/app.js           Start-up
+scripts/access-code.js  Make, list and remove access codes
 sw.js               Offline support when served from a web address
 manifest.webmanifest, icons/   Install as an app
 vendor/             jsPDF and the IBM Plex Sans font, stored locally
@@ -68,6 +72,29 @@ address, and the other way round. Use **Export backup** and **Import** to move i
 To publish on GitHub Pages: repository **Settings → Pages → Build and deployment →
 Deploy from a branch**, pick `main` and `/ (root)`, then **Save**. The address appears on
 the same page after a minute or two.
+
+## Access codes
+
+The app asks for an access code before it opens. Codes are not case-sensitive, and
+spaces and dashes don't matter. A correct code is remembered in that browser, so it is
+asked for only once.
+
+This keeps out casual visitors only. The repository is public, so someone technical
+can read the app's code and get around it. Your procedures are never on the website:
+they stay in each person's browser.
+
+Manage codes from the repository folder (needs Node.js):
+
+1. Make a new code: `npm run code -- add "Workshop tablet"`.
+   The code is shown once (for example `K7QM-4XPA-2R9D`). Write it down: only a
+   scrambled version is saved, in `js/access.js`, so it cannot be read back.
+   To choose your own code: `npm run code -- add "Office" MYCODE123`.
+2. See the names of all codes: `npm run code -- list`.
+3. Stop a code working: `npm run code -- remove "Workshop tablet"`.
+   Browsers that used it ask for a code again the next time they open the app online.
+4. Commit and push the change, and merge it into `main` so the website picks it up.
+
+With no codes listed in `js/access.js`, the app opens without asking.
 
 ## How to use
 

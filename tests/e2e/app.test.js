@@ -6,10 +6,16 @@ const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
 const { chromium } = require("playwright");
+const { codeHash } = require("../../js/utils.js");
 
 const ROOT = path.resolve(__dirname, "../..");
 const APP = "file://" + path.join(ROOT, "index.html");
 const PHOTO = path.join(ROOT, "tests/fixtures/photo.jpg");
+// A valid access code (scrambled), so tests start past the access code screen.
+const ACCESS =
+  (fs
+    .readFileSync(path.join(ROOT, "js/access.js"), "utf8")
+    .match(/"([0-9a-f]{64})"/) || [])[1] || "";
 let browser;
 
 before(async () => {
@@ -31,6 +37,11 @@ async function open(url = APP, opts = {}) {
     external.push(r.request().url());
     return r.abort();
   });
+  if (opts.access !== false)
+    await ctx.addInitScript(
+      (h) => localStorage.setItem("sp-access", h),
+      ACCESS,
+    );
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -257,9 +268,10 @@ test("a full backup exports and imports into another browser, with photos and PP
   await b.ctx.close();
 });
 
-// Served from a web address, the app installs a service worker and then
-// opens and makes PDFs with no network at all.
-test("from a web address the app works offline after the first visit", async () => {
+// Serve the app on a local web address. `files` replaces files by path, for
+// example { "/js/access.js": "const ACCESS_CODES = [];" }, and can be changed
+// while the server runs.
+async function serve(files = {}) {
   const types = {
     ".html": "text/html",
     ".js": "text/javascript",
@@ -271,6 +283,14 @@ test("from a web address the app works offline after the first visit", async () 
   };
   const server = http.createServer((req, res) => {
     const rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    if (files[rel] !== undefined) {
+      res.writeHead(200, {
+        "content-type": "text/javascript",
+        "cache-control": "no-store",
+      });
+      res.end(files[rel]);
+      return;
+    }
     const file = path.join(ROOT, rel.endsWith("/") ? rel + "index.html" : rel);
     if (!file.startsWith(ROOT) || !fs.existsSync(file)) {
       res.writeHead(404).end();
@@ -282,7 +302,58 @@ test("from a web address the app works offline after the first visit", async () 
     fs.createReadStream(file).pipe(res);
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  const url = `http://127.0.0.1:${server.address().port}/`;
+  return {
+    url: `http://127.0.0.1:${server.address().port}/`,
+    files,
+    close: () => server.close(),
+  };
+}
+
+test("without a code only the access code screen shows", async () => {
+  const { ctx, page, errors } = await open(APP, { access: false });
+  assert.ok(await page.isVisible("#lockCode"));
+  assert.doesNotMatch(await page.textContent("#app"), /Welcome/);
+  await page.fill("#lockCode", "WRONG-CODE");
+  await page.click("#lock button");
+  await page.waitForSelector("#lockErr:not(:empty)");
+  assert.ok(await page.isVisible("#lockCode"));
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("a correct code opens the app, is remembered, and stops working when removed", async () => {
+  const list = (codes) =>
+    `const ACCESS_CODES = [${codes.map((c) => `["t", "${codeHash(c)}"]`).join(",")}];`;
+  const site = await serve({
+    "/js/access.js": list(["TEST-CODE-1", "OTHER-CODE-2"]),
+  });
+  try {
+    const { ctx, page, errors } = await open(site.url, { access: false });
+    await page.fill("#lockCode", "test code 1"); // case, spaces and dashes don't matter
+    await page.click("#lock button");
+    await page.waitForSelector("[data-co=name]");
+    assert.match(await page.textContent("h1"), /Welcome/);
+    await page.reload();
+    await page.waitForSelector("[data-co=name]"); // remembered
+    site.files["/js/access.js"] = list(["OTHER-CODE-2"]);
+    await page.reload();
+    await page.waitForSelector("#lockCode");
+    assert.match(await page.textContent("#lock"), /no longer works/);
+    await page.fill("#lockCode", "OTHER-CODE-2");
+    await page.click("#lock button");
+    await page.waitForSelector("[data-co=name]");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+// Served from a web address, the app installs a service worker and then
+// opens and makes PDFs with no network at all.
+test("from a web address the app works offline after the first visit", async () => {
+  const site = await serve(),
+    url = site.url;
   try {
     const { ctx, page, errors } = await open(url);
     await page.evaluate(() => navigator.serviceWorker.ready);
@@ -301,6 +372,6 @@ test("from a web address the app works offline after the first visit", async () 
     assert.deepEqual(errors, []);
     await ctx.close();
   } finally {
-    server.close();
+    site.close();
   }
 });
