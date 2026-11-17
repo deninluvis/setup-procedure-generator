@@ -837,3 +837,17 @@ body.mkopen {
 .apby {
   margin: 6px 0;
 }
+/* "Logged in: … · Log out" at the top of every page. */
+.ubar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--bd);
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+.ubar .lk {
+  margin: 0;
+}

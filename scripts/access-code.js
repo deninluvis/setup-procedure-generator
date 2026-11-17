@@ -8,16 +8,25 @@
 //   npm run code -- dots "0110 ..."   same, from the tracking dots (28 bits)
 // Only a scrambled version of each code is saved, in js/access.js. Write the
 // code down when it is shown: it cannot be read back from the file.
+// Admin codes work the same way with --admin (npm run admin -- add "Name"),
+// saved in js/admins.js. Admins can also see the print log.
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { codeHash, normCode, codeRef, bitsRef } = require("../js/utils.js");
 
-const FILE = path.join(__dirname, "../js/access.js");
+const ADMIN = process.argv[2] == "--admin";
+if (ADMIN) process.argv.splice(2, 1);
+const FILE = path.join(
+    __dirname,
+    ADMIN ? "../js/admins.js" : "../js/access.js",
+  ),
+  OTHER = path.join(__dirname, ADMIN ? "../js/access.js" : "../js/admins.js");
 // Each entry is ["Name", "<64 hex characters>"], on one line or spread over
 // several (as a code formatter may leave it).
-const read = () => {
-  const text = fs.readFileSync(FILE, "utf8"),
+const read = (file = FILE) => {
+  if (!fs.existsSync(file)) return [];
+  const text = fs.readFileSync(file, "utf8"),
     list = [
       ...text.matchAll(
         /\[\s*("(?:[^"\\]|\\.)*")\s*,\s*"([0-9a-f]{64})"\s*,?\s*\]/g,
@@ -25,19 +34,26 @@ const read = () => {
     ].map((m) => [JSON.parse(m[1]), m[2]]);
   // Never overwrite codes that could not be read.
   if (list.length != (text.match(/"[0-9a-f]{64}"/g) || []).length)
-    throw new Error("Could not read js/access.js. Check its format.");
+    throw new Error(`Could not read ${path.basename(file)}. Check its format.`);
   return list;
 };
 const write = (list) =>
   fs.writeFileSync(
     FILE,
-    `// Access codes for this website: a code is asked for before the app opens.
+    (ADMIN
+      ? `// Admin codes: log in like an access code, and can also see the print log
+// and clear all data. Only scrambled (SHA-256) versions are stored here.
+// Manage them with scripts/access-code.js (npm run admin -- add / list / remove).
+// prettier-ignore
+const ADMIN_CODES = [`
+      : `// Access codes for authors: a code is asked for when the app opens (log in).
 // Only scrambled (SHA-256) versions are stored here, never the codes themselves.
 // Manage them with scripts/access-code.js (npm run code -- add / list / remove).
-// With no codes listed, the app opens without asking.
+// With no access, admin or approver codes listed, the app opens without asking.
 // This only keeps out casual visitors: the app's code is public.
 // prettier-ignore
-const ACCESS_CODES = [
+const ACCESS_CODES = [`) +
+      `
 ${list.map(([n, h]) => `  [${JSON.stringify(n)}, "${h}"],`).join("\n")}
 ];
 `,
@@ -60,7 +76,11 @@ if (cmd == "add" && name) {
   const code = own || randomCode();
   if (normCode(code).length < 6)
     throw new Error("Use at least 6 letters or digits.");
-  if (list.some(([, h]) => codeRef(h) == codeRef(codeHash(code))))
+  if (
+    [...list, ...read(OTHER)].some(
+      ([, h]) => codeRef(h) == codeRef(codeHash(code)),
+    )
+  )
     throw new Error("That code is already in use.");
   list.push([name, codeHash(code)]);
   write(list);

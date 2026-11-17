@@ -228,7 +228,7 @@ async function requestApproval(btn) {
       `Approval request: ${p.name || "Untitled"} rev ${p.rev || "1"}`,
       `Hello ${to},\n\nPlease review and approve the setup procedure "${p.name || "Untitled"}"` +
         `${p.code ? ` (${p.code})` : ""}, revision ${p.rev || "1"}.\n\n` +
-        `1. Open the Setup Procedures app: Home → Approvals.\n` +
+        `1. Open the Setup Procedures app and log in with your approver code: the Approvals page opens.\n` +
         `2. Under "Review a request", choose the attached file "${file}".\n` +
         `3. Check it (Download PDF to review), approve or reject it, and enter your approver code.\n` +
         `4. Send the approval file back to me by email.\n\nThank you,\n${me}`,
@@ -238,11 +238,18 @@ async function requestApproval(btn) {
 
 // ---------- Approvals page ----------
 
+// Approvers (logged in with an approver code) only see "Review a request";
+// authors and admins only see "Import an approval".
 function ApV() {
-  let h = `<button class="lk" data-a="goHome">← Home</button><h1>Approvals</h1>${apMsgHtml()}
-<h2>Review a request</h2><p class="m">For approvers. Choose the approval request file (.zip) you received by email. It is only opened for checking: nothing is added to your products or machines.</p>
+  const rev = isApprover();
+  let h =
+    (rev ? "" : `<button class="lk" data-a="goHome">← Home</button>`) +
+    `<h1>Approvals</h1>${apMsgHtml()}`;
+  if (rev)
+    h += `
+<h2>Review a request</h2><p class="m">Choose the approval request file (.zip) you received by email. It is only opened for checking: nothing is saved on this computer.</p>
 <label class="b2">Choose request file<input type="file" accept=".zip,application/zip" hidden data-apreq="1"></label>`;
-  if (APR) {
+  if (rev && APR) {
     const { pack, req } = APR,
       p = pack.item,
       nPh = apImages(p).length,
@@ -263,12 +270,17 @@ function ApV() {
 <div class="radios"><label><input type="radio" name="apdec" value="approved"${APR.decision == "approved" ? " checked" : ""}> Approve</label><label><input type="radio" name="apdec" value="rejected"${APR.decision == "rejected" ? " checked" : ""}> Reject (say what must change)</label></div>
 <label class="f">Comment${APR.decision == "rejected" ? "" : " (optional)"}<textarea data-apc="1" rows="3">${esc(APR.comment || "")}</textarea></label>
 <label class="f">Your name (printed on the PDF as "Approved by")<input data-apn="1" maxlength="60" value="${esc(APR.name || "")}" autocomplete="name"></label>
-<label class="f">Your approver code<input type="password" id="apcode" autocomplete="off" spellcheck="false"></label>
-<p class="m">Your approver code signs the decision. Never send it by email.</p>
+${
+  APCODE
+    ? `<p class="m">Your decision is signed with the approver code you logged in with. Never send that code by email.</p>`
+    : `<label class="f">Your approver code (to sign)<input type="password" id="apcode" autocomplete="off" spellcheck="false"></label>
+<p class="m">Your approver code signs the decision. Never send it by email.</p>`
+}
 <button class="b" data-a="apSign">Sign and save decision</button>`;
     h += `</div>`;
   }
-  h += `<h2>Import an approval</h2><p class="m">For authors. When an approver emails you an approval file (.json), import it here or on the ${"product or machine"} page. It is checked and applied to the matching procedure.</p>${apImportBtn("Import approval file")}`;
+  if (!rev)
+    h += `<h2>Import an approval</h2><p class="m">When an approver emails you an approval file (.json), import it here or on the product or machine page. It is checked and applied to the matching procedure.</p>${apImportBtn("Import approval file")}`;
   return h;
 }
 
@@ -311,7 +323,7 @@ function reviewPdf() {
 }
 
 async function signApproval(btn) {
-  const code = ($("#apcode") || {}).value || "",
+  const code = APCODE || ($("#apcode") || {}).value || "",
     comment = String(APR.comment || "").trim(),
     signer = String(APR.name || "")
       .trim()
@@ -333,7 +345,8 @@ async function signApproval(btn) {
   try {
     const { priv, pub } = await apKeys(code),
       a = APPROVERS.find((x) => x[1] == pub);
-    if (!a) return show("That approver code is not right.");
+    if (!a || (SESSION && SESSION.id && pub != SESSION.id))
+      return show("That is not the approver code you logged in with.");
     const { pack, req } = APR,
       p = pack.item,
       payload = {

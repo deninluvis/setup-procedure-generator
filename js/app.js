@@ -17,6 +17,7 @@ loadView();
 const startApp = () =>
   Store.load().then((d) => {
     initState(d);
+    if (isApprover()) T = "ap";
     R();
   });
 if (hasAccess()) startApp();

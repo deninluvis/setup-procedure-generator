@@ -42,9 +42,9 @@ ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was
     return w
       ? `${count(w, "procedure is", "procedures are")} waiting for approval. `
       : "";
-  })()}Review a request as an approver, or import an approval you received.</p><button class="b2" data-a="goAp">Open approvals</button>
-<h2>Print log</h2><p class="m">${count((S.log || []).length, "PDF", "PDFs")} made in this browser.</p><button class="b2" data-a="goLog">Open print log</button>
-<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>`;
+  })()}Import an approval file you received from an approver.</p><button class="b2" data-a="goAp">Open approvals</button>
+${isAdmin() ? `<h2>Print log</h2><p class="m">${count((S.log || []).length, "PDF", "PDFs")} made in this browser.</p><button class="b2" data-a="goLog">Open print log</button>` : ""}
+${isAdmin() ? `<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>` : ""}`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
   [p.code, deptName(deptOf(p, S.co), S.co)]
@@ -194,6 +194,9 @@ function R(keep) {
         ? [ae.selectionStart, ae.selectionEnd]
         : null;
   let h = "";
+  // Approvers only see the Approvals page; the print log is for admins.
+  if (isApprover()) T = "ap";
+  else if (T == "log" && !isAdmin()) T = "h";
   if (T == "x") {
     h = XV();
   } else if (T == "log") {
@@ -258,7 +261,7 @@ ${toolsHtml(p)}
 ${wmBox(p)}${psBox()}
 <div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
-  $("#app").innerHTML = h;
+  $("#app").innerHTML = userBar() + h;
   document
     .querySelectorAll("[data-ind]")
     .forEach((e) => (e.indeterminate = true));

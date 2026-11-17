@@ -196,7 +196,7 @@ document.addEventListener("click", (e) => {
     MID = m.id;
   } else if (a == "bk") {
     exportZip(
-      planBackup(S),
+      planBackup(backupState()),
       `setup-procedures-backup-${dateStamp()}.zip`,
       t,
       () => {
@@ -245,7 +245,13 @@ document.addEventListener("click", (e) => {
   } else if (a == "mk") {
     openMarkup(t.dataset.k, i, j);
     return;
+  } else if (a == "logout") {
+    if (!confirm("Log out? The next person logs in with their own code."))
+      return;
+    logout();
+    return;
   } else if (a == "goLog") {
+    if (!isAdmin()) return;
     T = "log";
     LF = "";
   } else if (a == "logCsv") {
@@ -316,6 +322,7 @@ document.addEventListener("click", (e) => {
     );
     return;
   } else if (a == "clearAll") {
+    if (!isAdmin()) return;
     if (
       !confirm(
         "Delete ALL lines, products, steps and photos saved in this browser? You can undo this until you close or reload the page.",

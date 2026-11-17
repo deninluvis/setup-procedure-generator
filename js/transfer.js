@@ -30,6 +30,10 @@ const sniff = (b) =>
             ? "image/svg+xml"
             : "";
 
+// The data for a full backup: the print log only goes into backups made by
+// an admin (authors cannot see it).
+const backupState = () => (isAdmin() ? S : { ...S, log: undefined });
+
 // plan: { data, files } from planBackup() or planItems().
 async function exportZip(plan, name, btn, done) {
   const label = btn.textContent;
@@ -595,7 +599,7 @@ async function exportSelected(btn) {
   if (!list.length && !co) return alert("Tick at least one thing to export.");
   if (allKeys("x").every((k) => EXS.has(k)))
     return exportZip(
-      planBackup(S),
+      planBackup(backupState()),
       `setup-procedures-backup-${dateStamp()}.zip`,
       btn,
       () => {
@@ -675,7 +679,9 @@ async function applyImport() {
     )
       return;
     remember("All data replaced with the backup");
+    const log = S.log;
     S = IMP.full;
+    S.log = log || []; // the print log stays with this browser
     S.lastBackup = Date.now(); // this data is already in a backup file
     msg = "All data was replaced with the backup.";
     LASTMISS = IMP.missingList;

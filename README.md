@@ -12,7 +12,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
 - Safety equipment (PPE) printed as safety signs at the top of the PDF
 - Works offline: everything it needs is in the repository, and it can be installed as an app
-- Access codes: a code is asked for before the app opens
+- Log in and log out with access (author), admin or approver codes; each opens its own pages
 - Mark up photos with arrows, circles and numbers
 - Print log: a list of every PDF made, with the access code used
 - Approvals by email: drafts print with a DRAFT watermark until an approver signs them off
@@ -33,7 +33,8 @@ js/transfer.js      Export & import page and .zip backups
 js/pdf.js           PDF export
 js/events.js        Clicks, typing and other user actions
 js/access.js        Access codes (scrambled)
-js/lock.js          Access code screen
+js/admins.js        Admin codes (scrambled)
+js/lock.js          Log in / log out and roles
 js/log.js           Print log
 js/markup.js        Photo markup editor
 js/approval.js      Draft / approval requests and signed approvals
@@ -81,17 +82,29 @@ To publish on GitHub Pages: repository **Settings → Pages → Build and deploy
 Deploy from a branch**, pick `main` and `/ (root)`, then **Save**. The address appears on
 the same page after a minute or two.
 
-## Access codes
+## Logging in
 
-The app asks for an access code before it opens. Codes are not case-sensitive, and
-spaces and dashes don't matter. A correct code is remembered in that browser, so it is
-asked for only once.
+The app opens with a **Log in** screen. Each person logs in with their own code, and
+the code decides what they can do:
 
-This keeps out casual visitors only. The repository is public, so someone technical
-can read the app's code and get around it. Your procedures are never on the website:
-they stay in each person's browser.
+| Code | Opens | Can do |
+|---|---|---|
+| **Access code** (author) | Home page | Products, machines, PDFs, approval requests, backups |
+| **Admin code** | Home page | Everything an author can do, plus the **Print log** and **Clear all saved data** |
+| **Approver code** | Approvals page only | Review approval requests and sign decisions |
 
-Manage codes from the repository folder (needs Node.js):
+The top of every page shows who is logged in, with a **Log out** button. On a shared
+computer, log out when you finish; the next person logs in with their own code. A login
+is remembered in that browser until Log out. Codes are not case-sensitive, and spaces
+and dashes don't matter. Procedures are shared by everyone who uses that browser.
+
+Access and admin codes keep out casual visitors only: the repository is public, so
+someone technical can read the app's code and get around them. Approver codes are
+different: approvals are digitally signed (see **Approval** below). The print log is
+hidden from authors and only included in full backups made by an admin.
+
+Manage access codes from the repository folder (needs Node.js); admin codes work the same
+way with `npm run admin -- add / list / remove / find` instead of `npm run code`:
 
 1. Make a new code: `npm run code -- add "Workshop tablet"`.
    The code is shown once (for example `K7QM-4XPA-2R9D`). Write it down: only a
@@ -185,12 +198,13 @@ top of its page shows where it is.
    `Approval request - <name> - rev <n>.zip` and opens an email to the approver. Attach
    that file (from your Downloads folder) and send it. The status is now **Waiting for
    approval**.
-2. **Approver: review and decide.** Home → **Approvals** → **Choose request file** and
-   pick the .zip from the email. It is opened only for checking; nothing is added to the
+2. **Approver: review and decide.** Log in with your approver code: the **Approvals**
+   page opens. Press **Choose request file** and pick the .zip from the email. It is opened only for checking; nothing is added to the
    approver's own data. **Download PDF to review** shows it as it will print. Choose
    **Approve** or **Reject** (rejecting needs a comment), type the comment and **your
-   name** (it is printed on the PDF as "Approved by" and remembered in that browser),
-   enter your **approver code** and press **Sign and save decision**. The app saves
+   name** (it is printed on the PDF as "Approved by" and remembered in that browser)
+   and press **Sign and save decision**. It is signed with the code you logged in with
+   (after reloading the page, you type the code again to sign). The app saves
    `Approval - <name> - rev <n> - approved.json` (or `rejected`) and opens a reply email:
    attach the file and send it.
 3. **Author: import the decision.** Press **Import approval file** on the product's page
@@ -231,11 +245,12 @@ a step or sub-step photo. A full-screen editor opens:
    **Cancel** (or Esc) leaves the photo as it was. After saving, **Undo** in the bar
    at the bottom brings back the photo without marks.
 
-**Print log:** home page → **Open print log** lists every PDF made in this browser,
+**Print log (admins only):** home page → **Open print log** lists every PDF made in this browser,
 newest first: date and time, product or machine, code, revision, department and the
-access code used (name and reference). Type in the filter box to narrow it down.
+code used (name and reference). Type in the filter box to narrow it down.
 **Download log (Excel / CSV)** saves it as a file that opens in Excel. The log is saved
-with your data and included in full backups (up to 2000 entries). **Clear log** empties
+in this browser (up to 2000 entries) and is only included in full backups made by an
+admin; importing a backup keeps this browser's log. **Clear log** empties
 it (Undo brings it back).
 
 **Undo:** after removing or replacing something (a step, sub-step, warning or note,

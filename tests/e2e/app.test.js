@@ -16,6 +16,10 @@ const ACCESS =
   (fs
     .readFileSync(path.join(ROOT, "js/access.js"), "utf8")
     .match(/"([0-9a-f]{64})"/) || [])[1] || "";
+const ADMIN =
+  (fs
+    .readFileSync(path.join(ROOT, "js/admins.js"), "utf8")
+    .match(/"([0-9a-f]{64})"/) || [])[1] || "";
 let browser;
 
 before(async () => {
@@ -37,10 +41,12 @@ async function open(url = APP, opts = {}) {
     external.push(r.request().url());
     return r.abort();
   });
+  // Logged in as an author (older, plain format) or, with role "admin", as
+  // the first admin code.
   if (opts.access !== false)
     await ctx.addInitScript(
-      (h) => localStorage.setItem("sp-access", h),
-      ACCESS,
+      (v) => localStorage.setItem("sp-access", v),
+      opts.role == "admin" ? JSON.stringify({ r: "admin", id: ADMIN }) : ACCESS,
     );
   const page = await ctx.newPage();
   const errors = [];
@@ -445,7 +451,7 @@ test("a photo can be marked up with an arrow, a circle and numbers, and undone",
 });
 
 test("each PDF is listed in the print log, which filters and downloads as CSV", async () => {
-  const { ctx, page, errors } = await open();
+  const { ctx, page, errors } = await open(APP, { role: "admin" });
   await setupCompany(page);
   await newProduct(page);
   await page.fill("[data-f=code]", "WA-1");
@@ -464,14 +470,14 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
     ),
   );
   assert.equal(rows.length, 2);
-  const ref = "Ref " + ACCESS.slice(0, 6).toUpperCase();
+  const ref = "Ref " + ADMIN.slice(0, 6).toUpperCase();
   assert.deepEqual(rows[0].slice(1), [
     "Widget A Product · Line 1",
     "WA-1",
     "2",
     "Draft",
     "Press Shop",
-    "Code 1 · " + ref,
+    "Admin 1 · " + ref,
     "1",
   ]);
   assert.equal(rows[1][3], "1");
@@ -484,7 +490,7 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
   assert.match(text, /"Date and time","Type","Name"/);
   assert.match(
     text,
-    /"Product","Widget A","WA-1","2","Draft","Line 1","Press Shop","Code 1"/,
+    /"Product","Widget A","WA-1","2","Draft","Line 1","Press Shop","Admin 1"/,
   );
   await page.click("[data-a=logClear]");
   assert.match(await page.textContent("#app"), /No PDFs made yet/);
@@ -549,10 +555,12 @@ test("approval: request by email, sign with the approver code, import, and draft
     assert.match(await A.page.textContent(".card, #app"), /Widget A/);
 
     // Approver: opens the request, reviews, signs.
-    const B = await open(site.url);
-    await setupCompany(B.page);
+    // Approver: logs in with the approver code and lands on Approvals.
+    const B = await open(site.url, { access: false });
+    await B.page.fill("#lockCode", CODE.toLowerCase());
+    await B.page.click("#lock button");
+    await B.page.waitForSelector("[data-apreq]", { state: "attached" });
     await stubMail(B.page);
-    await B.page.click("[data-a=goAp]");
     await B.page.setInputFiles("[data-apreq]", saveTo(req));
     await B.page.waitForSelector(".apform h3");
     assert.match(
@@ -562,28 +570,19 @@ test("approval: request by email, sign with the approver code, import, and draft
     const rv = await download(B.page, () => B.page.click("[data-a=apPdf]"));
     assert.ok(rv.name.startsWith("REVIEW_"));
     assert.ok(pdfText(rv.bytes).includes("FOR REVIEW"));
-    // The approver must type their name; it is remembered next time.
-    await B.page.fill("#apcode", CODE);
+    // Signed with the login code: no code box. The name is required.
+    assert.equal(await B.page.locator("#apcode").count(), 0);
     await B.page.click("[data-a=apSign]");
     await B.page.waitForSelector("p.err");
     assert.match(await B.page.textContent("p.err"), /Enter your name/);
     await B.page.fill("[data-apn]", "Sam Lee");
-    await B.page.fill("#apcode", "WRONG-CODE");
-    await B.page.click("[data-a=apSign]");
-    await B.page.waitForSelector("p.err");
-    assert.match(
-      await B.page.textContent("p.err"),
-      /approver code is not right/,
-    );
 
     // Rejecting needs a comment; the author sees it.
     await B.page.check('input[name="apdec"][value="rejected"]');
-    await B.page.fill("#apcode", CODE);
     await B.page.click("[data-a=apSign]");
     await B.page.waitForSelector("p.err");
     assert.match(await B.page.textContent("p.err"), /Say what must change/);
     await B.page.fill("[data-apc]", "Add the torque for the second clamp.");
-    await B.page.fill("#apcode", CODE);
     const no = await download(B.page, () => B.page.click("[data-a=apSign]"));
     assert.equal(no.name, "Approval - Widget A - rev 1 - rejected.json");
     assert.equal(
@@ -597,12 +596,23 @@ test("approval: request by email, sign with the approver code, import, and draft
       /Add the torque for the second clamp/,
     );
 
-    // Approve the same request (code typed in lower case still works).
+    // After a reload the approver is still logged in, but must type the code
+    // again to sign (it is never stored); another code is refused.
+    await B.page.reload();
+    await stubMail(B.page);
     await B.page.setInputFiles("[data-apreq]", saveTo(req));
     await B.page.waitForSelector("[data-a=apSign]");
     assert.equal(await B.page.inputValue("[data-apn]"), "Sam Lee");
     await B.page.fill("[data-apc]", "Looks good.");
-    await B.page.fill("#apcode", CODE.toLowerCase());
+    await B.page.fill("#apcode", "WRONG-CODE-1234");
+    await B.page.click("[data-a=apSign]");
+    await B.page.waitForSelector("p.err");
+    assert.match(
+      await B.page.textContent("p.err"),
+      /not the approver code you logged in with/,
+    );
+    await B.page.fill("[data-apc]", "Looks good.");
+    await B.page.fill("#apcode", CODE);
     const ok = await download(B.page, () => B.page.click("[data-a=apSign]"));
     assert.equal(ok.name, "Approval - Widget A - rev 1 - approved.json");
 
@@ -655,6 +665,80 @@ test("approval: request by email, sign with the approver code, import, and draft
     assert.deepEqual(B.errors, []);
     await A.ctx.close();
     await B.ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+test("each code opens its own pages, and Log out lets the next person log in", async () => {
+  const AUTHOR = "TEST-AUTHOR-0001",
+    ADMINC = "TEST-ADMIN-0001",
+    APPR = "TEST-APPROVER-0001",
+    { pub } = await apKeys(APPR);
+  const site = await serve({
+    "/js/access.js": `const ACCESS_CODES = [["Test Author", "${codeHash(AUTHOR)}"]];`,
+    "/js/admins.js": `const ADMIN_CODES = [["Test Admin", "${codeHash(ADMINC)}"]];`,
+    "/js/approvers.js": `const APPROVERS = [["Test Approver", "${pub}"]];`,
+  });
+  const login = async (page, code) => {
+    await page.waitForSelector("#lockCode");
+    await page.fill("#lockCode", code);
+    await page.click("#lock button");
+    await page.waitForSelector(".ubar");
+  };
+  const logout = async (page) => {
+    await page.click("[data-a=logout]");
+    await page.waitForSelector("#lockCode");
+  };
+  try {
+    const { ctx, page, errors } = await open(site.url, { access: false });
+    // Author: products and machines, no print log.
+    await login(page, AUTHOR);
+    assert.match(await page.textContent(".ubar"), /Author · Test Author/);
+    await setupCompany(page);
+    assert.ok(await page.isVisible("[data-a=tab][data-t=p]"));
+    assert.equal(await page.locator("[data-a=goLog]").count(), 0);
+    assert.equal(await page.locator("[data-a=clearAll]").count(), 0);
+    await page.evaluate(() => {
+      T = "log";
+      R();
+    });
+    assert.doesNotMatch(await page.textContent("h1"), /Print log/);
+    await page.click("[data-a=goAp]");
+    assert.equal(
+      await page.locator("[data-apreq]").count(),
+      0,
+      "authors do not review",
+    );
+    assert.equal(await page.locator("[data-apfile]").count(), 1);
+    await page.reload();
+    await page.waitForSelector(".ubar"); // still logged in
+    await logout(page);
+
+    // Admin: same data, plus the print log.
+    await login(page, ADMINC);
+    assert.match(await page.textContent(".ubar"), /Admin · Test Admin/);
+    assert.match(await page.textContent("#app"), /ACME Ltd/);
+    await page.click("[data-a=goLog]");
+    assert.match(await page.textContent("h1"), /Print log/);
+    await logout(page);
+
+    // Approver: only the Approvals page.
+    await login(page, APPR);
+    assert.match(await page.textContent(".ubar"), /Approver · Test Approver/);
+    assert.match(await page.textContent("h1"), /Approvals/);
+    assert.equal(await page.locator("[data-a=goHome]").count(), 0);
+    assert.equal(await page.locator("[data-apreq]").count(), 1);
+    await page.evaluate(() => {
+      T = "h";
+      R();
+    });
+    assert.match(await page.textContent("h1"), /Approvals/);
+    await page.reload();
+    await page.waitForSelector("[data-apreq]", { state: "attached" });
+    await logout(page);
+    assert.deepEqual(errors, []);
+    await ctx.close();
   } finally {
     site.close();
   }
