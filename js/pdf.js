@@ -527,8 +527,9 @@ async function mkPdf() {
     d.text("Date", x + c2 * 0.65, y + 28);
   });
   y += 36;
-  // Which access code made this PDF: a short reference in the footer and in
-  // the file's properties (look it up with: npm run code -- find REF).
+  // Which access code made this PDF: a short reference in the file's
+  // properties, hidden text and tracking dots (never printed as text).
+  // Look it up with: npm run code -- find REF.
   const ref = accessRef(),
     now = new Date(),
     printed =
@@ -564,14 +565,7 @@ async function mkPdf() {
     d.setFontSize(8);
     tc(G);
     d.text((p.name || "") + "  Rev " + (p.rev || "-"), M, 289);
-    d.text(
-      (ref ? "Ref " + ref + "   " : "") + "Page " + i + " of " + n,
-      W - M,
-      289,
-      {
-        align: "right",
-      },
-    );
+    d.text("Page " + i + " of " + n, W - M, 289, { align: "right" });
   }
   await dl(
     (p.name || "setup-procedure").replace(/[^\w-]+/g, "_") +
