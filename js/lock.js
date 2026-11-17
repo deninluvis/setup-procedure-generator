@@ -45,6 +45,11 @@ function readSession() {
 }
 function hasAccess() {
   SESSION = noCodes() ? { r: "admin", id: "", name: "" } : readSession();
+  // A login left unused for too long (even with the browser closed) has ended.
+  if (SESSION && SESSION.name && Date.now() - lastSeen() >= IDLE_MS) {
+    endLogin(true);
+    return false;
+  }
   return !!SESSION;
 }
 const isAdmin = () => !!SESSION && SESSION.r == "admin";
@@ -53,14 +58,71 @@ const isApprover = () => !!SESSION && SESSION.r == "approver";
 const accessName = () => (SESSION ? SESSION.name : "");
 const accessRef = () => (SESSION && SESSION.id ? codeRef(SESSION.id) : "");
 
-function logout() {
+// Forget the login. idle = it ended after no activity (the login screen says so).
+function endLogin(idle) {
   try {
     localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(ACTIVE_KEY);
+    if (idle) sessionStorage.setItem("sp-idle-out", "1");
   } catch (e) {}
   memSession = null;
   SESSION = null;
   APCODE = "";
+}
+function logout(idle) {
+  endLogin(idle);
   location.reload();
+}
+
+// ---------- Automatic log-out ----------
+// After IDLE_MS without a click, key press, touch or scroll (in any tab of the
+// app), the login ends, so a forgotten login on a shared computer does not
+// stay open. A warning with "Stay logged in" shows one minute before.
+// Everything is saved as it is typed, so no work is lost.
+const ACTIVE_KEY = "sp-active"; // time of the last activity (shared by tabs)
+let IDLE_MS = 30 * 60 * 1000,
+  lastActive = 0, // in this tab (0 = nothing yet)
+  lastWrite = 0,
+  idleTimer = null;
+// Last activity in any tab. No record at all (e.g. a login from before this
+// feature) counts as active now.
+const lastSeen = () => {
+  let t = 0;
+  try {
+    t = +localStorage.getItem(ACTIVE_KEY) || 0;
+  } catch (e) {}
+  return Math.max(t, lastActive) || Date.now();
+};
+function markActive() {
+  lastActive = Date.now();
+  if (lastActive - lastWrite > 10000) {
+    lastWrite = lastActive;
+    try {
+      localStorage.setItem(ACTIVE_KEY, String(lastActive));
+    } catch (e) {}
+  }
+  const w = $("#idlewarn");
+  if (w) w.remove();
+}
+function checkIdle() {
+  if (!SESSION || !SESSION.name) return;
+  const left = IDLE_MS - (Date.now() - lastSeen());
+  if (left <= 0) return logout(true);
+  if (left <= Math.min(60000, IDLE_MS / 2) && !$("#idlewarn")) {
+    const w = document.createElement("div");
+    w.id = "idlewarn";
+    w.setAttribute("role", "alertdialog");
+    w.innerHTML = `<span>No activity: you will be logged out in less than a minute.</span><button class="tb" data-stay="1">Stay logged in</button>`;
+    document.body.append(w);
+    w.querySelector("button").focus();
+  }
+}
+function startIdleWatch() {
+  if (!SESSION || !SESSION.name || idleTimer) return;
+  markActive();
+  for (const ev of ["pointerdown", "keydown", "wheel", "touchstart", "input"])
+    document.addEventListener(ev, markActive, { capture: true, passive: true });
+  idleTimer = setInterval(checkIdle, Math.min(5000, IDLE_MS / 4));
 }
 
 // "Logged in: Author · Code 4   Log out", at the top of every page.
@@ -90,12 +152,19 @@ async function findCode(code) {
 // Show the login screen; calls open() once a valid code is entered.
 function showLock(open) {
   const old = savedSession();
+  let idle = false;
+  try {
+    idle = sessionStorage.getItem("sp-idle-out") == "1";
+    sessionStorage.removeItem("sp-idle-out");
+  } catch (e) {}
   $("#app").innerHTML =
     `<form id="lock" class="lock" autocomplete="off"><h1>Setup Procedures</h1>` +
     `<p class="m">Log in with your code: an access code, admin code or approver code.</p>` +
-    (old
-      ? `<p class="err">Your code no longer works. Ask for a new one.</p>`
-      : "") +
+    (idle
+      ? `<p class="note">You were logged out after ${Math.round(IDLE_MS / 60000)} minutes without activity. Your work was saved.</p>`
+      : old
+        ? `<p class="err">Your code no longer works. Ask for a new one.</p>`
+        : "") +
     `<label class="f">Your code<input id="lockCode" type="password" autocomplete="off" autocapitalize="characters" spellcheck="false" required></label>` +
     `<p class="err" id="lockErr" role="alert"></p>` +
     `<button class="b" type="submit">Log in</button>` +

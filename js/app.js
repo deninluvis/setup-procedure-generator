@@ -19,6 +19,7 @@ const startApp = () =>
     initState(d);
     if (isApprover()) T = "ap";
     R();
+    startIdleWatch();
   });
 if (hasAccess()) startApp();
 else showLock(startApp);

@@ -743,3 +743,59 @@ test("each code opens its own pages, and Log out lets the next person log in", a
     site.close();
   }
 });
+
+test("an unused login ends by itself, with a warning first", async () => {
+  const AUTHOR = "TEST-AUTHOR-0002";
+  const site = await serve({
+    "/js/access.js": `const ACCESS_CODES = [["Test Author", "${codeHash(AUTHOR)}"]];`,
+  });
+  try {
+    const { ctx, page, errors } = await open(site.url, { access: false });
+    const login = async () => {
+      await page.fill("#lockCode", AUTHOR);
+      await page.click("#lock button");
+      await page.waitForSelector(".ubar");
+    };
+    await login();
+    // Short timeout for the test (normally 30 minutes).
+    await page.evaluate(() => {
+      IDLE_MS = 4000;
+      clearInterval(idleTimer);
+      idleTimer = null;
+      startIdleWatch();
+    });
+    await page.waitForSelector("#idlewarn");
+    assert.match(
+      await page.textContent("#idlewarn"),
+      /logged out in less than a minute/,
+    );
+    await page.click("#idlewarn [data-stay]");
+    assert.equal(await page.locator("#idlewarn").count(), 0);
+    assert.ok(await page.isVisible(".ubar"), "still logged in");
+    await page.waitForSelector("#lockCode", { timeout: 15000 });
+    assert.match(
+      await page.textContent("#lock"),
+      /logged out after .* without activity/,
+    );
+
+    // A login left for longer than 30 minutes (browser closed) has ended too.
+    await login();
+    await page.evaluate(() =>
+      localStorage.setItem("sp-active", String(Date.now() - 31 * 60 * 1000)),
+    );
+    await page.reload();
+    await page.waitForSelector("#lockCode");
+    assert.match(
+      await page.textContent("#lock"),
+      /logged out after 30 minutes/,
+    );
+    // A recent login is kept.
+    await login();
+    await page.reload();
+    await page.waitForSelector(".ubar");
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  } finally {
+    site.close();
+  }
+});

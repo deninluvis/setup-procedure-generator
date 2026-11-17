@@ -571,6 +571,7 @@ input[type="radio"] {
   display: none;
 }
 #toast .tb,
+#idlewarn .tb,
 #toast .tx {
   font: inherit;
   font-weight: 700;
@@ -850,4 +851,21 @@ body.mkopen {
 }
 .ubar .lk {
   margin: 0;
+}
+/* "You will be logged out" warning (same look as the undo bar). */
+#idlewarn {
+  position: fixed;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--tx);
+  color: var(--bg);
+  padding: 10px 14px;
+  border-radius: 10px;
+  max-width: calc(100% - 32px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }

@@ -95,7 +95,10 @@ the code decides what they can do:
 
 The top of every page shows who is logged in, with a **Log out** button. On a shared
 computer, log out when you finish; the next person logs in with their own code. A login
-is remembered in that browser until Log out. Codes are not case-sensitive, and spaces
+is remembered in that browser until Log out, or until **30 minutes without activity**
+(no click, key press, touch or scroll, also with the browser closed): then it ends by
+itself. A warning with **Stay logged in** shows a minute before. Everything is saved as
+you type, so no work is lost. Codes are not case-sensitive, and spaces
 and dashes don't matter. Procedures are shared by everyone who uses that browser.
 
 Access and admin codes keep out casual visitors only: the repository is public, so
