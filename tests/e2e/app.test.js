@@ -149,8 +149,8 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   assert.ok(!s.includes("Ear protection"), "unticked PPE is not printed");
   const ref = "Ref " + ACCESS.slice(0, 6).toUpperCase();
   assert.ok(
-    s.includes(ref + "   Page 1 of"),
-    "footer shows the access code reference",
+    !s.includes(ref + "   Page"),
+    "footer does not print the reference",
   );
   assert.ok(
     s.includes("/Keywords (" + ref),

@@ -94,10 +94,10 @@ Manage codes from the repository folder (needs Node.js):
    Browsers that used it ask for a code again the next time they open the app online.
 4. Commit and push the change, and merge it into `main` so the website picks it up.
 
-**Which code made a PDF?** Every PDF shows a short reference in its footer, next to the
-page number, for example `Ref 6AA165   Page 1 of 4`. The same reference and the date and
-time it was made are in the PDF's file properties (Keywords). The reference is worked out
-from the code, so the code itself is never printed. To look it up:
+**Which code made a PDF?** Every PDF carries a short reference, for example `6AA165`, worked
+out from the code (the code itself is never in the PDF). It is not printed as text: it is
+in the PDF's file properties (Keywords, with the date and time it was made), in hidden
+text and in tracking dots (see below). To look it up:
 
 - `npm run code -- find 6AA165` prints the name of the code, for example "Code 1".
 - `npm run code -- list` shows every code's name with its PDF reference.
@@ -105,7 +105,7 @@ from the code, so the code itself is never printed. To look it up:
 A removed code's reference no longer appears in `list`, so note it down first if you may
 need it later.
 
-The reference is also hidden in two harder-to-remove places:
+Where to find the reference:
 
 - **Hidden text:** invisible text at the top and middle of every page:
   `Ref 6AA165 printed 2026-11-17 12:51`. It is not seen or printed, but searching the PDF
