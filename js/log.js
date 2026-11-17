@@ -23,7 +23,7 @@ function logPdf(p, file, pages, ref, status) {
     status: status || "",
   });
   if (S.log.length > LOG_MAX) S.log.length = LOG_MAX;
-  save();
+  save(true);
 }
 
 // "2026-11-17 13:42" in this computer's time zone.
@@ -61,7 +61,7 @@ function LogV() {
           .slice(0, 500)
           .map(
             (e) =>
-              `<tr><td>${logTime(e.t)}</td><td><b>${esc(e.name || "Untitled")}</b><span class="m">${e.kind == "machine" ? "Machine" : "Product · " + esc(e.line)}</span></td><td>${esc(e.code)}</td><td>${esc(e.rev)}</td><td>${esc(e.status || "")}</td><td>${esc(e.dept)}</td><td>${esc(logWho(e)) || "–"}</td><td>${esc(e.pages)}</td></tr>`,
+              `<tr><td>${logTime(e.t)}</td><td><b>${esc(e.name || "Untitled")}</b><span class="m">${e.kind == "machine" ? "Machine" : "Product · " + esc(e.line)}</span></td><td data-l="Code">${esc(e.code)}</td><td data-l="Rev">${esc(e.rev)}</td><td data-l="Status">${esc(e.status || "")}</td><td data-l="Department">${esc(e.dept)}</td><td data-l="Made by">${esc(logWho(e)) || "–"}</td><td data-l="Pages">${esc(e.pages)}</td></tr>`,
           )
           .join("") +
         `</tbody></table></div>` +

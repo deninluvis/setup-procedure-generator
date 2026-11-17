@@ -282,7 +282,9 @@ them (Undo brings them back until the page is closed).
 photo, product, machine, line, department, the logo, an import, or clearing all data), a
 bar at the bottom shows what happened with an **Undo** button for 10 seconds. Ctrl+Z
 (⌘Z on a Mac) also undoes when you are not typing in a field. Up to 20 actions can be
-undone, until the page is closed or reloaded.
+undone, until the page is closed or reloaded. Undo puts back everything as it was before
+that action: if you changed more since then, it asks first, and **Cancel** keeps your
+later work.
 
 ## Storage
 

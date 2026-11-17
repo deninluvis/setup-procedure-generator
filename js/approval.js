@@ -35,7 +35,7 @@ const allItems = () => [
   ...S.lines.flatMap((l) => l.products.map((p) => ({ p, kind: "product", l }))),
   ...S.machines.map((m) => ({ p: m, kind: "machine" })),
 ];
-const apDay = (iso) => logTime(iso).slice(0, 10);
+const apDay = (iso) => `<span class="nw">${logTime(iso).slice(0, 10)}</span>`;
 
 // Opens the person's email program with a message ready to send. A link
 // cannot attach files, so the page says which file to attach.
@@ -503,7 +503,7 @@ async function apRefresh() {
   if (p.ap && p.ap.st == "approved" && !!p.ap.chg != (r.st == "changed")) {
     if (r.st == "changed") p.ap.chg = true;
     else delete p.ap.chg;
-    save();
+    save(true);
   }
 }
 document.addEventListener("input", (e) => {

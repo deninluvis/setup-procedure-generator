@@ -31,7 +31,7 @@ function logAct(type, text) {
   S.act = S.act || [];
   S.act.unshift(actEntry(type, text));
   if (S.act.length > ACT_MAX) S.act.length = ACT_MAX;
-  save();
+  save(true);
 }
 function queueAct(e) {
   try {
@@ -51,7 +51,7 @@ function flushActQueue() {
   S.act = [...q.reverse(), ...(S.act || [])]
     .sort((x, y) => (x.t < y.t ? 1 : x.t > y.t ? -1 : 0))
     .slice(0, ACT_MAX);
-  save();
+  save(true);
 }
 
 // ---------- Change history ----------
@@ -169,14 +169,14 @@ function ActV() {
       )
       .join(
         "",
-      )}</select><input type="search" data-af="1" value="${esc(AF)}" placeholder="Filter: name, product, date or text" aria-label="Filter the activity log" style="flex:1"></div>` +
+      )}</select><input type="search" data-af="1" value="${esc(AF)}" placeholder="Filter: name, product, date or text" aria-label="Filter the activity log" style="flex:1;min-width:0"></div>` +
     `<p class="m">${AF.trim() || AT ? `${count(list.length, "entry", "entries")} of ${all.length}` : count(all.length, "entry", "entries")}</p>` +
     `<div class="logw"><table class="log alog"><thead><tr><th>Date and time</th><th>Type</th><th>What</th><th>Who</th></tr></thead><tbody>` +
     list
       .slice(0, 500)
       .map(
         (e) =>
-          `<tr class="act-${esc(e.type)}"><td>${logTime(e.t)}</td><td>${esc(ACT_TYPES[e.type] || e.type)}</td><td>${esc(e.text)}</td><td>${esc(actWho(e))}</td></tr>`,
+          `<tr class="act-${esc(e.type)}"><td>${logTime(e.t)}</td><td>${esc(ACT_TYPES[e.type] || e.type)}</td><td>${esc(e.text)}</td><td data-l="By">${esc(actWho(e))}</td></tr>`,
       )
       .join("") +
     `</tbody></table></div>` +
@@ -229,7 +229,7 @@ function CodesV() {
     rows
       .map(
         (x) =>
-          `<tr${x.logins || x.pdfs ? "" : ` class="unused"`}><td><b>${esc(x.name)}</b></td><td>${ROLE_NAMES[x.r]}</td><td>${x.logins}</td><td>${x.last ? logTime(x.last) : "–"}</td><td>${x.pdfs}</td><td>${x.lastPdf ? logTime(x.lastPdf) : "–"}</td><td>${esc(x.people.join(", ")) || "–"}</td></tr>`,
+          `<tr${x.logins || x.pdfs ? "" : ` class="unused"`}><td><b>${esc(x.name)}</b></td><td data-l="Role">${ROLE_NAMES[x.r]}</td><td data-l="Logins">${x.logins}</td><td data-l="Last login">${x.last ? logTime(x.last) : "–"}</td><td data-l="PDFs">${x.pdfs}</td><td data-l="Last PDF">${x.lastPdf ? logTime(x.lastPdf) : "–"}</td><td data-l="Names used">${esc(x.people.join(", ")) || "–"}</td></tr>`,
       )
       .join("") +
     `</tbody></table></div><button class="b" data-a="codesCsv">Download code usage (Excel / CSV)</button>`

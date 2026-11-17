@@ -899,3 +899,41 @@ body.mkopen {
   color: var(--dg);
   font-weight: 600;
 }
+.nw {
+  white-space: nowrap;
+}
+.alog td:nth-child(4) {
+  min-width: 9em;
+}
+/* On phones, log tables become one card per row, with labels. */
+@media (max-width: 600px) {
+  .log thead {
+    display: none;
+  }
+  .log,
+  .log tbody,
+  .log tr,
+  .log td {
+    display: block;
+  }
+  .log tr {
+    border-bottom: 1px solid var(--bd);
+    padding: 8px 0;
+  }
+  .log th,
+  .log td {
+    border: 0;
+    padding: 1px 0;
+    min-width: 0;
+  }
+  .log td[data-l]::before {
+    content: attr(data-l) ": ";
+    color: var(--mut);
+  }
+  .alog td:nth-child(1),
+  .alog td:nth-child(2) {
+    display: inline-block;
+    margin-right: 8px;
+    font-weight: 600;
+  }
+}

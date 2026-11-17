@@ -51,7 +51,11 @@ const writeNow = async () => {
     return false;
   }
 };
-const save = () => {
+// EDITS counts changes, so Undo can warn when it would also throw away
+// later work. quiet = not a change by the user (e.g. a log entry).
+let EDITS = 0;
+const save = (quiet) => {
+  if (!quiet) EDITS++;
   if (writing) {
     dirty = true;
     return;
@@ -60,7 +64,7 @@ const save = () => {
     writing = null;
     if (dirty) {
       dirty = false;
-      save();
+      save(true);
     }
   });
 };

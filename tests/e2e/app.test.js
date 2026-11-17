@@ -943,3 +943,32 @@ test("admins see activity, print log and code usage; authors' names fill in Prep
     site.close();
   }
 });
+
+test("undo warns before also undoing later changes", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.click("[data-a=addTool]");
+  await page.keyboard.type("Wrench");
+  await page.click('[data-a=rmTool][data-i="0"]');
+  // Undo straight away: no question.
+  let asked = 0;
+  page.removeAllListeners("dialog");
+  page.on("dialog", (d) => {
+    asked++;
+    d.dismiss();
+  });
+  await page.click("#toast [data-undo]");
+  assert.equal(asked, 0);
+  assert.equal(await page.inputValue('[data-tool="0"][data-tk="n"]'), "Wrench");
+  // Remove again, then keep working: Ctrl+Z asks, and Cancel keeps the work.
+  await page.click('[data-a=rmTool][data-i="0"]');
+  await page.fill('[data-s="0"]', "Later work");
+  await page.click("h1");
+  await page.keyboard.press("Control+z");
+  assert.equal(asked, 1);
+  assert.equal(await page.inputValue('[data-s="0"]'), "Later work");
+  assert.equal(await page.locator("[data-tool]").count(), 0);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
