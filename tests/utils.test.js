@@ -249,3 +249,17 @@ test('sub-step photos: storage refs, ZIP paths and missing-photo report', () => 
   assert.deepEqual(back.data.lines, S.lines);
   assert.ok(imgRefs(data).some((r) => r.what == 'Step 2.2 photo' && r.path.endsWith('step-2-2.jpg')));
 });
+
+test('sha256 matches known values', () => {
+  const { sha256 } = require('../js/utils.js');
+  assert.equal(sha256(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  assert.equal(sha256('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  assert.equal(sha256('x'.repeat(200)), require('node:crypto').createHash('sha256').update('x'.repeat(200)).digest('hex'));
+});
+
+test('access codes ignore case, spaces and dashes', () => {
+  const { codeHash, normCode } = require('../js/utils.js');
+  assert.equal(normCode(' ab12-cd34 ef '), 'AB12CD34EF');
+  assert.equal(codeHash('ab12-cd34'), codeHash('AB12 CD34'));
+  assert.notEqual(codeHash('AB12CD34'), codeHash('AB12CD35'));
+});

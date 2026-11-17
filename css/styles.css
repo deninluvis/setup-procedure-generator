@@ -662,3 +662,11 @@ input[type="radio"] {
   outline: 2px solid var(--ac);
   outline-offset: 2px;
 }
+/* Access code screen. */
+.lock {
+  max-width: 360px;
+  margin: 12vh auto 0;
+}
+.lock .err:empty {
+  display: none;
+}

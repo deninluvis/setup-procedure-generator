@@ -7,12 +7,17 @@
 //   transfer.js export & import (.zip)
 //   pdf.js      PDF export
 //   events.js   click / input / change handlers
-// Start: load saved data, then show the first screen.
+//   access.js   access codes (scrambled);  lock.js  access code screen
+// Start: ask for the access code if needed, then load saved data and show
+// the first screen.
 loadView();
-Store.load().then((d) => {
-  initState(d);
-  R();
-});
+const startApp = () =>
+  Store.load().then((d) => {
+    initState(d);
+    R();
+  });
+if (hasAccess()) startApp();
+else showLock(startApp);
 
 // Offline support when opened from a web address (not needed for file://).
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol))
