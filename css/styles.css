@@ -609,6 +609,11 @@ input[type="radio"] {
   .tl .tn {
     grid-column: 1 / -1;
   }
+  /* A line between tools, so each name stays with its size and quantity. */
+  .tl:not(.tlh) + .tl {
+    border-top: 1px solid var(--bd);
+    padding-top: 8px;
+  }
   .tlh {
     display: none;
   }
