@@ -555,3 +555,66 @@ test('itemDiff describes what changed in plain words', () => {
   ]);
   assert.deepEqual(itemDiff({ ...a, code: '' }, a, co, 'machine'), ['Asset ID set to "W1"']);
 });
+
+test("steps and sub-steps can hold several photos (img, then more)", async () => {
+  const { photosOf, setPhotos, apContent, apFingerprint } = require("../js/utils.js");
+  const A = "data:image/jpeg;base64,AAAA",
+    B = "data:image/jpeg;base64,BBBB",
+    C = "data:image/jpeg;base64,CCCC";
+  const o = { t: "x", img: "" };
+  assert.deepEqual(photosOf(o), []);
+  setPhotos(o, [A]);
+  assert.deepEqual(o, { t: "x", img: A }, "one photo: no more field");
+  setPhotos(o, [A, B, C]);
+  assert.deepEqual(o, { t: "x", img: A, more: [B, C] });
+  assert.deepEqual(photosOf(o), [A, B, C]);
+  setPhotos(o, photosOf(o).filter((x) => x != A));
+  assert.deepEqual(o, { t: "x", img: B, more: [C] });
+
+  // Backup: step-1.jpg, step-1 (2).jpg …; restored exactly; each listed.
+  const S = {
+    co: { name: "Co", depts: [] },
+    lines: [
+      {
+        id: "l",
+        name: "Line",
+        products: [
+          {
+            id: "p",
+            name: "W",
+            prod: [],
+            pack: [],
+            steps: [{ t: "a", img: A, more: [B], subs: [{ t: "s", img: C, more: [A] }] }],
+          },
+        ],
+      },
+    ],
+    machines: [],
+  };
+  const { data, files } = planBackup(S),
+    st = data.lines[0].products[0].steps[0];
+  assert.equal(st.img, "photos/Line/W/step-1.jpg");
+  assert.deepEqual(st.more, ["photos/Line/W/step-1 (2).jpg"]);
+  assert.equal(st.subs[0].img, "photos/Line/W/step-1-1.jpg");
+  assert.deepEqual(st.subs[0].more, ["photos/Line/W/step-1.jpg"], "same photo reused");
+  const json = JSON.parse(JSON.stringify(data));
+  assert.equal(imgPaths(json).size, 3);
+  const back = restoreImgs(json, new Map(files));
+  assert.equal(back.missing, 0);
+  assert.deepEqual(back.data.lines, S.lines);
+  assert.deepEqual(
+    imgRefs(json).map((r) => r.what),
+    ["Step 1 photo", "Step 1 photo 2", "Step 1.1 photo", "Step 1.1 photo 2"],
+  );
+
+  // Approvals: an item with one photo per step fingerprints as before;
+  // adding a second photo is a change.
+  const p = { name: "W", steps: [{ t: "a", img: A, subs: [] }] },
+    h = (x) => x.slice(-4);
+  assert.deepEqual(apContent(p, "product", "", h).steps[0].img, "AAAA");
+  assert.equal(apContent(p, "product", "", h).steps[0].more, undefined);
+  assert.notEqual(
+    await apFingerprint(p, "product", ""),
+    await apFingerprint({ ...p, steps: [{ ...p.steps[0], more: [B] }] }, "product", ""),
+  );
+});

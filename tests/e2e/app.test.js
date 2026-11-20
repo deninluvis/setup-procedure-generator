@@ -11,6 +11,7 @@ const { codeHash, apKeys } = require("../../js/utils.js");
 const ROOT = path.resolve(__dirname, "../..");
 const APP = "file://" + path.join(ROOT, "index.html");
 const PHOTO = path.join(ROOT, "tests/fixtures/photo.jpg");
+const PHOTO2 = path.join(ROOT, "tests/fixtures/photo2.jpg");
 // A valid access code (scrambled), so tests start past the access code screen.
 const ACCESS =
   (fs
@@ -205,6 +206,42 @@ test("changes are kept after reloading the page", async () => {
   await page.click('.card:has-text("Widget A")');
   assert.equal(await page.inputValue('[data-s="0"]'), "Saved text");
   assert.ok(await page.isChecked('[data-ppe="ear"]'));
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("a step and a sub-step take several photos, each removable, all in the PDF", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.fill('[data-s="0"]', "Fit the die");
+  // Two photos at once, then one more.
+  await page.setInputFiles('[data-up="step"][data-i="0"]', [PHOTO, PHOTO2]);
+  await page.waitForSelector('[data-a="rmSI"][data-i="0"][data-n="1"]');
+  await page.setInputFiles('[data-up="step"][data-i="0"]', PHOTO);
+  await page.waitForSelector('[data-a="rmSI"][data-i="0"][data-n="2"]');
+  assert.equal(await page.locator(".sph.many .simg").count(), 3);
+  assert.equal(await page.evaluate(() => P().steps[0].more.length), 2);
+  await page.click('[data-a=addSub][data-i="0"]');
+  await page.setInputFiles('[data-up="sub"][data-i="0"][data-j="0"]', [PHOTO, PHOTO2]);
+  await page.waitForSelector('[data-a="rmSubI"][data-j="0"][data-n="1"]');
+
+  const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
+  const imgs = (pdfText(bytes).match(/\/Subtype \/Image/g) || []).length;
+  assert.ok(imgs >= 2, `PDF should hold the photos (found ${imgs} images)`);
+
+  // Removing the first photo moves the next one up; Undo brings it back.
+  const first = await page.evaluate(() => P().steps[0].img);
+  await page.click('[data-a="rmSI"][data-i="0"][data-n="0"]');
+  assert.equal(await page.locator('[data-a="rmSI"][data-i="0"]').count(), 2);
+  assert.notEqual(await page.evaluate(() => P().steps[0].img), first);
+  await page.click("#toast [data-undo]");
+  assert.equal(await page.evaluate(() => P().steps[0].img), first);
+  assert.equal(await page.locator('[data-a="rmSI"][data-i="0"]').count(), 3);
+  // Down to one photo: the extra list goes away.
+  await page.click('[data-a="rmSI"][data-i="0"][data-n="2"]');
+  await page.click('[data-a="rmSI"][data-i="0"][data-n="1"]');
+  assert.equal(await page.evaluate(() => P().steps[0].more), undefined);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

@@ -218,6 +218,18 @@ textarea {
   margin-top: 6px;
   display: block;
 }
+/* Several photos on a step: side by side, smaller. */
+.sph.many {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.sph.many > div {
+  max-width: calc(50% - 6px);
+}
+.sph.many .simg {
+  max-height: 180px;
+}
 .two {
   display: grid;
   grid-template-columns: 1fr 1fr;

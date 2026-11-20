@@ -3,7 +3,7 @@
 // Every app file is stored on first visit. Online, the newest files are
 // fetched (and stored again); offline, the stored copies are used.
 // Add new app files to FILES and change VERSION when this list changes.
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHE = "setup-procedures-" + VERSION;
 const FILES = [
   "./",

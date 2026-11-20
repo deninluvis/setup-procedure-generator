@@ -130,8 +130,8 @@ const imgBytes = (p) =>
     ...(p.prod || []),
     ...(p.pack || []),
     ...(p.steps || []).flatMap((s) => [
-      s.img,
-      ...(s.subs || []).map((u) => u.img),
+      ...photosOf(s),
+      ...(s.subs || []).flatMap(photosOf),
     ]),
   ]
     .filter(Boolean)
@@ -454,7 +454,7 @@ const itemHelp = (mm) => {
 <ul>
 <li>A short <b>headline</b> (optional) is printed in bold, for example "Install the fixture".</li>
 <li>The <b>description</b> says exactly what to do, with values such as torque, speed or program number.</li>
-<li><b>＋ Add photo</b> adds one photo to the step, for example the part or the control panel.</li>
+<li><b>＋ Add photo</b> adds photos to the step or sub-step, for example the part and the control panel. You can pick several at once, or press <b>＋ Add another photo</b> later. In the PDF they are printed side by side. <b>Remove</b> under a photo removes just that one.</li>
 <li><b>↑ ↓</b> move a step up or down, and <b>✕</b> deletes it.</li>
 <li><b>＋ Insert step below</b> adds a new step right after that step; <b>＋ Add step</b> at the bottom adds one at the end. Steps renumber automatically.</li>
 <li><b>⚠ Add warning or note</b> on a step or sub-step adds a box. Choose its type: <b>Warning</b> (serious hazard, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful tip, blue), then describe it. In the PDF it prints in a box with the same colour edge, a symbol and the word WARNING, CAUTION or NOTE next to it. <b>✕</b> in the box removes it.</li>

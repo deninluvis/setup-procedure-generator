@@ -63,10 +63,23 @@ const deptSel = (p) => {
     .join("")}</select></label>`;
 };
 // One step on the product/machine page, with its sub-steps (3.1, 3.2, …).
-const photoBtn = (img, rm, up, mk) =>
-  img
-    ? `<img class="simg" src="${img}" alt=""><div class="row"><button class="lk" data-a="mk" ${mk}>✎ Mark up</button><button class="lk" ${rm}>Remove photo</button></div>`
-    : `<label class="b2">＋ Add photo<input type="file" accept="image/*" hidden ${up}></label>`;
+// Photos of a step or sub-step (o.img, then o.more): each with Mark up and
+// Remove; "Add photo" takes one or several at once. at = data-i (and data-j).
+const photoBtn = (o, rm, k, at) => {
+  const list = photosOf(o),
+    many = list.length > 1;
+  return (
+    (list.length
+      ? `<div class="sph${many ? " many" : ""}">${list
+          .map(
+            (img, n) =>
+              `<div><img class="simg" src="${img}" alt="${many ? `Photo ${n + 1}` : ""}"><div class="row"><button class="lk" data-a="mk" data-k="${k}" ${at} data-n="${n}">✎ Mark up</button><button class="lk" data-a="${rm}" ${at} data-n="${n}">Remove${many ? "" : " photo"}</button></div></div>`,
+          )
+          .join("")}</div>`
+      : "") +
+    `<label class="b2">＋ ${list.length ? "Add another photo" : "Add photo"}<input type="file" accept="image/*" multiple hidden data-up="${k}" ${at}></label>`
+  );
+};
 // Warning, Caution or Note on a step or sub-step (o.warn = text, o.wtype = type).
 // Same colours on the page and in the PDF.
 const NOTE_TYPES = {
@@ -117,7 +130,7 @@ const stepHtml = (s, i) => {
     NaN,
     `step ${i + 1}`,
   )}<textarea data-s="${i}"  }<textarea data-s="${i}" placeholder="Describe this step" aria-label="Step ${i + 1} description">${esc(s.t)}</textarea>
-${photoBtn(s.img, `data-a="rmSI" data-i="${i}"`, `data-up="step" data-i="${i}"`, `data-k="step" data-i="${i}"`)}
+${photoBtn(s, "rmSI", "step", `data-i="${i}"`)}
 ${subs
   .map(
     (
@@ -125,7 +138,7 @@ ${subs
       j,
     ) => `<div class="sub"><div class="sh"><span class="n2">${i + 1}.${j + 1}</span><span class="sp"></span><button class="sm" data-a="subUp" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} up">↑</button><button class="sm" data-a="subDn" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} down">↓</button><button class="sm" data-a="rmSub" data-i="${i}" data-j="${j}" aria-label="Delete sub-step ${i + 1}.${j + 1}">✕</button></div>
 ${noteHtml(u, i, j, `sub-step ${i + 1}.${j + 1}`)}<textarea data-ss="${i}" data-sj="${j}" rows="2" placeholder="Describe sub-step ${i + 1}.${j + 1}" aria-label="Sub-step ${i + 1}.${j + 1}">${esc(u.t)}</textarea>
-${photoBtn(u.img, `data-a="rmSubI" data-i="${i}" data-j="${j}"`, `data-up="sub" data-i="${i}" data-j="${j}"`, `data-k="sub" data-i="${i}" data-j="${j}"`)} ${u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : ""}</div>`,
+${photoBtn(u, "rmSubI", "sub", `data-i="${i}" data-j="${j}"`)} ${u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : ""}</div>`,
   )
   .join("")}
 <div class="row" style="flex-wrap:wrap">${s.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}">⚠ Add warning or note</button>` : ""}<button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
