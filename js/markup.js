@@ -13,24 +13,23 @@ const MK_TOOLS = [
   ["circle", "◯ Circle"],
   ["num", "① Number"],
 ];
-// The open editor: { k, i, j, img, shapes, tool, color, drag }
+// The open editor: { k, i, j, n, img, shapes, tool, color, drag }
 let MK = null;
 
 // The photo a markup button points at: k = "prod" / "pack" (gallery photo i),
-// "step" (step i) or "sub" (sub-step j of step i).
-const mkGet = (k, i, j) => {
-  const p = P();
-  return k == "step"
-    ? p.steps[i].img
-    : k == "sub"
-      ? p.steps[i].subs[j].img
-      : p[k][i];
+// "step" (photo n of step i) or "sub" (photo n of sub-step j of step i).
+const mkStep = (k, i, j) =>
+  k == "step" ? P().steps[i] : k == "sub" ? P().steps[i].subs[j] : null;
+const mkGet = (k, i, j, n = 0) => {
+  const o = mkStep(k, i, j);
+  return o ? photosOf(o)[n] : P()[k][i];
 };
-const mkSet = (k, i, j, v) => {
-  const p = P();
-  if (k == "step") p.steps[i].img = v;
-  else if (k == "sub") p.steps[i].subs[j].img = v;
-  else p[k][i] = v;
+const mkSet = (k, i, j, n, v) => {
+  const o = mkStep(k, i, j);
+  if (!o) return (P()[k][i] = v);
+  const a = photosOf(o);
+  a[n] = v;
+  setPhotos(o, a);
 };
 const mkWhere = (k, i, j) =>
   k == "step"
@@ -39,12 +38,22 @@ const mkWhere = (k, i, j) =>
       ? `sub-step ${i + 1}.${j + 1}`
       : "the photo";
 
-function openMarkup(k, i, j) {
-  const src = mkGet(k, i, j);
+function openMarkup(k, i, j, n = 0) {
+  const src = mkGet(k, i, j, n);
   if (!src) return;
   const img = new Image();
   img.onload = () => {
-    MK = { k, i, j, img, shapes: [], tool: "arrow", color: "red", drag: null };
+    MK = {
+      k,
+      i,
+      j,
+      n,
+      img,
+      shapes: [],
+      tool: "arrow",
+      color: "red",
+      drag: null,
+    };
     mkUI();
   };
   img.onerror = () => alert(BAD_IMG);
@@ -195,16 +204,16 @@ function mkDraw() {
 
 async function saveMarkup() {
   const c = $("#mkc"),
-    { k, i, j, shapes } = MK;
+    { k, i, j, n, shapes } = MK;
   if (!shapes.length) return closeMarkup();
   MK.drag = null;
   mkDraw();
-  const old = mkGet(k, i, j),
+  const old = mkGet(k, i, j, n),
     data = c.toDataURL("image/jpeg", 0.9);
   remember(`Photo marked up in ${mkWhere(k, i, j)}`);
-  mkSet(k, i, j, data);
+  mkSet(k, i, j, n, data);
   if (!(await writeNow())) {
-    mkSet(k, i, j, old);
+    mkSet(k, i, j, n, old);
     UNDO.pop();
     return;
   }

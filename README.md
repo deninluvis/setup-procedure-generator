@@ -3,7 +3,7 @@
 Browser-based tool for writing work setup procedures, per product (grouped by line) and per machine.
 
 - Photos of the product/machine and packaging or control panel
-- Step-by-step guides, each with an optional headline and photo (kept together on one PDF page)
+- Step-by-step guides, each with an optional headline and photos (kept together on one PDF page)
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
 - Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import backups as .zip files with photos as normal image files
@@ -176,12 +176,13 @@ With no codes listed in `js/access.js`, the app opens without asking.
    specification and quantity (Enter adds the next row; names you used before are
    suggested). In the PDF they print as a table before the procedure, with a box to
    tick for each tool.
-7. Add steps. Each step has an optional headline, a description and an optional photo.
+7. Add steps. Each step has an optional headline, a description and up to 3 photos
+   (pick several at once, or press **＋ Add another photo**; in the PDF they print side by side).
    - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
      at the end. Steps renumber automatically.
    - **↑ ↓** move a step up or down.
    - **＋ Add sub-step** adds numbered sub-steps (2.1, 2.2, …) inside a step, each with
-     its own text and optional photo, and ↑ ↓ ✕ to arrange them. In the PDF they are
+     its own text and optional photos, and ↑ ↓ ✕ to arrange them. In the PDF they are
      printed indented under their step, kept on the same page where possible.
    - Deleting a step that has sub-steps asks first.
    - **⚠ Add warning or note** on a step or sub-step adds a box with a type and a

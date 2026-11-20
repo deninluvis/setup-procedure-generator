@@ -63,6 +63,27 @@ const deptOf = (p, co) =>
 const deptName = (deptId, co) =>
   (co.depts.find((d) => d.id == deptId) || {}).name || "";
 
+// A step or sub-step keeps its first photo in img and any further photos in
+// more (an array, left out when empty), so older data stays the same.
+const photosOf = (o) =>
+  [o && o.img, ...((o && Array.isArray(o.more) && o.more) || [])].filter(
+    Boolean,
+  );
+function setPhotos(o, arr) {
+  const a = arr.filter(Boolean);
+  o.img = a[0] || "";
+  if (a.length > 1) o.more = a.slice(1);
+  else delete o.more;
+}
+// o with img and more passed through f (more only when it is there).
+const withPhotos = (o, f, g = f) => ({
+  ...o,
+  img: f(o.img, 0) || "",
+  ...(Array.isArray(o.more)
+    ? { more: o.more.map((v, n) => g(v, n + 1)).filter(Boolean) }
+    : {}),
+});
+
 // Copy of S with every image value passed through fn (product/machine photos,
 // packaging/panel photos, step photos and the logo). test picks which values.
 const mapImgs = (S, test, fn) => {
@@ -72,10 +93,9 @@ const mapImgs = (S, test, fn) => {
     prod: (p.prod || []).map(c).filter(Boolean),
     pack: (p.pack || []).map(c).filter(Boolean),
     steps: (p.steps || []).map((s) => ({
-      ...s,
-      img: c(s.img) || "",
+      ...withPhotos(s, c),
       ...(Array.isArray(s.subs)
-        ? { subs: s.subs.map((u) => ({ ...u, img: c(u.img) || "" })) }
+        ? { subs: s.subs.map((u) => withPhotos(u, c)) }
         : {}),
     })),
   });
@@ -147,18 +167,20 @@ const imgPlanner = () => {
       ...p,
       prod: (p.prod || []).map((v, i) => put(v, `${f}/${kinds[0]}-${i + 1}`)),
       pack: (p.pack || []).map((v, i) => put(v, `${f}/${kinds[1]}-${i + 1}`)),
-      steps: (p.steps || []).map((s, i) => ({
-        ...s,
-        img: put(s.img, `${f}/step-${i + 1}`),
-        ...(Array.isArray(s.subs)
-          ? {
-              subs: s.subs.map((u, j) => ({
-                ...u,
-                img: put(u.img, `${f}/step-${i + 1}-${j + 1}`),
-              })),
-            }
-          : {}),
-      })),
+      steps: (p.steps || []).map((s, i) => {
+        // step-2.jpg, then step-2 (2).jpg, step-2 (3).jpg … for more photos
+        const at = (b) => (v, n) => put(v, n ? `${b} (${n + 1})` : b);
+        return {
+          ...withPhotos(s, at(`${f}/step-${i + 1}`)),
+          ...(Array.isArray(s.subs)
+            ? {
+                subs: s.subs.map((u, j) =>
+                  withPhotos(u, at(`${f}/step-${i + 1}-${j + 1}`)),
+                ),
+              }
+            : {}),
+        };
+      }),
     };
   };
   return { files, put, item };
@@ -332,9 +354,13 @@ const imgRefs = (data) => {
     (p.pack || []).forEach((v, i) => add(v, `${b} ${i + 1}`));
     (p.steps || []).forEach((s, i) => {
       if (!s) return;
-      add(s.img, `Step ${i + 1} photo`);
+      const all = (o, what) =>
+        [o.img, ...(Array.isArray(o.more) ? o.more : [])].forEach((v, n) =>
+          add(v, n ? `${what} ${n + 1}` : what),
+        );
+      all(s, `Step ${i + 1} photo`);
       (Array.isArray(s.subs) ? s.subs : []).forEach(
-        (u, j) => u && add(u.img, `Step ${i + 1}.${j + 1} photo`),
+        (u, j) => u && all(u, `Step ${i + 1}.${j + 1} photo`),
       );
     });
   };
@@ -709,6 +735,13 @@ const stableJson = (v) =>
 const apContent = (p, kind, dept, imgHash) => {
   const s = (x) => String(x ?? "").trim(),
     img = (x) => (x ? imgHash(x) : ""),
+    // First photo as img; further photos (if any) as more.
+    pics = (o) => {
+      const a = photosOf(o).map(img);
+      return a.length > 1
+        ? { img: a[0], more: a.slice(1) }
+        : { img: a[0] || "" };
+    },
     note = (o) =>
       o.warn === undefined
         ? {}
@@ -730,11 +763,11 @@ const apContent = (p, kind, dept, imgHash) => {
     steps: (p.steps || []).map((st) => ({
       h: s(st.h),
       t: s(st.t),
-      img: img(st.img),
+      ...pics(st),
       ...note(st),
       subs: (st.subs || []).map((u) => ({
         t: s(u.t),
-        img: img(u.img),
+        ...pics(u),
         ...note(u),
       })),
     })),
@@ -750,8 +783,8 @@ const apImages = (p) =>
     ...(p.prod || []),
     ...(p.pack || []),
     ...(p.steps || []).flatMap((st) => [
-      st.img,
-      ...(st.subs || []).map((u) => u.img),
+      ...photosOf(st),
+      ...(st.subs || []).flatMap(photosOf),
     ]),
   ].filter(Boolean);
 // SHA-256 of an image's bytes (the part after "base64,"), as hex.
@@ -903,6 +936,8 @@ function itemDiff(a, b, co, kind) {
 
 if (typeof module !== "undefined")
   module.exports = {
+    photosOf,
+    setPhotos,
     itemDiff,
     stableJson,
     apContent,

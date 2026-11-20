@@ -431,6 +431,49 @@ async function mkPdf(o) {
     d.setDrawColor(...K);
     y = by + h + 2;
   };
+  // Photos of a step or sub-step, side by side, wrapping into rows. One photo
+  // is printed at its full size [mw, mh]; with more, each is at most half the
+  // width available (aw), so two fit in a row. -> rows: [[s, w, h]], height.
+  const picRows = (o, aw, mw, mh) => {
+    const list = photosOf(o),
+      gap = 4,
+      cw = list.length > 1 ? Math.min(mw, (aw - gap) / 2) : mw,
+      ch = list.length > 1 ? Math.min(mh, (cw * mh) / mw) : mh,
+      rows = [];
+    let row = [],
+      x = 0;
+    for (const s of list) {
+      const [w, h] = fit(s, cw, ch);
+      if (row.length && x + w > aw + 0.1) {
+        rows.push(row);
+        row = [];
+        x = 0;
+      }
+      row.push([s, w, h]);
+      x += w + gap;
+    }
+    if (row.length) rows.push(row);
+    const rh = (r) => Math.max(...r.map((q) => q[2]));
+    return {
+      rows,
+      rh,
+      h: rows.reduce((a, r) => a + 2 + rh(r), 0),
+    };
+  };
+  // Draw them at x (rows that do not fit move to the next page).
+  const pics = (pr, x) => {
+    for (const r of pr.rows) {
+      y += 2;
+      const h = pr.rh(r);
+      need(h + 1);
+      let cx = x;
+      for (const [s, w, ph] of r) {
+        box(s, cx, w, ph);
+        cx += w + 4;
+      }
+      y += h;
+    }
+  };
   // Height of a sub-step and of a whole step (with its notes, photos and
   // sub-steps), used to keep them together on one page where they fit.
   const subH = (u) =>
@@ -439,7 +482,7 @@ async function mkPdf(o) {
         ? noteBoxH(String(u.warn).trim(), CW - 21) + 3
         : 0) +
         (u.t ? textH(u.t, CW - 21, 10.5, 0) : 0) +
-        (u.img ? 2 + fit(u.img, ...PH.sub)[1] : 0),
+        picRows(u, CW - 21, ...PH.sub).h,
       5,
     );
   const stepH = (s) => {
@@ -448,7 +491,7 @@ async function mkPdf(o) {
     const warn = String(s.warn || "").trim();
     if (warn) sh += noteBoxH(warn, CW - 9) + 3;
     if (s.t) sh += textH(s.t, CW - 9, 10.5, 0);
-    if (s.img) sh += 2 + fit(s.img, ...PH.step)[1];
+    sh += picRows(s, CW - 9, ...PH.step).h;
     (s.subs || []).forEach((u) => (sh += 3 + subH(u)));
     return Math.max(sh, 7);
   };
@@ -478,13 +521,7 @@ async function mkPdf(o) {
       drawNote(noteType(s), warn, M + 9, CW - 9);
     }
     if (s.t) para(s.t, M + 9, CW - 9, 10.5, 0, [45, 45, 45]);
-    if (s.img) {
-      y += 2;
-      const [w, h] = fit(s.img, ...PH.step);
-      need(h + 1);
-      box(s.img, M + 9, w, h);
-      y += h;
-    }
+    pics(picRows(s, CW - 9, ...PH.step), M + 9);
     // Sub-steps: numbered 3.1, 3.2 … and indented under the step.
     (s.subs || []).forEach((u, j) => {
       y += 3;
@@ -499,13 +536,7 @@ async function mkPdf(o) {
       const uw = String(u.warn || "").trim();
       if (uw) drawNote(noteType(u), uw, M + 21, CW - 21);
       if (u.t) para(u.t, M + 21, CW - 21, 10.5, 0, [45, 45, 45]);
-      if (u.img) {
-        y += 2;
-        const [w, h] = fit(u.img, ...PH.sub);
-        need(h + 1);
-        box(u.img, M + 21, w, h);
-        y += h;
-      }
+      pics(picRows(u, CW - 21, ...PH.sub), M + 21);
       if (d.getNumberOfPages() == spg && y < sy + 5) y = sy + 5;
     });
     // Minimum step height, only if the step did not run onto a new page.

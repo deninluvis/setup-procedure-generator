@@ -123,7 +123,11 @@ document.addEventListener("click", (e) => {
     P().steps[i].subs.splice(j, 1);
   } else if (a == "rmSubI") {
     remember(`Photo removed from sub-step ${i + 1}.${j + 1}`);
-    P().steps[i].subs[j].img = "";
+    const u = P().steps[i].subs[j];
+    setPhotos(
+      u,
+      photosOf(u).filter((x, n) => n != (+t.dataset.n || 0)),
+    );
   } else if (a == "subUp" && j > 0) {
     const u = P().steps[i].subs;
     [u[j - 1], u[j]] = [u[j], u[j - 1]];
@@ -134,7 +138,11 @@ document.addEventListener("click", (e) => {
     focus = `[data-a=subDn][data-i="${i}"][data-j="${j + 1}"]`;
   } else if (a == "rmSI") {
     remember(`Photo removed from step ${i + 1}`);
-    P().steps[i].img = "";
+    const s = P().steps[i];
+    setPhotos(
+      s,
+      photosOf(s).filter((x, n) => n != (+t.dataset.n || 0)),
+    );
   } else if (a == "up" && i > 0) {
     const s = P().steps;
     [s[i - 1], s[i]] = [s[i], s[i - 1]];
@@ -263,7 +271,7 @@ document.addEventListener("click", (e) => {
     if (APMAIL) openMail(APMAIL.to, APMAIL.subject, APMAIL.body);
     return;
   } else if (a == "mk") {
-    openMarkup(t.dataset.k, i, j);
+    openMarkup(t.dataset.k, i, j, +t.dataset.n || 0);
     return;
   } else if (a == "logout") {
     if (!confirm("Log out? The next person logs in with their own code."))
@@ -542,8 +550,19 @@ document.addEventListener("change", async (e) => {
     k = t.dataset.up,
     si = +t.dataset.i,
     sj = +t.dataset.j,
-    files = [...t.files];
+    o0 = k == "step" ? p.steps[si] : k == "sub" ? p.steps[si].subs[sj] : null;
+  let files = [...t.files];
   t.value = "";
+  // A step or sub-step holds at most MAX_STEP_PHOTOS photos.
+  if (o0) {
+    const room = Math.max(0, MAX_STEP_PHOTOS - photosOf(o0).length);
+    if (files.length > room) {
+      alert(
+        `A step can have up to ${MAX_STEP_PHOTOS} photos. ${room ? `Only the first ${count(room, "photo", "photos")} you picked ${room == 1 ? "was" : "were"} added.` : "Remove one to add another."}`,
+      );
+      files = files.slice(0, room);
+    }
+  }
   // Add and save photos one at a time; if storage fills up, keep the ones
   // that fit and undo the one that did not.
   for (const f of files) {
@@ -552,18 +571,14 @@ document.addEventListener("change", async (e) => {
       alert(BAD_IMG);
       continue;
     }
-    const before =
-      k == "step"
-        ? p.steps[si].img
-        : k == "sub"
-          ? p.steps[si].subs[sj].img
-          : null;
-    if (k == "step") p.steps[si].img = d;
-    else if (k == "sub") p.steps[si].subs[sj].img = d;
+    // Step and sub-step photos are added after the ones already there.
+    const o =
+        k == "step" ? p.steps[si] : k == "sub" ? p.steps[si].subs[sj] : null,
+      before = o && photosOf(o);
+    if (o) setPhotos(o, [...before, d]);
     else p[k].push(d);
     if (!(await writeNow())) {
-      if (k == "step") p.steps[si].img = before;
-      else if (k == "sub") p.steps[si].subs[sj].img = before;
+      if (o) setPhotos(o, before);
       else p[k].pop();
       break;
     }
