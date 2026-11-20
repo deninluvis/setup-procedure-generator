@@ -218,6 +218,40 @@ textarea {
   margin-top: 6px;
   display: block;
 }
+/* Buttons under a step or sub-step: wrap with even gaps on phones. */
+.row.acts {
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 10px 0;
+}
+.row.acts .m {
+  margin: 0;
+}
+/* On phones: two equal columns, so the buttons line up. The step's own
+   buttons get a line above them, apart from its sub-steps. */
+@media (max-width: 520px) {
+  .row.acts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+  .row.acts > .b2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    padding: 9px 8px;
+    text-align: center;
+    min-width: 0;
+  }
+  .row.acts > .m {
+    grid-column: 1 / -1;
+  }
+  .row.acts.st {
+    border-top: 1px solid var(--bd);
+    padding-top: 10px;
+  }
+}
 /* Several photos on a step: side by side, smaller. */
 .sph.many {
   display: flex;
