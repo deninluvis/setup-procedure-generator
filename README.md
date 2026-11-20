@@ -176,7 +176,7 @@ With no codes listed in `js/access.js`, the app opens without asking.
    specification and quantity (Enter adds the next row; names you used before are
    suggested). In the PDF they print as a table before the procedure, with a box to
    tick for each tool.
-7. Add steps. Each step has an optional headline, a description and optional photos
+7. Add steps. Each step has an optional headline, a description and up to 3 photos
    (pick several at once, or press **＋ Add another photo**; in the PDF they print side by side).
    - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
      at the end. Steps renumber automatically.

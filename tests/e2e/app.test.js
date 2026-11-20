@@ -221,10 +221,15 @@ test("a step and a sub-step take several photos, each removable, all in the PDF"
   await page.setInputFiles('[data-up="step"][data-i="0"]', PHOTO);
   await page.waitForSelector('[data-a="rmSI"][data-i="0"][data-n="2"]');
   assert.equal(await page.locator(".sph.many .simg").count(), 3);
+  // Three is the most: the add button is gone.
+  assert.equal(await page.locator('[data-up="step"][data-i="0"]').count(), 0);
+  assert.match(await page.textContent(".box"), /3 photos is the most/);
   assert.equal(await page.evaluate(() => P().steps[0].more.length), 2);
   await page.click('[data-a=addSub][data-i="0"]');
-  await page.setInputFiles('[data-up="sub"][data-i="0"][data-j="0"]', [PHOTO, PHOTO2]);
-  await page.waitForSelector('[data-a="rmSubI"][data-j="0"][data-n="1"]');
+  // Picking four adds only three.
+  await page.setInputFiles('[data-up="sub"][data-i="0"][data-j="0"]', [PHOTO, PHOTO2, PHOTO, PHOTO2]);
+  await page.waitForSelector('[data-a="rmSubI"][data-j="0"][data-n="2"]');
+  assert.equal(await page.evaluate(() => P().steps[0].subs[0].more.length), 2);
 
   const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
   const imgs = (pdfText(bytes).match(/\/Subtype \/Image/g) || []).length;

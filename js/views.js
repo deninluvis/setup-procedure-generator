@@ -63,6 +63,8 @@ const deptSel = (p) => {
     .join("")}</select></label>`;
 };
 // One step on the product/machine page, with its sub-steps (3.1, 3.2, …).
+// Most photos on one step or sub-step.
+const MAX_STEP_PHOTOS = 3;
 // Photos of a step or sub-step (o.img, then o.more): each with Mark up and
 // Remove; "Add photo" takes one or several at once. at = data-i (and data-j).
 const photoBtn = (o, rm, k, at) => {
@@ -77,7 +79,9 @@ const photoBtn = (o, rm, k, at) => {
           )
           .join("")}</div>`
       : "") +
-    `<label class="b2">＋ ${list.length ? "Add another photo" : "Add photo"}<input type="file" accept="image/*" multiple hidden data-up="${k}" ${at}></label>`
+    (list.length >= MAX_STEP_PHOTOS
+      ? `<p class="m">${MAX_STEP_PHOTOS} photos is the most for one step. Remove one to add another.</p>`
+      : `<label class="b2">＋ ${list.length ? "Add another photo" : "Add photo"}<input type="file" accept="image/*" multiple hidden data-up="${k}" ${at}></label>`)
   );
 };
 // Warning, Caution or Note on a step or sub-step (o.warn = text, o.wtype = type).

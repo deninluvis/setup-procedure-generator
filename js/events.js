@@ -550,8 +550,19 @@ document.addEventListener("change", async (e) => {
     k = t.dataset.up,
     si = +t.dataset.i,
     sj = +t.dataset.j,
-    files = [...t.files];
+    o0 = k == "step" ? p.steps[si] : k == "sub" ? p.steps[si].subs[sj] : null;
+  let files = [...t.files];
   t.value = "";
+  // A step or sub-step holds at most MAX_STEP_PHOTOS photos.
+  if (o0) {
+    const room = Math.max(0, MAX_STEP_PHOTOS - photosOf(o0).length);
+    if (files.length > room) {
+      alert(
+        `A step can have up to ${MAX_STEP_PHOTOS} photos. ${room ? `Only the first ${count(room, "photo", "photos")} you picked ${room == 1 ? "was" : "were"} added.` : "Remove one to add another."}`,
+      );
+      files = files.slice(0, room);
+    }
+  }
   // Add and save photos one at a time; if storage fills up, keep the ones
   // that fit and undo the one that did not.
   for (const f of files) {
