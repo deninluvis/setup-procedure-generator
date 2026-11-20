@@ -150,7 +150,7 @@ function toolsHtml(p) {
     tools
       .map(
         (t, i) =>
-          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><input class="tq" data-tool="${i}" data-tk="q" type="number" min="1" inputmode="numeric" value="${esc(t.q)}" aria-label="Tool ${i + 1} quantity"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">✕</button></div>`,
+          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><input class="tq" data-tool="${i}" data-tk="q" type="number" min="1" inputmode="numeric" value="${esc(t.q)}" placeholder="Qty" aria-label="Tool ${i + 1} quantity"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">✕</button></div>`,
       )
       .join("") +
     `<button class="b2" data-a="addTool">＋ Add tool</button><datalist id="toolNames">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`
