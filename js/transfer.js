@@ -504,7 +504,7 @@ function toolbar() {
   const total = exItems().length + (IMP ? IMP.packs.length : 0),
     hits = exItems().filter(shown).length + impItems().filter(shown).length;
   return (
-    `<div class="xbar"><input type="search" data-xf="1" value="${esc(XF)}" placeholder="Filter by name, code, line or department" aria-label="Filter the lists"><div class="radios seg" role="radiogroup" aria-label="Group by"><span class="m">Group by</span><label><input type="radio" name="grp" value="line"${GRP == "line" ? " checked" : ""}> Product line</label><label><input type="radio" name="grp" value="dept"${GRP == "dept" ? " checked" : ""}> Department</label></div></div>` +
+    `<div class="xbar"><input type="search" data-xf="1" value="${esc(XF)}" placeholder="Search products, machines, lines" aria-label="Filter the lists"><div class="radios seg" role="radiogroup" aria-label="Group by"><span class="m">Group by</span><label><input type="radio" name="grp" value="line"${GRP == "line" ? " checked" : ""}> Product line</label><label><input type="radio" name="grp" value="dept"${GRP == "dept" ? " checked" : ""}> Department</label></div></div>` +
     (fq()
       ? `<p class="m" role="status">Showing ${hits} of ${count(total, "item", "items")}. Ticking a group ticks only the items shown; hidden items keep their ticks. <button class="lk" data-a="xfClear">Clear filter</button></p>`
       : "")
