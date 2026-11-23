@@ -54,7 +54,7 @@ function LogV() {
   return (
     `<p class="m">Every PDF made in this browser, newest first: when, what, which revision, who made it and with which code. Up to ${LOG_MAX} entries are kept.</p>` +
     (all.length
-      ? `<input type="search" data-lf="1" value="${esc(LF)}" placeholder="Filter: name, code, date, department or access code" aria-label="Filter the print log">` +
+      ? `<input type="search" data-lf="1" value="${esc(LF)}" placeholder="Search print log" aria-label="Filter the print log">` +
         `<p class="m">${LF.trim() ? `${count(list.length, "match", "matches")} of ${all.length}` : count(all.length, "PDF", "PDFs")}</p>` +
         `<div class="logw"><table class="log plog"><thead><tr><th>Date and time</th><th>Product / machine</th><th>Code</th><th>Rev</th><th>Status</th><th>Department</th><th>Made by</th><th>Pages</th></tr></thead><tbody>` +
         list
