@@ -888,6 +888,20 @@ test("an unused login ends by itself, with a warning first", async () => {
     await login();
     await page.reload();
     await page.waitForSelector(".ubar");
+    // "This is my own device": no automatic log-out, even after a long time.
+    await page.click("[data-a=logout]");
+    await page.fill("#lockCode", AUTHOR);
+    await page.click("#lock button");
+    await page.waitForSelector("#lockOwn");
+    await page.check("#lockOwn");
+    await page.click("#lock button");
+    await page.waitForSelector(".ubar");
+    await page.evaluate(() =>
+      localStorage.setItem("sp-active", String(Date.now() - 24 * 60 * 60 * 1000)),
+    );
+    await page.reload();
+    await page.waitForSelector(".ubar");
+    assert.equal(await page.evaluate(() => idleTimer), null, "no idle watch");
     assert.deepEqual(errors, []);
     await ctx.close();
   } finally {

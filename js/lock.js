@@ -42,7 +42,13 @@ function readSession() {
   if (!s || typeof s != "object") s = { r: "author", id: v };
   const hit = (roleLists()[s.r] || []).find((x) => x[1] === s.id);
   return hit
-    ? { r: s.r, id: s.id, name: hit[0], who: String(s.who || "").trim() }
+    ? {
+        r: s.r,
+        id: s.id,
+        name: hit[0],
+        who: String(s.who || "").trim(),
+        own: !!s.own,
+      }
     : null;
 }
 // Logged in with a valid code and a name (who). An older login without a
@@ -53,8 +59,9 @@ function hasAccess() {
     return true;
   }
   SESSION = readSession();
-  // A login left unused for too long (even with the browser closed) has ended.
-  if (SESSION && Date.now() - lastSeen() >= IDLE_MS) {
+  // A login left unused for too long (even with the browser closed) has ended,
+  // except on a device marked as the person's own.
+  if (SESSION && !SESSION.own && Date.now() - lastSeen() >= IDLE_MS) {
     queueAct(
       actEntry(
         "login",
@@ -149,7 +156,7 @@ function checkIdle() {
   }
 }
 function startIdleWatch() {
-  if (!SESSION || !SESSION.name || idleTimer) return;
+  if (!SESSION || !SESSION.name || SESSION.own || idleTimer) return;
   markActive();
   for (const ev of ["pointerdown", "keydown", "wheel", "touchstart", "input"])
     document.addEventListener(ev, markActive, { capture: true, passive: true });
@@ -242,6 +249,7 @@ function askName(s, open) {
     `<form id="lock" class="lock" autocomplete="off"><h1>Who are you?</h1>` +
     `<p class="m">Code accepted: <b>${ROLE_NAMES[s.r]}</b> (${esc(s.name)}). Enter your name. It is shown at the top of every page and recorded with what you do.</p>` +
     `<label class="f">Your name<input id="lockName" maxlength="60" autocomplete="name" value="${esc(names[s.id] || "")}" required></label>` +
+    `<label class="chk"><input type="checkbox" id="lockOwn"> <span>This is my own device: keep me logged in (no automatic log-out after ${Math.round(IDLE_MS / 60000)} minutes). Do not tick on a shared computer.</span></label>` +
     `<p class="err" id="lockErr" role="alert"></p>` +
     `<button class="b" type="submit">Continue</button> <button class="lk" type="button" data-relog="1">Use another code</button></form>`;
   const input = $("#lockName");
@@ -262,8 +270,14 @@ function askName(s, open) {
     try {
       localStorage.setItem(NAMES_KEY, JSON.stringify(names));
     } catch (x) {}
-    SESSION = { ...s, who };
-    const v = JSON.stringify({ r: s.r, id: s.id, who });
+    const own = $("#lockOwn").checked;
+    SESSION = { ...s, who, own };
+    const v = JSON.stringify({
+      r: s.r,
+      id: s.id,
+      who,
+      ...(own ? { own } : {}),
+    });
     memSession = v;
     try {
       localStorage.setItem(ACCESS_KEY, v);

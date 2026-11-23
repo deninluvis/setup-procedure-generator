@@ -20,7 +20,8 @@ const startApp = () =>
     initState(d);
     DATA_READY = true;
     flushActQueue();
-    if (JUST_LOGGED) logAct("login", "Logged in");
+    if (JUST_LOGGED)
+      logAct("login", SESSION.own ? "Logged in (own device)" : "Logged in");
     if (isApprover()) T = "ap";
     R();
     startIdleWatch();

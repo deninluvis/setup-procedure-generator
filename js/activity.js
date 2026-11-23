@@ -195,7 +195,7 @@ function codeUsage() {
       const logins = (S.act || []).filter(
           (e) =>
             e.type == "login" &&
-            e.text == "Logged in" &&
+            e.text.startsWith("Logged in") &&
             e.code == name &&
             e.role == r,
         ),
