@@ -618,3 +618,12 @@ test("steps and sub-steps can hold several photos (img, then more)", async () =>
     await apFingerprint({ ...p, steps: [{ ...p.steps[0], more: [B] }] }, "product", ""),
   );
 });
+
+test("imported products join a line whose name differs only in spaces or capitals", () => {
+  const { addItem, nameKey } = require("../js/utils.js");
+  assert.equal(nameKey("  Line  1 "), "line 1");
+  const S = { co: { depts: [] }, lines: [{ id: "l", name: "Line 1", products: [] }], machines: [] };
+  addItem(S, { kind: "product", line: "line  1", item: { name: "W", steps: [] } }, () => false);
+  assert.equal(S.lines.length, 1);
+  assert.equal(S.lines[0].products.length, 1);
+});

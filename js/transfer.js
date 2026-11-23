@@ -145,7 +145,7 @@ const count = (n, one, many) => `${n} ${n == 1 ? one : many}`;
 
 // Tree items. Export keys: "co" company details, "p:<id>" product, "m:<id>"
 // machine. Import keys: "co" company details, "i:<n>" the n-th item in the files.
-const lineKey = (n) => (String(n || "").trim() || "Imported").toLowerCase();
+const lineKey = (n) => nameKey(String(n || "").trim() || "Imported");
 const exItems = () => [
   ...S.lines.flatMap((l) =>
     l.products.map((p) => ({
@@ -432,7 +432,7 @@ const xHelp = () =>
 <ul>
 <li>Your data is stored only in this browser. Export a full backup regularly; the home page reminds you after 7 days.</li>
 <li><b>Moving to another computer or browser:</b> export a full backup here. On the other one, press <b>Import backup</b> on the Welcome screen, choose the file and keep <b>Replace all current data</b>.</li>
-<li>Imported products go into the product line with the same name. Missing lines and departments are created.</li>
+<li>Imported products go into the product line with the same name (capitals and extra spaces do not count). Missing lines and departments are created.</li>
 <li>Company details and logo change only if you tick them when importing.</li>
 <li>Nothing changes until you press the import button. <b>Cancel</b> leaves everything as it was.</li>
 </ul>`,

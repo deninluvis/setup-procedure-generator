@@ -251,6 +251,26 @@ test("a step and a sub-step take several photos, each removable, all in the PDF"
   await ctx.close();
 });
 
+test("a line can be renamed, and a second line with the same name is not made", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.click("[data-a=openL]"); // back to the line
+  page.removeAllListeners("dialog");
+  page.once("dialog", (d) => d.accept("Press line"));
+  await page.click("[data-a=renL]");
+  assert.equal(await page.textContent("h1"), "Press line");
+  await page.click("[data-a=home]");
+  assert.match(await page.textContent("#app"), /Use the same line name on every computer/);
+  page.once("dialog", (d) => d.accept());
+  await page.fill("#nw", " press  LINE ");
+  await page.click("[data-a=addL]");
+  assert.equal(await page.evaluate(() => S.lines.length), 1);
+  assert.equal(await page.textContent("h1"), "Press line", "the existing line opens");
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test("removing a step can be undone", async () => {
   const { ctx, page, errors } = await open();
   await setupCompany(page);
