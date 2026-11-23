@@ -533,6 +533,13 @@ const mergeCompany = (S, c) => {
 // the same name exists there, replace(name, where) decides: true replaces it,
 // false keeps both (the new one gets " (imported)").
 // Returns { kind, lineId, item, replaced }.
+// A name for matching: capitals and extra or special spaces do not count.
+const nameKey = (n) =>
+  String(n ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
 const addItem = (S, pk, replace) => {
   const it = { ...pk.item, id: id() };
   const dn = String(pk.dept || "").trim();
@@ -552,9 +559,7 @@ const addItem = (S, pk, replace) => {
     where = "Machines";
   } else {
     const ln = String(pk.line || "").trim() || "Imported";
-    let l = S.lines.find(
-      (x) => x.name.trim().toLowerCase() == ln.toLowerCase(),
-    );
+    let l = S.lines.find((x) => nameKey(x.name) == nameKey(ln));
     if (!l) S.lines.push((l = { id: id(), name: ln, products: [] }));
     list = l.products;
     where = l.name;
@@ -936,6 +941,7 @@ function itemDiff(a, b, co, kind) {
 
 if (typeof module !== "undefined")
   module.exports = {
+    nameKey,
     photosOf,
     setPhotos,
     itemDiff,

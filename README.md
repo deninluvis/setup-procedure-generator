@@ -164,6 +164,8 @@ With no codes listed in `js/access.js`, the app opens without asking.
    Use **Edit company details** to change the logo or name, or to add, rename or
    remove departments later.
 3. **Products:** add a product line (for example "Line 1"), then add a product to it.
+   Use the same line name on every computer, so imported products go into that line.
+   To change a line's name, open the line and press **Rename line** (Undo works).
    **Machines:** add a machine.
 4. On a product or machine page, the **How to fill in this product/machine** panel
    explains each part (closed at first: click it to open; it stays as you left it).
@@ -372,7 +374,8 @@ screen. The page shows what is inside as the same kind of tree, with each item m
   **Add only what I tick** to the current data.
 - **When an item already exists:** replace it, or keep both (the imported one gets
   "(imported)", then "(imported 2)" and so on).
-- Products go into the product line with the same name; it is created if missing.
+- Products go into the product line with the same name (capitals and extra spaces do not
+  count); it is created if missing.
   Departments are matched by name and added if missing.
 - **Company details and logo**, when ticked, replace the company name and logo and
   add any missing departments. For full backups in "add" mode this is unticked by

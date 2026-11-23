@@ -239,7 +239,8 @@ function R(keep) {
             `<div class="card" data-a="openL" data-id="${l.id}"><b>${esc(l.name)}</b><span class="m">${l.products.length} product${l.products.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Line name, e.g. Line 1", "addL");
+      add("Line name, e.g. Line 1", "addL") +
+      `<p class="m">Use the same line name on every computer: imported products go into the line with the same name.</p>`;
   } else if (T == "p" && !V.p) {
     const l = L();
     h =
@@ -251,7 +252,7 @@ function R(keep) {
         )
         .join("") +
       add("Product name", "addP") +
-      `<div class="row" style="flex-wrap:wrap"><button class="b2" data-a="exLine">Export this line</button><button class="b d" data-a="delL">Delete this line</button></div>`;
+      `<div class="row" style="flex-wrap:wrap"><button class="b2" data-a="renL">Rename line</button><button class="b2" data-a="exLine">Export this line</button><button class="b d" data-a="delL">Delete this line</button></div>`;
   } else {
     const p = P(),
       mm = T == "m";

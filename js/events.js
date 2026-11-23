@@ -1,3 +1,5 @@
+// The line with this name, matched the way imports match it.
+const lineNamed = (n) => S.lines.find((l) => nameKey(l.name) == nameKey(n));
 // User actions: clicks (data-a), typing (input), file/select/tick-box
 // changes, and Enter shortcuts. Each change is saved, then R() redraws.
 document.addEventListener("click", (e) => {
@@ -20,10 +22,26 @@ document.addEventListener("click", (e) => {
     V.p = t.dataset.id;
   } else if (a == "addL") {
     if (!nw || !nw.trim()) return;
+    const same = lineNamed(nw);
+    if (same) {
+      alert(`There is already a line called "${same.name}". It opens now.`);
+      V = { l: same.id, p: null };
+      return R();
+    }
     const l = { id: id(), name: nw.trim(), products: [] };
     S.lines.push(l);
     logAct("change", `Line "${l.name}" created`);
     V = { l: l.id, p: null };
+  } else if (a == "renL") {
+    const l = L(),
+      v = prompt("New name for this line:", l.name);
+    if (v == null || !v.trim() || v.trim() == l.name) return;
+    const same = lineNamed(v);
+    if (same && same.id != l.id)
+      return alert(`There is already a line called "${same.name}".`);
+    remember(`Line "${l.name}" renamed`);
+    logAct("change", `Line "${l.name}" renamed to "${v.trim()}"`);
+    l.name = v.trim();
   } else if (a == "addP") {
     if (!nw || !nw.trim()) return;
     const p = {
