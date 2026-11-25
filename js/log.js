@@ -56,6 +56,9 @@ function LogV() {
     (all.length
       ? `<input type="search" data-lf="1" value="${esc(LF)}" placeholder="Search print log" aria-label="Filter the print log">` +
         `<p class="m">${LF.trim() ? `${count(list.length, "match", "matches")} of ${all.length}` : count(all.length, "PDF", "PDFs")}</p>` +
+        (list.length
+          ? ""
+          : `<p class="empty">Nothing matches "${esc(LF.trim())}". <button class="lk" data-a="lfClear">Clear filter</button></p>`) +
         `<div class="logw"><table class="log plog"><thead><tr><th>Date and time</th><th>Product / machine</th><th>Code</th><th>Rev</th><th>Status</th><th>Department</th><th>Made by</th><th>Pages</th></tr></thead><tbody>` +
         list
           .slice(0, 500)

@@ -55,6 +55,7 @@ async function exportZip(plan, name, btn, done) {
     });
     await dl(name, Zip.make(files));
     logAct("data", `Exported "${name}"`);
+    toast(`Export saved: ${name}`, false);
     if (done) done();
   } catch (e) {
     alert("Could not create the export file.");

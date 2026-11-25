@@ -79,4 +79,5 @@ Classic `<script>` files (not ES modules) share globals, including top-level `le
 ## Conventions
 
 - User-facing text is plain, short English; the in-app help panels (`xHelp`, `itemHelp`) and `README.md` describe behaviour and should be updated when features change.
-- Keep the app working offline and from `file://`: no ES module imports and no network requests; libraries and fonts go in `vendor/` with their licence. `sw.js` (network first, cache fallback) is registered only on http(s).
+- Keep the app working offline and from `file://`: no ES module imports and no network requests; libraries and fonts go in `vendor/` with their licence. `sw.js` (network first, cache fallback, and the cached copy after 4 s on a slow network) is registered only on http(s).
+- Page states: `index.html` shows "Loading…" until `startApp` renders; if loading or the first render throws, `startApp` shows a "Could not open your saved data" screen. Empty lists use `<p class="empty">` (dashed box, also for "Nothing matches" with a Clear filter link). Empty "Add" names use `needName()` (native validation bubble). Success messages use `toast(msg, false)` (PDF saved, export saved). Offline shows `.off` under the user bar (re-rendered on `online`/`offline`). A non-admin sent to `"log"` is moved home with a toast.

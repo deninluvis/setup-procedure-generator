@@ -179,6 +179,9 @@ function toolsHtml(p) {
 
 const MV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
+  (S.machines.length
+    ? ""
+    : `<p class="empty">No machines yet. Type a machine name below and press Add.</p>`) +
   S.machines
     .map(
       (m) =>
@@ -216,7 +219,10 @@ function R(keep) {
   let h = "";
   // Approvers only see the Approvals page; the print log is for admins.
   if (isApprover()) T = "ap";
-  else if (T == "log" && !isAdmin()) T = "h";
+  else if (T == "log" && !isAdmin()) {
+    T = "h";
+    toast("Only admins can open the logs.", false);
+  }
   actTrack();
   if (T == "x") {
     h = XV();
@@ -233,6 +239,9 @@ function R(keep) {
   } else if (T == "p" && !V.l) {
     h =
       `<button class="lk" data-a="goHome">← Home</button><h1>Products</h1><p class="m">Pick a product line, or add one.</p>` +
+      (S.lines.length
+        ? ""
+        : `<p class="empty">No product lines yet. Type a name below (for example "Line 1") and press Add.</p>`) +
       S.lines
         .map(
           (l) =>
@@ -245,6 +254,9 @@ function R(keep) {
     const l = L();
     h =
       `<button class="lk" data-a="home">← All lines</button><h1>${esc(l.name)}</h1><p class="m">Pick a product, or add one.</p>` +
+      (l.products.length
+        ? ""
+        : `<p class="empty">No products in this line yet. Type a product name below and press Add.</p>`) +
       l.products
         .map(
           (p) =>

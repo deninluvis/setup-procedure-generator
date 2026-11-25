@@ -271,6 +271,55 @@ test("a line can be renamed, and a second line with the same name is not made", 
   await ctx.close();
 });
 
+test("empty, validation, success and no-results states", async () => {
+  const { ctx, page, errors } = await open(APP, { role: "admin" });
+  await setupCompany(page);
+  await page.click("[data-a=tab][data-t=p]");
+  assert.match(await page.textContent(".empty"), /No product lines yet/);
+  // An empty name is not added, and says why.
+  await page.click("[data-a=addL]");
+  assert.equal(
+    await page.$eval("#nw", (el) => el.validationMessage),
+    "Enter a line name.",
+  );
+  assert.equal(await page.evaluate(() => S.lines.length), 0);
+  await page.fill("#nw", "Line 1");
+  await page.click("[data-a=addL]");
+  assert.match(await page.textContent(".empty"), /No products in this line yet/);
+  await page.fill("#nw", "Widget A");
+  await page.click("[data-a=addP]");
+  await page.fill("[data-f=by]", "Alex");
+  await download(page, () => page.click("[data-a=pdf]"));
+  await page.waitForSelector("#toast:not([hidden])");
+  assert.match(await page.textContent("#toast"), /PDF saved: Widget_A_rev1\.pdf/);
+  // Logs filter with no match.
+  await page.evaluate(() => {
+    T = "log";
+    R();
+  });
+  await page.fill("[data-af]", "zzz-nothing");
+  assert.match(await page.textContent(".empty"), /Nothing matches/);
+  await page.click("[data-a=afClear]");
+  assert.equal(await page.locator(".empty").count(), 0);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("damaged saved data shows a message instead of a blank page", async () => {
+  const { ctx, page } = await open(APP, { role: "admin" });
+  await ctx.addInitScript(() => {
+    indexedDB.open = () => {
+      throw new Error("blocked");
+    };
+    localStorage.setItem("sp", '{"co":{"name":"A","depts":5,"done":true},"lines":7}');
+  });
+  await page.reload();
+  await page.waitForSelector("h1");
+  assert.match(await page.textContent("h1"), /Could not open your saved data/);
+  assert.match(await page.textContent("#app"), /Nothing was deleted/);
+  await ctx.close();
+});
+
 test("removing a step can be undone", async () => {
   const { ctx, page, errors } = await open();
   await setupCompany(page);
@@ -381,7 +430,11 @@ async function serve(files = {}) {
     ".svg": "image/svg+xml",
     ".woff2": "font/woff2",
   };
-  const server = http.createServer((req, res) => {
+  const site = {};
+  const server = http.createServer(async (req, res) => {
+    // site.delay: answer slowly, like a slow network.
+    if (site.delay)
+      await new Promise((r) => setTimeout(r, site.delay).unref());
     const rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
     if (files[rel] !== undefined) {
       res.writeHead(200, {
@@ -402,11 +455,14 @@ async function serve(files = {}) {
     fs.createReadStream(file).pipe(res);
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
-  return {
+  return Object.assign(site, {
     url: `http://127.0.0.1:${server.address().port}/`,
     files,
-    close: () => server.close(),
-  };
+    close: () => {
+      server.closeAllConnections();
+      server.close();
+    },
+  });
 }
 
 test("without a code only the access code screen shows", async () => {
@@ -466,6 +522,25 @@ test("from a web address the app works offline after the first visit", async () 
     await page.fill("[data-f=by]", "Alex");
     const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
     assert.ok(pdfText(bytes).includes("Hi-vis vest"));
+    assert.deepEqual(errors, []);
+    await ctx.close();
+  } finally {
+    site.close();
+  }
+});
+
+test("on a slow network the app opens from the stored copy within seconds", async () => {
+  const site = await serve();
+  try {
+    const { ctx, page, errors } = await open(site.url);
+    await page.evaluate(() => navigator.serviceWorker.ready);
+    await page.reload();
+    site.delay = 30000; // every file now takes 30 seconds
+    const t0 = Date.now();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("h1", { timeout: 15000 });
+    assert.match(await page.textContent("h1"), /Welcome/);
+    assert.ok(Date.now() - t0 < 15000, `opened in ${Date.now() - t0} ms`);
     assert.deepEqual(errors, []);
     await ctx.close();
   } finally {

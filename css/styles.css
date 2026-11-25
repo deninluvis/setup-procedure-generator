@@ -995,3 +995,16 @@ body.mkopen {
     font-weight: 600;
   }
 }
+.off {
+  color: var(--cau);
+  font-weight: 600;
+  margin: -8px 0 12px;
+}
+/* Nothing to show yet, or nothing matches: dashed, so it is not mistaken for a card. */
+.empty {
+  border: 1px dashed var(--bd);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  color: var(--mut);
+}

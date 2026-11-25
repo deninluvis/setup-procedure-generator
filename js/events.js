@@ -1,5 +1,12 @@
 // The line with this name, matched the way imports match it.
 const lineNamed = (n) => S.lines.find((l) => nameKey(l.name) == nameKey(n));
+// An empty name box: say so next to it (cleared when typing).
+function needName(msg) {
+  const el = $("#nw");
+  el.setCustomValidity(msg);
+  el.reportValidity();
+  el.addEventListener("input", () => el.setCustomValidity(""), { once: true });
+}
 // User actions: clicks (data-a), typing (input), file/select/tick-box
 // changes, and Enter shortcuts. Each change is saved, then R() redraws.
 document.addEventListener("click", (e) => {
@@ -21,7 +28,7 @@ document.addEventListener("click", (e) => {
   } else if (a == "openP") {
     V.p = t.dataset.id;
   } else if (a == "addL") {
-    if (!nw || !nw.trim()) return;
+    if (!nw || !nw.trim()) return needName("Enter a line name.");
     const same = lineNamed(nw);
     if (same) {
       alert(`There is already a line called "${same.name}". It opens now.`);
@@ -43,7 +50,7 @@ document.addEventListener("click", (e) => {
     logAct("change", `Line "${l.name}" renamed to "${v.trim()}"`);
     l.name = v.trim();
   } else if (a == "addP") {
-    if (!nw || !nw.trim()) return;
+    if (!nw || !nw.trim()) return needName("Enter a product name.");
     const p = {
       id: id(),
       name: nw.trim(),
@@ -223,7 +230,7 @@ document.addEventListener("click", (e) => {
   } else if (a == "openM") {
     MID = t.dataset.id;
   } else if (a == "addM") {
-    if (!nw || !nw.trim()) return;
+    if (!nw || !nw.trim()) return needName("Enter a machine name.");
     const m = {
       id: id(),
       name: nw.trim(),
@@ -326,6 +333,11 @@ document.addEventListener("click", (e) => {
   } else if (a == "logCsv") {
     logCsv();
     return;
+  } else if (a == "afClear") {
+    AF = "";
+    AT = "";
+  } else if (a == "lfClear") {
+    LF = "";
   } else if (a == "logClear") {
     if (
       !confirm(
@@ -415,7 +427,17 @@ document.addEventListener("click", (e) => {
     V = { l: null, p: null };
   } else if (a == "pdf") {
     flushItem(true); // record changes up to this PDF
-    return mkPdf();
+    const label = t.textContent;
+    t.disabled = true;
+    t.textContent = "Making PDF…";
+    return mkPdf()
+      .catch(() =>
+        alert("Could not make the PDF. Reload the page and try again."),
+      )
+      .finally(() => {
+        t.disabled = false;
+        t.textContent = label;
+      });
   }
   save();
   R(

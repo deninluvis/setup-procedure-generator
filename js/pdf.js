@@ -687,4 +687,5 @@ async function mkPdf(o) {
     ".pdf";
   await dl(file, d.output("blob"));
   if (own) logPdf(p, file, n, ref, approved ? "Approved" : "Draft");
+  toast(`PDF saved: ${file}`, false);
 }
