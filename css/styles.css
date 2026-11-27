@@ -1314,10 +1314,18 @@ a.b2 {
 
 /* Line icons drawn in the page colour (light and dark mode). */
 .ic {
-  display: block;
-  margin: auto;
+  display: inline-block;
+  vertical-align: -0.15em;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
   stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.ub .ic {
+  display: block;
+  margin: auto;
+}
+.wi .ic {
+  stroke-width: 2;
 }

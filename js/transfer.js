@@ -466,7 +466,7 @@ const itemHelp = (mm) => {
     `How to fill in this ${it}`,
     `<ol>
 <li><b>Details.</b> Type the name of the ${it}. Select the <b>Department</b>. Type the ${mm ? "machine ID or asset number" : "product code"}. Increase the <b>Revision</b> number each time that you change the procedure.</li>
-<li><b>Photos.</b> In <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, select <b>＋ Add photo</b>. You can select more than one photo. To remove a photo, select <b>✕</b>. To draw arrows, circles or numbers on a photo, select <b>✎</b>.</li>
+<li><b>Photos.</b> In <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, select <b>＋ Add photo</b>. You can select more than one photo. To remove a photo, select <b>${IC.x}</b>. To draw arrows, circles or numbers on a photo, select <b>${IC.pen}</b>.</li>
 <li><b>Approval.</b> The badge next to the name shows the status: <b>Draft</b>, <b>Waiting</b>, <b>Approved</b> or <b>Rejected</b>. Select the badge to see the details. To request approval, select <b>⋮</b>, then <b>Request approval</b>. When the reply comes, select <b>⋮</b>, then <b>Import approval file</b>. If you change an approved ${it}, it becomes a draft again.</li>
 <li><b>Safety equipment (PPE).</b> Select each item that the operator must wear. Each item prints as a safety sign at the top of the PDF. Type other items in <b>Other safety equipment</b>.</li>
 <li><b>Tools required.</b> Select <b>＋ Add tool</b>. Type the tool, the size or specification and the quantity. Push Enter to add the next tool. The tools print as a checklist before the procedure.</li>
@@ -476,11 +476,11 @@ const itemHelp = (mm) => {
 <li>Type a short <b>headline</b>. The headline is optional and prints in bold.</li>
 <li>Type the <b>description</b>. Include the values, for example the torque, the speed or the program number.</li>
 <li>To add photos, select <b>＋ Add photo</b>. A step can have a maximum of 3 photos. The photos print side by side.</li>
-<li>To see a photo in a large size, select it. Then you can select <b>✎ Mark up</b>, <b>Remove</b>, or <b>◀ Move left</b> / <b>Move right ▶</b>.</li>
+<li>To see a photo in a large size, select it. Then you can select <b>${IC.pen} Mark up</b>, <b>Remove</b>, or <b>${IC.left} Move left</b> / <b>Move right ${IC.right}</b>.</li>
 <li>The <b>⋮</b> of a step has <b>Move up</b>, <b>Move down</b>, <b>Insert step below</b>, <b>Add sub-step</b>, <b>Add warning or note</b> and <b>Delete step</b>.</li>
 <li>To add a step at the end, select <b>＋ Add step</b>. The app changes the step numbers automatically.</li>
 <li>On a computer, you can also drag a step by its handle <b>⠿</b> to a different position.</li>
-<li><b>Add warning or note</b> adds a box. Select the type: <b>Warning</b> (risk of injury, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful information, blue). Then type the text. To remove the box, select <b>✕</b> in the box.</li>
+<li><b>Add warning or note</b> adds a box. Select the type: <b>Warning</b> (risk of injury, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful information, blue). Then type the text. To remove the box, select <b>${IC.x}</b> in the box.</li>
 <li>Sub-steps (3.1, 3.2 …) have their own text, photos and <b>⋮</b>. They print below their step.</li>
 <li>Select the title of a section to close it or to open it. The number at the right shows the quantity of items.</li>
 </ul></li>

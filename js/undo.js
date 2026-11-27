@@ -54,7 +54,7 @@ function toast(msg, canUndo) {
     el.setAttribute("aria-live", "polite");
     document.body.append(el);
   }
-  el.innerHTML = `<span>${esc(msg)}</span>${canUndo ? `<button class="tb" data-undo="1">Undo</button>` : ""}<button class="tx" data-tclose="1" aria-label="Close">✕</button>`;
+  el.innerHTML = `<span>${esc(msg)}</span>${canUndo ? `<button class="tb" data-undo="1">Undo</button>` : ""}<button class="tx" data-tclose="1" aria-label="Close">${IC.x}</button>`;
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => (el.hidden = true), canUndo ? 10000 : 4000);

@@ -1,10 +1,26 @@
 // Screens and the HTML they are built from: company setup, home, lists,
 // the product/machine page, R() (re-render), storage meter, home search
 // results and photo shrinking.
+
+// Line icons (inline SVG in the text colour). Text symbols such as ⚠ or ✎
+// show as coloured emoji on some phones, so the app draws its own.
+const icon = (d) =>
+  `<svg class="ic" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">${d}</svg>`;
+const IC = {
+  x: icon('<path d="M6 6l12 12M18 6L6 18"/>'),
+  pen: icon('<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M13.5 6.5l4 4"/>'),
+  warn: icon('<path d="M12 3.5L2.5 20h19z"/><path d="M12 10v4.5M12 17.2v.3"/>'),
+  info: icon('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.6v.3"/>'),
+  left: icon('<path d="M15 5l-7 7 7 7"/>'),
+  right: icon('<path d="M9 5l7 7-7 7"/>'),
+  gear: icon(
+    '<path d="M19.2 9.4 L21.9 9.7 L21.9 14.3 L19.2 14.6 L18.9 15.2 L20.6 17.4 L17.4 20.6 L15.2 18.9 L14.6 19.2 L14.3 21.9 L9.7 21.9 L9.4 19.2 L8.8 18.9 L6.6 20.6 L3.4 17.4 L5.1 15.2 L4.8 14.6 L2.1 14.3 L2.1 9.7 L4.8 9.4 L5.1 8.8 L3.4 6.6 L6.6 3.4 L8.8 5.1 L9.4 4.8 L9.7 2.1 L14.3 2.1 L14.6 4.8 L15.2 5.1 L17.4 3.4 L20.6 6.6 L18.9 8.8Z"/><circle cx="12" cy="12" r="3.2"/>',
+  ),
+};
 // A search box with a ✕ button that clears it (shown only when there is text).
 // k = the input's data attribute (hs, xf, lf or af).
 const sbox = (input, k, style = "") =>
-  `<span class="sbox"${style ? ` style="${style}"` : ""}>${input}<button type="button" class="sclr" data-a="sClear" data-k="${k}" aria-label="Clear search">✕</button></span>`;
+  `<span class="sbox"${style ? ` style="${style}"` : ""}>${input}<button type="button" class="sclr" data-a="sClear" data-k="${k}" aria-label="Clear search">${IC.x}</button></span>`;
 // ⋮ menus. MENU = id of the open one ("" = none): "t" page title, "s:2"
 // step 3, "u:2:0" sub-step 3.1, "user" account. items() builds the options
 // only while it is open, so they always match the current state.
@@ -48,10 +64,10 @@ function viewerHtml() {
   if (!src) return (VIEW = null), "";
   const at = `data-k="${k}" data-i="${i}"${k == "sub" ? ` data-j="${j}"` : ""} data-n="${n}"`,
     last = photosOf(o).length - 1;
-  return `<div id="pv" role="dialog" aria-modal="true" aria-label="Photo ${n + 1} of ${k == "step" ? `step ${i + 1}` : `sub-step ${i + 1}.${j + 1}`}" data-a="vClose"><img src="${src}" alt=""><div class="pvbar">${n > 0 ? `<button class="b2" data-a="phMv" data-d="-1" ${at}>◀ Move left</button>` : ""}${n < last ? `<button class="b2" data-a="phMv" data-d="1" ${at}>Move right ▶</button>` : ""}</div><div class="pvbar"><button class="b2" data-a="mk" ${at}>✎ Mark up</button><button class="b2 d" data-a="${k == "step" ? "rmSI" : "rmSubI"}" ${at}>Remove</button><button class="b" data-a="vClose">Close</button></div></div>`;
+  return `<div id="pv" role="dialog" aria-modal="true" aria-label="Photo ${n + 1} of ${k == "step" ? `step ${i + 1}` : `sub-step ${i + 1}.${j + 1}`}" data-a="vClose"><img src="${src}" alt=""><div class="pvbar">${n > 0 ? `<button class="b2" data-a="phMv" data-d="-1" ${at}>${IC.left} Move left</button>` : ""}${n < last ? `<button class="b2" data-a="phMv" data-d="1" ${at}>Move right ${IC.right}</button>` : ""}</div><div class="pvbar"><button class="b2" data-a="mk" ${at}>${IC.pen} Mark up</button><button class="b2 d" data-a="${k == "step" ? "rmSI" : "rmSubI"}" ${at}>Remove</button><button class="b" data-a="vClose">Close</button></div></div>`;
 }
 const gal = (arr, k) =>
-  `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button><button class="mk" data-a="mk" data-k="${k}" data-i="${i}" aria-label="Mark up photo" title="Mark up">✎</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
+  `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">${IC.x}</button><button class="mk" data-a="mk" data-k="${k}" data-i="${i}" aria-label="Mark up photo" title="Mark up">${IC.pen}</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
 
 // Company details (logo, name, department): set once, printed on every PDF.
 const logoField = () =>
@@ -67,7 +83,7 @@ const CoV = () => {
 <h2>Company logo</h2>${logoField()}
 <label class="f">Company name<input data-co="name" value="${esc(S.co.name)}" placeholder="e.g. ACME Manufacturing"></label>
 <span class="f">Departments</span><p class="m">Add each department. You pick one for every product and machine.</p>
-${S.co.depts.map((d, i) => `<div class="drow"><input data-dept="${i}" value="${esc(d.name)}" placeholder="e.g. Assembly" aria-label="Department name"><button class="sm" data-a="rmDept" data-i="${i}" aria-label="Remove department">✕</button></div>`).join("")}
+${S.co.depts.map((d, i) => `<div class="drow"><input data-dept="${i}" value="${esc(d.name)}" placeholder="e.g. Assembly" aria-label="Department name"><button class="sm" data-a="rmDept" data-i="${i}" aria-label="Remove department">${IC.x}</button></div>`).join("")}
 <button class="b2" data-a="addDept">＋ Add department</button>
 <p class="err" id="coErr" hidden>Enter the company name to continue.</p>
 <div class="row"><button class="b" data-a="coDone">${first ? "Continue" : "Save"}</button></div>
@@ -139,17 +155,17 @@ const photoBtn = (o, rm, k, at) => {
 const NOTE_TYPES = {
   warning: {
     label: "Warning",
-    icon: "⚠",
+    icon: IC.warn,
     tip: "Describe the hazard and what to do, for example: Hot surface. Wear heat-resistant gloves.",
   },
   caution: {
     label: "Caution",
-    icon: "⚠",
+    icon: IC.warn,
     tip: "Describe the risk of damage, for example: Do not overtighten. Maximum 25 Nm.",
   },
   note: {
     label: "Note",
-    icon: "ℹ",
+    icon: IC.info,
     tip: "Add a useful tip, for example: The fixture is kept in cabinet B.",
   },
 };
@@ -170,7 +186,7 @@ function noteHtml(o, i, j, where) {
     )
     .join(
       "",
-    )}</select><span class="sp"></span><button class="sm" data-a="rmW" data-i="${i}"${jb} aria-label="Remove the ${nt.label.toLowerCase()} from ${where}">✕</button></div><textarea data-w="${i}"${jj} rows="2" placeholder="${esc(nt.tip)}" aria-label="${nt.label} on ${where}">${esc(o.warn)}</textarea></div>`;
+    )}</select><span class="sp"></span><button class="sm" data-a="rmW" data-i="${i}"${jb} aria-label="Remove the ${nt.label.toLowerCase()} from ${where}">${IC.x}</button></div><textarea data-w="${i}"${jj} rows="2" placeholder="${esc(nt.tip)}" aria-label="${nt.label} on ${where}">${esc(o.warn)}</textarea></div>`;
 }
 // A step (j is NaN) or one of its sub-steps.
 const stepOrSub = (i, j) => (isNaN(j) ? P().steps[i] : P().steps[i].subs[j]);
@@ -245,7 +261,7 @@ function toolsHtml(p) {
     tools
       .map(
         (t, i) =>
-          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><input class="tq" data-tool="${i}" data-tk="q" type="number" min="1" inputmode="numeric" value="${esc(t.q)}" placeholder="Qty" aria-label="Tool ${i + 1} quantity"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">✕</button></div>`,
+          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><input class="tq" data-tool="${i}" data-tk="q" type="number" min="1" inputmode="numeric" value="${esc(t.q)}" placeholder="Qty" aria-label="Tool ${i + 1} quantity"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">${IC.x}</button></div>`,
       )
       .join("") +
     `<button class="b2" data-a="addTool">＋ Add tool</button><datalist id="toolNames">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`
@@ -263,7 +279,7 @@ function settingsHtml(p) {
     rows
       .map(
         (x, i) =>
-          `<div class="tl stl"><input class="tn" data-set="${i}" data-sk="n" value="${esc(x.n)}" placeholder="e.g. Mould temperature" aria-label="Setting ${i + 1}"><input class="ts" data-set="${i}" data-sk="v" value="${esc(x.v)}" placeholder="e.g. 220" aria-label="Setting ${i + 1} value"><input class="tq" data-set="${i}" data-sk="u" value="${esc(x.u)}" placeholder="Unit" aria-label="Setting ${i + 1} unit"><button class="sm tr2" data-a="rmSet" data-i="${i}" aria-label="Remove setting ${i + 1}">✕</button></div>`,
+          `<div class="tl stl"><input class="tn" data-set="${i}" data-sk="n" value="${esc(x.n)}" placeholder="e.g. Mould temperature" aria-label="Setting ${i + 1}"><input class="ts" data-set="${i}" data-sk="v" value="${esc(x.v)}" placeholder="e.g. 220" aria-label="Setting ${i + 1} value"><input class="tq" data-set="${i}" data-sk="u" value="${esc(x.u)}" placeholder="Unit" aria-label="Setting ${i + 1} unit"><button class="sm tr2" data-a="rmSet" data-i="${i}" aria-label="Remove setting ${i + 1}">${IC.x}</button></div>`,
       )
       .join("") +
     `<button class="b2" data-a="addSet">＋ Add setting</button>`
