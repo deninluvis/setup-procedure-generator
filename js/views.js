@@ -255,7 +255,7 @@ function toolsHtml(p) {
       ),
     ].sort();
   return (
-    `<p class="m">List the tools needed for this setup. They print as a checklist before the procedure.</p>` +
+    `<p class="m">List the tools needed for this setup. They print as a table before the procedure.</p>` +
     (tools.length
       ? `<div class="tl tlh" aria-hidden="true"><span>Tool</span><span>Size / specification</span><span></span></div>`
       : "") +

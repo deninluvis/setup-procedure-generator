@@ -469,7 +469,7 @@ const itemHelp = (mm) => {
 <li><b>Photos.</b> In <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, select <b>＋ Add photo</b>. You can select more than one photo. To remove a photo, select <b>${IC.x}</b>. To draw arrows, circles or numbers on a photo, select <b>${IC.pen}</b>.</li>
 <li><b>Approval.</b> The badge next to the name shows the status: <b>Draft</b>, <b>Waiting</b>, <b>Approved</b> or <b>Rejected</b>. Select the badge to see the details. To request approval, select <b>⋮</b>, then <b>Request approval</b>. When the reply comes, select <b>⋮</b>, then <b>Import approval file</b>. If you change an approved ${it}, it becomes a draft again.</li>
 <li><b>Safety equipment (PPE).</b> Select each item that the operator must wear. Each item prints as a safety sign at the top of the PDF. Type other items in <b>Other safety equipment</b>.</li>
-<li><b>Tools required.</b> Select <b>＋ Add tool</b>. Type the tool and the size or specification. Push Enter to add the next tool. The tools print as a checklist before the procedure.</li>
+<li><b>Tools required.</b> Select <b>＋ Add tool</b>. Type the tool and the size or specification. Push Enter to add the next tool. The tools print as a table before the procedure.</li>
 <li><b>Machine settings.</b> Select <b>＋ Add setting</b>. Type the parameter, the value and the unit, for example "Mould temperature, 220, °C". Push Enter to add the next setting. The settings print as a table after the tools.</li>
 <li><b>Steps.</b> Write one step for each action:
 <ul>
