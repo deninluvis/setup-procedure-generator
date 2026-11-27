@@ -12,6 +12,19 @@ let MENU = "";
 const kebab = (id, items, label = "More actions", btn = "⋮", cls = "kb") =>
   `<div class="kebab"><button type="button" class="${cls}" data-a="menu" data-m="${id}" aria-haspopup="true" aria-expanded="${MENU == id}" aria-label="${label}">${btn}</button>${MENU == id ? `<div class="kmenu">${items()}</div>` : ""}</div>`;
 // Page title with its ⋮ menu on the right (extra: buttons before the ⋮).
+// PICK: the title menu shows a list of the other lines to pick from
+// ("dup" = duplicate there, "merge" = merge this line into it).
+let PICK = "";
+const linePicker = (a, q) =>
+  `<div class="kinfo"><b>${q}</b></div>` +
+  S.lines
+    .filter((x) => x.id != V.l)
+    .map(
+      (x) =>
+        `<button data-a="${a}" data-l="${esc(x.id)}">${esc(x.name)}</button>`,
+    )
+    .join("") +
+  `<hr><button data-a="pickBack">← Back</button>`;
 const titleMenu = (title, items, extra = "") =>
   `<div class="hrow"><h1>${title}</h1>${extra}${kebab("t", items)}</div>`;
 // "＋ New line" (product, machine): a button that opens the name box.
@@ -33,8 +46,9 @@ function viewerHtml() {
     o = st && (k == "step" ? st : (st.subs || [])[j]),
     src = o && photosOf(o)[n];
   if (!src) return (VIEW = null), "";
-  const at = `data-i="${i}"${k == "sub" ? ` data-j="${j}"` : ""} data-n="${n}"`;
-  return `<div id="pv" role="dialog" aria-modal="true" aria-label="Photo ${n + 1} of ${k == "step" ? `step ${i + 1}` : `sub-step ${i + 1}.${j + 1}`}" data-a="vClose"><img src="${src}" alt=""><div class="pvbar"><button class="b2" data-a="mk" data-k="${k}" ${at}>✎ Mark up</button><button class="b2 d" data-a="${k == "step" ? "rmSI" : "rmSubI"}" ${at}>Remove</button><button class="b" data-a="vClose">Close</button></div></div>`;
+  const at = `data-k="${k}" data-i="${i}"${k == "sub" ? ` data-j="${j}"` : ""} data-n="${n}"`,
+    last = photosOf(o).length - 1;
+  return `<div id="pv" role="dialog" aria-modal="true" aria-label="Photo ${n + 1} of ${k == "step" ? `step ${i + 1}` : `sub-step ${i + 1}.${j + 1}`}" data-a="vClose"><img src="${src}" alt=""><div class="pvbar">${n > 0 ? `<button class="b2" data-a="phMv" data-d="-1" ${at}>◀ Move left</button>` : ""}${n < last ? `<button class="b2" data-a="phMv" data-d="1" ${at}>Move right ▶</button>` : ""}</div><div class="pvbar"><button class="b2" data-a="mk" ${at}>✎ Mark up</button><button class="b2 d" data-a="${k == "step" ? "rmSI" : "rmSubI"}" ${at}>Remove</button><button class="b" data-a="vClose">Close</button></div></div>`;
 }
 const gal = (arr, k) =>
   `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button><button class="mk" data-a="mk" data-k="${k}" data-i="${i}" aria-label="Mark up photo" title="Mark up">✎</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
@@ -74,6 +88,7 @@ const SetV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Settings</h1>
 <h2>Company</h2><div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><b>${esc(S.co.name)}</b>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div><button class="b2" data-a="editCo">Edit company details</button>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
+<h2>Help</h2><p class="m">Step-by-step instructions for authors, approvers and admins.</p><a class="b2" href="docs/user-guide.pdf" target="_blank" rel="noopener">Open the user guide (PDF)</a>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 ${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}
 ${isAdmin() ? `<h2>Danger zone</h2><button class="b d" data-a="clearAll">Clear all saved data</button>` : ""}`;
@@ -237,8 +252,26 @@ function toolsHtml(p) {
   );
 }
 
+// "Machine settings" on the product/machine page: p.set = [{ n, v, u }].
+function settingsHtml(p) {
+  const rows = p.set || [];
+  return (
+    `<p class="m">Settings to enter on the machine, such as temperatures, speeds, pressures or the program number. They print as a table before the procedure.</p>` +
+    (rows.length
+      ? `<div class="tl stl tlh" aria-hidden="true"><span>Parameter</span><span>Value</span><span>Unit</span><span></span></div>`
+      : "") +
+    rows
+      .map(
+        (x, i) =>
+          `<div class="tl stl"><input class="tn" data-set="${i}" data-sk="n" value="${esc(x.n)}" placeholder="e.g. Mould temperature" aria-label="Setting ${i + 1}"><input class="ts" data-set="${i}" data-sk="v" value="${esc(x.v)}" placeholder="e.g. 220" aria-label="Setting ${i + 1} value"><input class="tq" data-set="${i}" data-sk="u" value="${esc(x.u)}" placeholder="Unit" aria-label="Setting ${i + 1} unit"><button class="sm tr2" data-a="rmSet" data-i="${i}" aria-label="Remove setting ${i + 1}">✕</button></div>`,
+      )
+      .join("") +
+    `<button class="b2" data-a="addSet">＋ Add setting</button>`
+  );
+}
+
 const MV = () =>
-  `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
+  `<button class="lk" data-a="goHome">← Home</button>${titleMenu("Machines", () => `<button data-a="pdfMach">Download all PDFs (ZIP)</button>`)}<p class="m">Pick a machine, or add one.</p>` +
   (S.machines.length
     ? ""
     : `<p class="empty">No machines yet. Press <b>＋ New machine</b> to add one.</p>`) +
@@ -320,7 +353,9 @@ function R(keep) {
       `<button class="lk" data-a="home">← All lines</button>${titleMenu(
         esc(l.name),
         () =>
-          `<button data-a="renL">Rename line</button><button data-a="exLine">Export this line</button><button class="d" data-a="delL">Delete this line</button>`,
+          PICK
+            ? linePicker("mergeL", `Merge "${esc(l.name)}" into which line?`)
+            : `<button data-a="pdfLine">Download all PDFs (ZIP)</button><button data-a="renL">Rename line</button>${S.lines.length > 1 ? `<button data-a="pickLine" data-k="merge">Merge into another line…</button>` : ""}<button data-a="exLine">Export this line</button><button class="d" data-a="delL">Delete this line</button>`,
       )}<p class="m">Pick a product, or add one.</p>` +
       (l.products.length
         ? ""
@@ -342,7 +377,9 @@ function R(keep) {
       titleMenu(
         esc(p.name) || (mm ? "New machine" : "New product"),
         () =>
-          `<div class="kopt">${wmBox(p)}${psBox()}</div><button data-a="pdf">Download PDF</button><hr>${apMenu(p)}${apMenu(p) ? "<hr>" : ""}<button data-a="dupP">Duplicate</button><button data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="d" data-a="delP">Delete ${mm ? "machine" : "product"}</button>`,
+          PICK
+            ? linePicker("dupP", "Duplicate into which line?")
+            : `<div class="kopt">${wmBox(p)}${psBox()}</div><button data-a="pdf">Download PDF</button><hr>${apMenu(p)}${apMenu(p) ? "<hr>" : ""}<button data-a="dupP">Duplicate</button>${!mm && S.lines.length > 1 ? `<button data-a="pickLine" data-k="dup">Duplicate to another line…</button>` : ""}<button data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="d" data-a="delP">Delete ${mm ? "machine" : "product"}</button>`,
         `<button class="apb" id="apbadge" data-a="apInfo" aria-expanded="${AP_OPEN}" aria-controls="apbox" title="Approval status">${apBadgeNow(p)}</button><button class="kb hb" data-a="help" aria-expanded="${HELPS.item}" aria-label="How to fill in this ${mm ? "machine" : "product"}" title="Help">?</button>`,
       ) +
       `${apBox(p)}${HELPS.item ? itemHelp(mm) : ""}
@@ -353,6 +390,7 @@ ${sec("prod", mm ? "Machine photos" : "Product photos", count(p.prod.length, "ph
 ${sec("pack", mm ? "Control panel / nameplate photos" : "Packaging photos", count(p.pack.length, "photo", "photos"), gal(p.pack, "pack"))}
 ${sec("ppe", "Safety equipment (PPE)", count((p.ppe || []).length + (String(p.ppeo || "").trim() ? 1 : 0), "item", "items"), ppeHtml(p))}
 ${sec("tools", "Tools required", count((p.tools || []).filter((t) => String(t.n || "").trim()).length, "tool", "tools"), toolsHtml(p))}
+${sec("set", "Machine settings", count(settingsOf(p).length, "setting", "settings"), settingsHtml(p))}
 ${sec(
   "steps",
   "Steps",

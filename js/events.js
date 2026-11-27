@@ -14,6 +14,7 @@ document.addEventListener("click", (e) => {
   // A click outside the ⋮ menu closes it (clicks on its options inside do not).
   if (MENU && !e.target.closest(".kebab")) {
     MENU = "";
+    PICK = "";
     R(true);
     if (!t) return;
   }
@@ -21,6 +22,7 @@ document.addEventListener("click", (e) => {
   if (t.dataset.a == "menu") {
     const m = t.dataset.m;
     MENU = MENU == m ? "" : m;
+    PICK = "";
     R(true);
     const first = $(
       MENU
@@ -31,7 +33,8 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (t.closest(".kmenu")) MENU = ""; // an option was chosen
-  if (VIEW && t.dataset.a != "view") VIEW = null; // the photo viewer closes
+  if (VIEW && !/^(view|phMv)$/.test(t.dataset.a)) VIEW = null; // viewer closes
+  if (t.dataset.a != "pickLine") PICK = "";
   if (!/^(addOpen|addL|addP|addM)$/.test(t.dataset.a)) ADDING = "";
   const a = t.dataset.a,
     i = +t.dataset.i,
@@ -121,31 +124,106 @@ document.addEventListener("click", (e) => {
       l.products = l.products.filter((x) => x.id != V.p);
       V.p = null;
     }
+  } else if (a == "pickLine") {
+    MENU = "t"; // stay open, now listing the lines
+    PICK = t.dataset.k;
+    R(true);
+    const b = $(".kmenu button");
+    if (b) b.focus();
+    return;
+  } else if (a == "pickBack") {
+    MENU = "t";
+    R(true);
+    return;
   } else if (a == "dupP") {
-    // A copy in the same line (or with the machines), as a new draft:
-    // no approval, first free name "X (copy)", "X (copy 2)" …
+    // A copy as a new draft (no approval), next to the original, or at the
+    // end of another line (data-l). Name: the same if free there, otherwise
+    // the first free "X (copy)", "X (copy 2)" …
     flushItem(true);
     const p = P(),
       mm = T == "m",
-      list = mm ? S.machines : L().products,
+      to = !mm && t.dataset.l ? S.lines.find((x) => x.id == t.dataset.l) : null,
+      list = mm ? S.machines : (to || L()).products,
       taken = (n) => list.some((x) => nameKey(x.name) == nameKey(n));
-    let name = `${p.name} (copy)`;
+    let name = to && !taken(p.name) ? p.name : `${p.name} (copy)`;
     for (let n = 2; taken(name); n++) name = `${p.name} (copy ${n})`;
     const c = { ...copyData(p), id: id(), name };
     delete c.ap;
     c.appr = "";
-    list.splice(list.indexOf(p) + 1, 0, c);
+    if (to) list.push(c);
+    else list.splice(list.indexOf(p) + 1, 0, c);
     logAct(
       "change",
-      `Duplicated ${itemLabel(p, mm ? "machine" : "product", mm ? null : L())} as "${name}"`,
+      `Duplicated ${itemLabel(p, mm ? "machine" : "product", mm ? null : L())} as "${name}"${to ? ` in line "${to.name}"` : ""}`,
     );
     if (mm) MID = c.id;
-    else V.p = c.id;
+    else V = { l: (to || L()).id, p: c.id };
     toast(`Duplicated: you are now editing "${name}"`, false);
     window.scrollTo(0, 0);
+  } else if (a == "mergeL") {
+    // Move every product of this line into another line, then remove it.
+    const src = L(),
+      dst = S.lines.find((x) => x.id == t.dataset.l);
+    if (!dst) return;
+    if (
+      !confirm(
+        `Move all ${count(src.products.length, "product", "products")} from "${src.name}" into "${dst.name}" and remove the line "${src.name}"?`,
+      )
+    )
+      return R(true);
+    remember(`Line "${src.name}" merged into "${dst.name}"`);
+    const taken = (n) =>
+      dst.products.some((x) => nameKey(x.name) == nameKey(n));
+    for (const p of src.products) {
+      if (taken(p.name)) {
+        const base = `${p.name} (${src.name})`;
+        let n = 2;
+        p.name = base;
+        while (taken(p.name)) p.name = `${base} ${n++}`;
+      }
+      dst.products.push(p);
+    }
+    S.lines = S.lines.filter((x) => x.id != src.id);
+    logAct("change", `Line "${src.name}" merged into "${dst.name}"`);
+    V = { l: dst.id, p: null };
+  } else if (a == "phMv") {
+    // Move a step photo left or right (the viewer follows it).
+    const st = P().steps[i],
+      o = t.dataset.k == "sub" ? st.subs[j] : st,
+      arr = photosOf(o),
+      n = +t.dataset.n,
+      m = n + +t.dataset.d;
+    if (m < 0 || m >= arr.length) return;
+    [arr[n], arr[m]] = [arr[m], arr[n]];
+    setPhotos(o, arr);
+    VIEW.n = m;
   } else if (a == "rmPh") {
     remember("Photo removed");
     P()[t.dataset.k].splice(i, 1);
+  } else if (a == "addSet") {
+    const p = P();
+    p.set = p.set || [];
+    p.set.push({ n: "", v: "", u: "" });
+    focus = `[data-set="${p.set.length - 1}"][data-sk="n"]`;
+  } else if (a == "rmSet") {
+    const x = P().set[i];
+    remember(`Setting${x.n.trim() ? ` "${x.n.trim()}"` : ""} removed`);
+    P().set.splice(i, 1);
+  } else if (a == "pdfLine" || a == "pdfMach") {
+    const list =
+      a == "pdfMach"
+        ? S.machines.map((p) => ({ p, mm: true, line: "" }))
+        : L().products.map((p) => ({ p, mm: false, line: L().name }));
+    if (!list.length) {
+      R(true);
+      return alert("There is nothing to print yet.");
+    }
+    pdfZip(
+      list,
+      `${safeName(a == "pdfMach" ? "Machines" : L().name, "PDFs")} - PDFs - ${dateStamp()}.zip`,
+      t,
+    ).finally(() => R(true));
+    return;
   } else if (a == "addTool") {
     const p = P();
     p.tools = p.tools || [];
@@ -516,6 +594,15 @@ document.addEventListener("click", (e) => {
     V = { l: null, p: null };
   } else if (a == "pdf") {
     flushItem(true); // record changes up to this PDF
+    const issues = pdfChecks(P(), T == "m" ? "machine" : "product");
+    if (
+      issues.length &&
+      String(P().by || "").trim() &&
+      !confirm(
+        `Before printing, please check:\n\n• ${issues.join("\n• ")}\n\nMake the PDF anyway?`,
+      )
+    )
+      return R(true);
     const label = t.textContent;
     t.disabled = true;
     t.textContent = "Making PDF…";
@@ -531,7 +618,7 @@ document.addEventListener("click", (e) => {
   }
   save();
   R(
-    /^(rmPh|addS|insS|rmS|rmSI|up|dn|addSub|rmSub|rmSubI|subUp|subDn|addW|rmW|addTool|rmTool)$/.test(
+    /^(rmPh|phMv|addS|insS|rmS|rmSI|up|dn|addSub|rmSub|rmSubI|subUp|subDn|addW|rmW|addTool|rmTool)$/.test(
       a,
     ),
   );
@@ -582,6 +669,8 @@ document.addEventListener("input", (e) => {
     stepOrSub(+t.dataset.w, +t.dataset.wj).warn = t.value;
   else if (t.dataset.tool !== undefined)
     p.tools[+t.dataset.tool][t.dataset.tk] = t.value;
+  else if (t.dataset.set !== undefined)
+    p.set[+t.dataset.set][t.dataset.sk] = t.value;
   else if (t.dataset.ss !== undefined)
     p.steps[+t.dataset.ss].subs[+t.dataset.sj].t = t.value;
   else return;
@@ -732,6 +821,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key == "Escape" && MENU) {
     const m = MENU;
     MENU = "";
+    PICK = "";
     R(true);
     const b = $(`[data-a=menu][data-m="${m}"]`);
     if (b) b.focus({ preventScroll: true });
@@ -751,6 +841,17 @@ document.addEventListener("keydown", (e) => {
       next = $(`[data-tool="${i + 1}"][data-tk="n"]`);
     if (next) next.focus();
     else $("[data-a=addTool]").click();
+    return;
+  }
+  if (
+    e.key == "Enter" &&
+    e.target.dataset &&
+    e.target.dataset.set !== undefined
+  ) {
+    e.preventDefault();
+    const next = $(`[data-set="${+e.target.dataset.set + 1}"][data-sk="n"]`);
+    if (next) next.focus();
+    else $("[data-a=addSet]").click();
     return;
   }
   if (e.key == "Enter" && e.target.dataset && e.target.dataset.hs) {

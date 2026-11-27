@@ -159,6 +159,13 @@ Where to find the reference:
 
 With no codes listed in `js/access.js`, the app opens without asking.
 
+## User guide
+
+The full user guide for authors, approvers and admins is in
+[`docs/user-guide.pdf`](docs/user-guide.pdf) (also under **⚙ Settings → Help** in the
+app). It is written in ASD-STE100 Simplified Technical English, like the in-app help
+panels (**?**). When the app changes, update both.
+
 ## How to use
 
 1. **First visit:** the Welcome screen asks for your company logo, company name
@@ -175,6 +182,9 @@ With no codes listed in `js/access.js`, the app opens without asking.
    Use the same line name on every computer, so imported products go into that line.
    To change a line's name, open the line, press **⋮** (top right) and choose
    **Rename line** (Undo works). Export this line and Delete this line are in the same menu.
+   **Merge into another line…** moves every product of this line into the line you pick
+   and removes this line (a product whose name is taken there gets the old line's name
+   added, for example "Widget A (Line 2)"; Undo works).
    **Machines:** press **＋ New machine**.
 4. On a product or machine page, the title row shows the approval **badge** (Draft,
    Waiting, Approved or Rejected: tap it for details), **?** (how to fill in this
@@ -191,9 +201,12 @@ With no codes listed in `js/access.js`, the app opens without asking.
    specification and quantity (Enter adds the next row; names you used before are
    suggested). In the PDF they print as a table before the procedure, with a box to
    tick for each tool.
+   Under **Machine settings**, press **＋ Add setting** for each parameter, value and
+   unit (for example "Mould temperature · 220 · °C"). They print as a table after the tools.
 7. Add steps. Each step has an optional headline, a description and up to 3 photos
    (pick several at once, or press **＋ Add another photo**; in the PDF they print side by side).
-   - Tap a photo to see it full screen, with **✎ Mark up** and **Remove**.
+   - Tap a photo to see it full screen, with **✎ Mark up**, **Remove**, and
+     **◀ Move left** / **Move right ▶** to change the order the photos print in.
    - The **⋮** on a step holds **Move up**, **Move down**, **Insert step below**,
      **Add sub-step**, **Add warning or note** and **Delete step**. **＋ Add step** adds
      one at the end. Steps renumber automatically.
@@ -209,6 +222,7 @@ With no codes listed in `js/access.js`, the app opens without asking.
    - **Duplicate** (in the **⋮** menu at the top right) copies the whole product or machine (steps,
      photos, tools, safety equipment) as "Name (copy)" and opens the copy, ready to edit
      for a similar product. The copy is a new draft without the approval.
+     **Duplicate to another line…** puts the copy in another line (same name if free there).
 8. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
 9. Press **⋮** at the top right of the page. The menu holds the PDF options, Download
@@ -218,7 +232,13 @@ With no codes listed in `js/access.js`, the app opens without asking.
    remembered in this browser.
    Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
    their full resolution, so they stay sharp when zoomed at any size.
-10. Press **Download PDF**. Each PDF is added to the **Print log**.
+10. Press **Download PDF**. If something looks missing (no product photo, no safety
+    equipment or tools, a step without text, an empty note), the app lists it first:
+    **OK** makes the PDF anyway, **Cancel** lets you fix it. Each PDF is added to the
+    **Print log**.
+    **All PDFs at once:** on a line page, **⋮ → Download all PDFs (ZIP)** makes the PDF
+    of every product in the line in one .zip; on the Machines page, the same for all
+    machines.
 11. Use **⚙ Settings → Quick full backup** regularly. Data lives only in this browser.
 
 **Approval:** every product and machine starts as a **Draft**: its PDF has a large red

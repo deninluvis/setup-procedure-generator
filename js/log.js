@@ -5,15 +5,24 @@
 const LOG_MAX = 2000;
 let LF = ""; // filter text on the Print log page
 
-function logPdf(p, file, pages, ref, status) {
+// mm / line: machine or product and its line (default: the page shown).
+function logPdf(
+  p,
+  file,
+  pages,
+  ref,
+  status,
+  mm = T == "m",
+  line = mm ? "" : (L() || {}).name,
+) {
   S.log = S.log || [];
   S.log.unshift({
     t: new Date().toISOString(),
-    kind: T == "m" ? "machine" : "product",
+    kind: mm ? "machine" : "product",
     name: p.name || "",
     code: p.code || "",
     rev: p.rev || "",
-    line: T == "m" ? "" : (L() || {}).name || "",
+    line: mm ? "" : line || "",
     dept: deptName(deptOf(p, S.co), S.co) || "",
     ref: ref || "",
     who: accessName(),
