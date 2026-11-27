@@ -198,7 +198,7 @@ panels (**?**). When the app changes, update both.
    prints as a blue safety sign with its name under the header of the PDF. Type anything
    else in **Other safety equipment**; it prints under the signs.
 6. Under **Tools required**, press **＋ Add tool** and enter each tool with its size or
-   specification and quantity (Enter adds the next row; names you used before are
+   specification (Enter adds the next row; names you used before are
    suggested). In the PDF they print as a table before the procedure, with a box to
    tick for each tool.
    Under **Machine settings**, press **＋ Add setting** for each parameter, value and

@@ -243,7 +243,8 @@ ${photoBtn(u, "rmSubI", "sub", `data-i="${i}" data-j="${j}"`)}</div>`,
 };
 
 // "Tools required" list on the product/machine page. p.tools = [{ n, s, q }]
-// (name, size / specification, quantity).
+// (name, size / specification; q = quantity from older versions, no longer
+// shown or printed but kept so earlier approvals still match).
 function toolsHtml(p) {
   const tools = p.tools || [],
     names = [
@@ -256,12 +257,12 @@ function toolsHtml(p) {
   return (
     `<p class="m">List the tools needed for this setup. They print as a checklist before the procedure.</p>` +
     (tools.length
-      ? `<div class="tl tlh" aria-hidden="true"><span>Tool</span><span>Size / specification</span><span>Qty</span><span></span></div>`
+      ? `<div class="tl tlh" aria-hidden="true"><span>Tool</span><span>Size / specification</span><span></span></div>`
       : "") +
     tools
       .map(
         (t, i) =>
-          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><input class="tq" data-tool="${i}" data-tk="q" type="number" min="1" inputmode="numeric" value="${esc(t.q)}" placeholder="Qty" aria-label="Tool ${i + 1} quantity"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">${IC.x}</button></div>`,
+          `<div class="tl"><input class="tn" data-tool="${i}" data-tk="n" list="toolNames" value="${esc(t.n)}" placeholder="e.g. Torque wrench" aria-label="Tool ${i + 1}"><input class="ts" data-tool="${i}" data-tk="s" value="${esc(t.s)}" placeholder="e.g. 10–60 Nm" aria-label="Tool ${i + 1} size or specification"><button class="sm tr2" data-a="rmTool" data-i="${i}" aria-label="Remove tool ${i + 1}">${IC.x}</button></div>`,
       )
       .join("") +
     `<button class="b2" data-a="addTool">＋ Add tool</button><datalist id="toolNames">${names.map((n) => `<option value="${esc(n)}">`).join("")}</datalist>`

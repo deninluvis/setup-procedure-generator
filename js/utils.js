@@ -793,6 +793,8 @@ const apContent = (p, kind, dept, imgHash) => {
     ppeo: s(p.ppeo),
     tools: (p.tools || [])
       .filter((t) => s(t.n))
+      // q: quantity from older versions (no longer shown); kept so earlier
+      // approvals still match.
       .map((t) => ({ n: s(t.n), s: s(t.s), q: s(t.q) })),
     // Machine settings only when there are some, so older approvals still match.
     ...(settingsOf(p).length

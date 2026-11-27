@@ -659,7 +659,7 @@ input[type="radio"] {
 }
 .tl {
   display: grid;
-  grid-template-columns: 1fr 1fr 64px 34px;
+  grid-template-columns: 1fr 1fr 34px;
   gap: 6px;
   align-items: center;
 }
@@ -683,7 +683,7 @@ input[type="radio"] {
 @media (max-width: 520px) {
   /* Name on its own line, then size, quantity and remove. */
   .tl {
-    grid-template-columns: 1fr 64px 34px;
+    grid-template-columns: 1fr 34px;
     margin-bottom: 8px;
   }
   .tl .tn {

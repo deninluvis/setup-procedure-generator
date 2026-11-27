@@ -227,7 +227,7 @@ document.addEventListener("click", (e) => {
   } else if (a == "addTool") {
     const p = P();
     p.tools = p.tools || [];
-    p.tools.push({ n: "", s: "", q: "" });
+    p.tools.push({ n: "", s: "" });
     focus = `[data-tool="${p.tools.length - 1}"][data-tk="n"]`;
   } else if (a == "rmTool") {
     const tl = P().tools[i];
@@ -674,6 +674,22 @@ document.addEventListener("input", (e) => {
   else if (t.dataset.ss !== undefined)
     p.steps[+t.dataset.ss].subs[+t.dataset.sj].t = t.value;
   else return;
+  // Keep the "3 tools" / "2 settings" counts on the section titles current.
+  const sum = (k, txt) => {
+    const el = $(`[data-sec="${k}"] > summary .m`);
+    if (el) el.textContent = txt;
+  };
+  if (t.dataset.tool !== undefined)
+    sum(
+      "tools",
+      count(
+        p.tools.filter((x) => String(x.n || "").trim()).length,
+        "tool",
+        "tools",
+      ),
+    );
+  if (t.dataset.set !== undefined)
+    sum("set", count(settingsOf(p).length, "setting", "settings"));
   save();
 });
 
