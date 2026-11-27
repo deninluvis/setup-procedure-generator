@@ -94,6 +94,16 @@ async function download(page, click) {
   return { name: dl.suggestedFilename(), bytes: fs.readFileSync(file) };
 }
 
+// The ⋮ menu at the top of a line, product or machine page.
+async function openMenu(page) {
+  if (!(await page.locator(".kmenu").count()))
+    await page.click("[data-a=menu]");
+}
+async function menuClick(page, sel) {
+  await openMenu(page);
+  await page.click(sel);
+}
+
 const pdfText = (bytes) => bytes.toString("latin1");
 const pageCount = (s) => (s.match(/\/Type \/Page\b/g) || []).length;
 
@@ -145,9 +155,10 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
   await page.fill('[data-s="1"]', "Run one test part.");
 
   await page.fill("[data-f=by]", "Alex");
+  await openMenu(page);
   await page.check("[data-wm]");
   const { name, bytes } = await download(page, () =>
-    page.click("[data-a=pdf]"),
+    menuClick(page, "[data-a=pdf]"),
   );
   const s = pdfText(bytes);
   assert.equal(name, "Widget_A_rev1.pdf");
@@ -227,11 +238,16 @@ test("a step and a sub-step take several photos, each removable, all in the PDF"
   assert.equal(await page.evaluate(() => P().steps[0].more.length), 2);
   await page.click('[data-a=addSub][data-i="0"]');
   // Picking four adds only three.
-  await page.setInputFiles('[data-up="sub"][data-i="0"][data-j="0"]', [PHOTO, PHOTO2, PHOTO, PHOTO2]);
+  await page.setInputFiles('[data-up="sub"][data-i="0"][data-j="0"]', [
+    PHOTO,
+    PHOTO2,
+    PHOTO,
+    PHOTO2,
+  ]);
   await page.waitForSelector('[data-a="rmSubI"][data-j="0"][data-n="2"]');
   assert.equal(await page.evaluate(() => P().steps[0].subs[0].more.length), 2);
 
-  const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
+  const { bytes } = await download(page, () => menuClick(page, "[data-a=pdf]"));
   const imgs = (pdfText(bytes).match(/\/Subtype \/Image/g) || []).length;
   assert.ok(imgs >= 2, `PDF should hold the photos (found ${imgs} images)`);
 
@@ -258,15 +274,22 @@ test("a line can be renamed, and a second line with the same name is not made", 
   await page.click("[data-a=openL]"); // back to the line
   page.removeAllListeners("dialog");
   page.once("dialog", (d) => d.accept("Press line"));
-  await page.click("[data-a=renL]");
+  await menuClick(page, "[data-a=renL]");
   assert.equal(await page.textContent("h1"), "Press line");
   await page.click("[data-a=home]");
-  assert.match(await page.textContent("#app"), /Use the same line name on every computer/);
+  assert.match(
+    await page.textContent("#app"),
+    /Use the same line name on every computer/,
+  );
   page.once("dialog", (d) => d.accept());
   await page.fill("#nw", " press  LINE ");
   await page.click("[data-a=addL]");
   assert.equal(await page.evaluate(() => S.lines.length), 1);
-  assert.equal(await page.textContent("h1"), "Press line", "the existing line opens");
+  assert.equal(
+    await page.textContent("h1"),
+    "Press line",
+    "the existing line opens",
+  );
   assert.deepEqual(errors, []);
   await ctx.close();
 });
@@ -285,13 +308,19 @@ test("empty, validation, success and no-results states", async () => {
   assert.equal(await page.evaluate(() => S.lines.length), 0);
   await page.fill("#nw", "Line 1");
   await page.click("[data-a=addL]");
-  assert.match(await page.textContent(".empty"), /No products in this line yet/);
+  assert.match(
+    await page.textContent(".empty"),
+    /No products in this line yet/,
+  );
   await page.fill("#nw", "Widget A");
   await page.click("[data-a=addP]");
   await page.fill("[data-f=by]", "Alex");
-  await download(page, () => page.click("[data-a=pdf]"));
+  await download(page, () => menuClick(page, "[data-a=pdf]"));
   await page.waitForSelector("#toast:not([hidden])");
-  assert.match(await page.textContent("#toast"), /PDF saved: Widget_A_rev1\.pdf/);
+  assert.match(
+    await page.textContent("#toast"),
+    /PDF saved: Widget_A_rev1\.pdf/,
+  );
   // Logs filter with no match.
   await page.evaluate(() => {
     T = "log";
@@ -324,7 +353,10 @@ test("damaged saved data shows a message instead of a blank page", async () => {
     indexedDB.open = () => {
       throw new Error("blocked");
     };
-    localStorage.setItem("sp", '{"co":{"name":"A","depts":5,"done":true},"lines":7}');
+    localStorage.setItem(
+      "sp",
+      '{"co":{"name":"A","depts":5,"done":true},"lines":7}',
+    );
   });
   await page.reload();
   await page.waitForSelector("h1");
@@ -341,7 +373,7 @@ test("a product and a machine can be duplicated as separate drafts", async () =>
   await page.setInputFiles('[data-up="step"][data-i="0"]', PHOTO);
   await page.waitForSelector('[data-a="rmSI"][data-i="0"]');
   await page.evaluate(() => (P().ap = { st: "pending", to: "Approver 1" }));
-  await page.click("[data-a=dupP]");
+  await menuClick(page, "[data-a=dupP]");
   assert.match(await page.textContent("#toast"), /Widget A \(copy\)/);
   assert.equal(await page.inputValue("[data-f=name]"), "Widget A (copy)");
   assert.equal(await page.inputValue('[data-s="0"]'), "Fit the die");
@@ -351,12 +383,15 @@ test("a product and a machine can be duplicated as separate drafts", async () =>
   assert.equal(b.ap, undefined, "the copy is a new draft");
   // Editing the copy leaves the original alone; a second copy gets "(copy 2)".
   await page.fill('[data-s="0"]', "Changed");
-  assert.equal(await page.evaluate(() => S.lines[0].products[0].steps[0].t), "Fit the die");
+  assert.equal(
+    await page.evaluate(() => S.lines[0].products[0].steps[0].t),
+    "Fit the die",
+  );
   await page.evaluate(() => {
     V.p = S.lines[0].products[0].id;
     R();
   });
-  await page.click("[data-a=dupP]");
+  await menuClick(page, "[data-a=dupP]");
   assert.deepEqual(
     await page.evaluate(() => S.lines[0].products.map((p) => p.name)),
     ["Widget A", "Widget A (copy 2)", "Widget A (copy)"],
@@ -370,8 +405,57 @@ test("a product and a machine can be duplicated as separate drafts", async () =>
   });
   await page.fill("#nw", "Press 1");
   await page.click("[data-a=addM]");
-  await page.click("[data-a=dupP]");
-  assert.deepEqual(await page.evaluate(() => S.machines.map((m) => m.name)), ["Press 1", "Press 1 (copy)"]);
+  await menuClick(page, "[data-a=dupP]");
+  assert.deepEqual(await page.evaluate(() => S.machines.map((m) => m.name)), [
+    "Press 1",
+    "Press 1 (copy)",
+  ]);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("the ⋮ menu holds the page actions and closes when you tap elsewhere", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  assert.equal(
+    await page.locator("[data-a=pdf]").count(),
+    0,
+    "no buttons on the page",
+  );
+  await page.click("[data-a=menu]");
+  const items = await page
+    .locator(".kmenu > button, .kmenu > label")
+    .allTextContents();
+  assert.deepEqual(items, [
+    "Download PDF",
+    "Request approval",
+    "Import approval file",
+    "Duplicate",
+    "Export this product",
+    "Delete product",
+  ]);
+  assert.equal(
+    await page.getAttribute("[data-a=menu]", "aria-expanded"),
+    "true",
+  );
+  // Ticking an option inside keeps it open; a tap outside closes it.
+  await page.click(".kmenu [data-ps]");
+  assert.equal(await page.locator(".kmenu").count(), 1);
+  await page.click("[data-f=name]");
+  assert.equal(await page.locator(".kmenu").count(), 0);
+  // Escape closes it too.
+  await page.click("[data-a=menu]");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".kmenu").count(), 0);
+  // Line page: Rename, Export, Delete.
+  await page.click("[data-a=openL]");
+  await page.click("[data-a=menu]");
+  assert.deepEqual(await page.locator(".kmenu > button").allTextContents(), [
+    "Rename line",
+    "Export this line",
+    "Delete this line",
+  ]);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
@@ -416,7 +500,7 @@ test("a machine prints to PDF", async () => {
   await page.check('[data-ppe="helmet"]');
   await page.fill('[data-s="0"]', "Switch off the main power.");
   await page.fill("[data-f=by]", "Alex");
-  const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
+  const { bytes } = await download(page, () => menuClick(page, "[data-a=pdf]"));
   const s = pdfText(bytes);
   for (const t of [
     "Press 3",
@@ -489,8 +573,7 @@ async function serve(files = {}) {
   const site = {};
   const server = http.createServer(async (req, res) => {
     // site.delay: answer slowly, like a slow network.
-    if (site.delay)
-      await new Promise((r) => setTimeout(r, site.delay).unref());
+    if (site.delay) await new Promise((r) => setTimeout(r, site.delay).unref());
     const rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
     if (files[rel] !== undefined) {
       res.writeHead(200, {
@@ -576,7 +659,9 @@ test("from a web address the app works offline after the first visit", async () 
     await newProduct(page);
     await page.check('[data-ppe="vest"]');
     await page.fill("[data-f=by]", "Alex");
-    const { bytes } = await download(page, () => page.click("[data-a=pdf]"));
+    const { bytes } = await download(page, () =>
+      menuClick(page, "[data-a=pdf]"),
+    );
     assert.ok(pdfText(bytes).includes("Hi-vis vest"));
     assert.deepEqual(errors, []);
     await ctx.close();
@@ -662,9 +747,9 @@ test("each PDF is listed in the print log, which filters and downloads as CSV", 
   await newProduct(page);
   await page.fill("[data-f=code]", "WA-1");
   await page.fill("[data-f=by]", "Alex");
-  await download(page, () => page.click("[data-a=pdf]"));
+  await download(page, () => menuClick(page, "[data-a=pdf]"));
   await page.fill("[data-f=rev]", "2");
-  await download(page, () => page.click("[data-a=pdf]"));
+  await download(page, () => menuClick(page, "[data-a=pdf]"));
   await page.click("[data-a=openL]");
   await page.click("[data-a=home]");
   await page.click("[data-a=goHome]");
@@ -740,13 +825,13 @@ test("approval: request by email, sign with the approver code, import, and draft
     await A.page.fill("[data-f=by]", "Alex");
     await A.page.waitForSelector("#apbox .badge.dr");
     let s = pdfText(
-      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+      (await download(A.page, () => menuClick(A.page, "[data-a=pdf]"))).bytes,
     );
     assert.ok(s.includes("(DRAFT)") && s.includes("Not approved: draft"));
 
     // Request approval: a .zip is saved and an email opened.
     await stubMail(A.page);
-    await A.page.click("[data-a=apReq]");
+    await menuClick(A.page, "[data-a=apReq]");
     await A.page.selectOption('[data-ap="to"]', "Test Approver");
     await A.page.fill('[data-ap="tomail"]', "boss@example.com");
     await A.page.fill('[data-ap="mymail"]', "alex@example.com");
@@ -796,6 +881,7 @@ test("approval: request by email, sign with the approver code, import, and draft
       (await B.page.evaluate(() => MAILS))[0].to,
       "alex@example.com",
     );
+    await openMenu(A.page);
     await A.page.setInputFiles("[data-apfile]", saveTo(no));
     await A.page.waitForSelector("#apbox .badge.no");
     assert.match(
@@ -828,6 +914,7 @@ test("approval: request by email, sign with the approver code, import, and draft
     bad.payload.comment = "Changed";
     const badFile = path.join(path.dirname(saveTo(ok)), "bad.json");
     fs.writeFileSync(badFile, JSON.stringify(bad));
+    await openMenu(A.page);
     await A.page.setInputFiles("[data-apfile]", badFile);
     await A.page.waitForSelector("#apbox p.err");
     assert.match(
@@ -836,6 +923,7 @@ test("approval: request by email, sign with the approver code, import, and draft
     );
 
     // Author imports the approval: Approved, PDF without DRAFT.
+    await openMenu(A.page);
     await A.page.setInputFiles("[data-apfile]", saveTo(ok));
     await A.page.waitForSelector("#apbox .badge.ok");
     assert.match(
@@ -843,7 +931,7 @@ test("approval: request by email, sign with the approver code, import, and draft
       /Approved by Sam Lee \(Test Approver\).*Looks good/,
     );
     s = pdfText(
-      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+      (await download(A.page, () => menuClick(A.page, "[data-a=pdf]"))).bytes,
     );
     assert.ok(!s.includes("(DRAFT)") && !s.includes("Not approved"));
     assert.ok(
@@ -862,7 +950,7 @@ test("approval: request by email, sign with the approver code, import, and draft
       /Changed after it was approved/,
     );
     s = pdfText(
-      (await download(A.page, () => A.page.click("[data-a=pdf]"))).bytes,
+      (await download(A.page, () => menuClick(A.page, "[data-a=pdf]"))).bytes,
     );
     assert.ok(s.includes("(DRAFT)"));
     await A.page.fill('[data-s="0"]', "Tighten the clamps.");
@@ -1028,7 +1116,10 @@ test("an unused login ends by itself, with a warning first", async () => {
     await page.click("#lock button");
     await page.waitForSelector(".ubar");
     await page.evaluate(() =>
-      localStorage.setItem("sp-active", String(Date.now() - 24 * 60 * 60 * 1000)),
+      localStorage.setItem(
+        "sp-active",
+        String(Date.now() - 24 * 60 * 60 * 1000),
+      ),
     );
     await page.reload();
     await page.waitForSelector(".ubar");
@@ -1065,7 +1156,7 @@ test("admins see activity, print log and code usage; authors' names fill in Prep
     await page.fill('[data-s="0"]', "Tighten the clamps.");
     await page.fill("[data-f=rev]", "2");
     await page.check('[data-ppe="gloves"]');
-    await download(page, () => page.click("[data-a=pdf]"));
+    await download(page, () => menuClick(page, "[data-a=pdf]"));
     await page.fill('[data-s="0"]', "Tighten the clamps to 25 Nm.");
     await page.click("[data-a=openL]"); // leave the product: the edit is recorded
     await page.click("[data-a=home]");
@@ -1079,7 +1170,7 @@ test("admins see activity, print log and code usage; authors' names fill in Prep
     await page.click("[data-a=tab][data-t=m]");
     await page.fill("#nw", "Press 3");
     await page.click("[data-a=addM]");
-    await page.click("[data-a=delP]");
+    await menuClick(page, "[data-a=delP]");
     await page.click("[data-a=logout]");
 
     // Admin: Logs page.

@@ -169,7 +169,8 @@ With no codes listed in `js/access.js`, the app opens without asking.
    remove departments later.
 3. **Products:** add a product line (for example "Line 1"), then add a product to it.
    Use the same line name on every computer, so imported products go into that line.
-   To change a line's name, open the line and press **Rename line** (Undo works).
+   To change a line's name, open the line, press **⋮** (top right) and choose
+   **Rename line** (Undo works). Export this line and Delete this line are in the same menu.
    **Machines:** add a machine.
 4. On a product or machine page, the **How to fill in this product/machine** panel
    explains each part (closed at first: click it to open; it stays as you left it).
@@ -196,12 +197,14 @@ With no codes listed in `js/access.js`, the app opens without asking.
      orange) or **Note** (useful tip, blue). In the PDF it prints in a box with the same
      colour edge, a symbol, and WARNING / CAUTION / NOTE next to it, followed by the
      description.
-   - **Duplicate** (bottom of the page) copies the whole product or machine (steps,
+   - **Duplicate** (in the **⋮** menu at the top right) copies the whole product or machine (steps,
      photos, tools, safety equipment) as "Name (copy)" and opens the copy, ready to edit
      for a similar product. The copy is a new draft without the approval.
 8. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
-9. Optionally tick **Add watermark to the PDF**: the company name and the item's
+9. Press **⋮** at the top right of the page. The menu holds the PDF options, Download
+   PDF, the approval actions, Duplicate, Export and Delete.
+   Optionally tick **Add watermark to the PDF**: the company name and the item's
    department are printed large, faint and diagonally across every page. The choice is
    remembered in this browser.
    Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
@@ -213,7 +216,7 @@ With no codes listed in `js/access.js`, the app opens without asking.
 DRAFT watermark and "Not approved: draft" in the Approved by box. The status box at the
 top of its page shows where it is.
 
-1. **Author: request approval.** Press **Request approval**, choose the approver, enter
+1. **Author: request approval.** Press **⋮** → **Request approval**, choose the approver, enter
    their email and yours, and press **Save request and open email**. The app saves
    `Approval request - <name> - rev <n>.zip` and opens an email to the approver. Attach
    that file (from your Downloads folder) and send it. The status is now **Waiting for
@@ -227,7 +230,7 @@ top of its page shows where it is.
    (after reloading the page, you type the code again to sign). The app saves
    `Approval - <name> - rev <n> - approved.json` (or `rejected`) and opens a reply email:
    attach the file and send it.
-3. **Author: import the decision.** Press **Import approval file** on the product's page
+3. **Author: import the decision.** Press **⋮** → **Import approval file** on the product's page
    (or Home → Approvals) and choose the .json. The app checks that it was signed with a
    listed approver's code, that the file was not changed, and that the procedure is
    exactly what was approved. It then shows **Approved** (or **Rejected** with the
@@ -345,7 +348,7 @@ A tree lists everything, each with a tick box:
 - Otherwise you get `setup-procedures-export-YYYY-MM-DD.zip` with just the ticked
   items, or `Widget A - product - YYYY-MM-DD.zip` for a single item.
 
-Shortcuts: **Export this line** on a line page, **Export this product / machine** on its page.
+Shortcuts: **⋮** → **Export this line** on a line page, **⋮** → **Export this product / machine** on its page.
 
 The ZIP holds `data.json` (all text) plus photos as normal image files:
 

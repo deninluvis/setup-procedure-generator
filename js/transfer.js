@@ -448,7 +448,7 @@ const itemHelp = (mm) => {
     `<ol>
 <li><b>Details.</b> Enter the ${it} name, pick the <b>Department</b>, and fill in the ${mm ? "machine ID / asset number" : "product code"}. Raise the <b>Revision</b> number whenever you change the procedure, so printed copies can be told apart.</li>
 <li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it. <b>✎</b> (or <b>✎ Mark up</b> on a step photo) lets you draw arrows, circles and numbers on it to point at the exact part.</li>
-<li><b>Approval.</b> The box at the top shows whether this is a <b>Draft</b>, <b>Waiting for approval</b>, <b>Approved</b> or <b>Rejected</b>. Drafts print with a DRAFT watermark. Press <b>Request approval</b>, choose the approver and their email, then attach the saved file to the email that opens. When the approver's file comes back, press <b>Import approval file</b>. Any change after approval makes it a draft again.</li>
+<li><b>Approval.</b> The box at the top shows whether this is a <b>Draft</b>, <b>Waiting for approval</b>, <b>Approved</b> or <b>Rejected</b>. Drafts print with a DRAFT watermark. In the <b>⋮</b> menu (top right), press <b>Request approval</b>, choose the approver and their email, then attach the saved file to the email that opens. When the approver's file comes back, press <b>Import approval file</b> in the same menu. Any change after approval makes it a draft again.</li>
 <li><b>Safety equipment (PPE).</b> Tick what must be worn, such as safety glasses or gloves. Each one prints as a safety sign at the top of the PDF. Anything else goes in <b>Other safety equipment</b>.</li>
 <li><b>Tools required.</b> Press <b>＋ Add tool</b> and enter the tool, its size or specification and the quantity. Press Enter to add the next one. Tool names you used before are suggested. In the PDF they print as a checklist with a box to tick before the procedure.</li>
 <li><b>Steps.</b> Write one step per action, in order:
@@ -462,12 +462,13 @@ const itemHelp = (mm) => {
 <li><b>＋ Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text and optional photo. They print indented under their step.</li>
 </ul></li>
 <li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
-<li><b>Download PDF.</b> Tick <b>Add watermark</b> first if you want the company name and department printed faintly across every page, and pick the <b>Photo size in the PDF</b> (Small, Medium or Large; photos stay sharp when zoomed at any size). The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
+<li><b>Download PDF</b> is in the <b>⋮</b> menu at the top right. Tick <b>Add watermark</b> there first if you want the company name and department printed faintly across every page, and pick the <b>Photo size in the PDF</b> (Small, Medium or Large; photos stay sharp when zoomed at any size). The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
 </ol>
 <h3>Good to know</h3>
 <ul>
 <li>Everything is saved automatically as you type. There is no Save button.</li>
 <li><b>Removed something by mistake?</b> Press <b>Undo</b> in the bar at the bottom of the screen, or Ctrl+Z (⌘Z on a Mac) when you are not typing in a field. This works for steps, sub-steps, warnings and notes, photos, products, machines, lines, departments, the logo, imports and clearing all data, until you close or reload the page.</li>
+<li><b>Duplicate</b>, <b>Export</b> and <b>Delete</b> are in the <b>⋮</b> menu at the top right of the page.</li>
 <li><b>Duplicate</b> makes a copy of this ${it} (steps, photos, tools and safety equipment) named "(copy)", next to it, and opens the copy. The copy starts as a draft: request approval again.</li>
 <li><b>Export this ${it}</b> makes a file to share this one ${it} with a colleague (see <b>Export &amp; import</b> on the home page).</li>
 <li><b>Delete ${it}</b> removes it for good. Export it or make a backup first if you might need it again.</li>

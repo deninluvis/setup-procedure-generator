@@ -11,7 +11,21 @@ function needName(msg) {
 // changes, and Enter shortcuts. Each change is saved, then R() redraws.
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-a]");
+  // A click outside the ⋮ menu closes it (clicks on its options inside do not).
+  if (MENU && !e.target.closest(".kebab")) {
+    MENU = false;
+    R(true);
+    if (!t) return;
+  }
   if (!t) return;
+  if (t.dataset.a == "menu") {
+    MENU = !MENU;
+    R(true);
+    const first = $(MENU ? ".kmenu button, .kmenu input" : "[data-a=menu]");
+    if (first) first.focus();
+    return;
+  }
+  if (t.closest(".kmenu")) MENU = false; // an option was chosen
   const a = t.dataset.a,
     i = +t.dataset.i,
     j = +t.dataset.j,
@@ -289,7 +303,7 @@ document.addEventListener("click", (e) => {
       planItems(list),
       `${safeName(l.name, "Line")} - line - ${dateStamp()}.zip`,
       t,
-    );
+    ).then(() => R(true)); // closes the ⋮ menu once the file is saved
     return;
   } else if (a == "goAp") {
     T = "ap";
@@ -433,7 +447,7 @@ document.addEventListener("click", (e) => {
       ]),
       `${safeName(p.name, kind)} - ${kind} - ${dateStamp()}.zip`,
       t,
-    );
+    ).then(() => R(true)); // closes the ⋮ menu once the file is saved
     return;
   } else if (a == "clearAll") {
     if (!isAdmin()) return;
@@ -469,6 +483,7 @@ document.addEventListener("click", (e) => {
       .finally(() => {
         t.disabled = false;
         t.textContent = label;
+        R(true); // closes the ⋮ menu
       });
   }
   save();
@@ -656,6 +671,15 @@ document.addEventListener("change", async (e) => {
     }
   }
   R(true);
+});
+
+// Escape closes the ⋮ menu.
+document.addEventListener("keydown", (e) => {
+  if (e.key == "Escape" && MENU) {
+    MENU = false;
+    R(true);
+    $("[data-a=menu]").focus();
+  }
 });
 
 // Enter in a tool row moves to the next row; in the home search it opens

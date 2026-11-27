@@ -122,8 +122,7 @@ const apImportBtn = (label) =>
 
 // Status box at the top of the product/machine page.
 function apBoxInner(p) {
-  const r = AP_NOW.get(p.id) || { st: "checking" },
-    reqBtn = (t) => `<button class="b" data-a="apReq">${t}</button>`;
+  const r = AP_NOW.get(p.id) || { st: "checking" };
   let h = "";
   if (r.st == "checking") h = `<p class="m">Checking approval…</p>`;
   else if (r.st == "nocrypto")
@@ -134,22 +133,42 @@ function apBoxInner(p) {
       (r.comment ? `<p class="apc">“${esc(r.comment)}”</p>` : "") +
       `<p class="m">Any change to this ${itemKind(p)} makes it a draft again.</p>`;
   else if (r.st == "changed")
-    h = `<p><span class="badge dr">Draft</span> Changed after it was approved by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p><p class="m">PDFs print with a DRAFT watermark. Undo the change, or request approval again.</p><div class="row" style="flex-wrap:wrap">${reqBtn("Request approval again")}${apImportBtn("Import approval file")}</div>`;
+    h = `<p><span class="badge dr">Draft</span> Changed after it was approved by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p><p class="m">PDFs print with a DRAFT watermark. Undo the change, or request approval again.</p>`;
   else if (r.st == "pending")
     h =
       `<p><span class="badge wait">Waiting for approval</span> Sent to <b>${esc(r.to)}</b> on ${apDay(r.at)}.</p>` +
       (r.changed
         ? `<p class="err">You changed it after asking for approval, so the approval will not match. Request approval again.</p>`
         : `<p class="m">When the approval file arrives by email, import it here. Until then PDFs print with a DRAFT watermark.</p>`) +
-      `<div class="row" style="flex-wrap:wrap">${apImportBtn("Import approval file")}<button class="b2" data-a="apReq">Request again</button>${APMAIL ? `<button class="b2" data-a="apMail">Open the email again</button>` : ""}</div>`;
+      ``;
   else if (r.st == "rejected")
     h =
       `<p><span class="badge no">Rejected</span> by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p>` +
       (r.comment ? `<p class="apc">“${esc(r.comment)}”</p>` : "") +
-      `<p class="m">Make the changes, then request approval again. PDFs print with a DRAFT watermark.</p><div class="row" style="flex-wrap:wrap">${reqBtn("Request approval again")}${apImportBtn("Import approval file")}</div>`;
+      `<p class="m">Make the changes, then request approval again. PDFs print with a DRAFT watermark.</p>`;
   else
-    h = `<p><span class="badge dr">Draft</span> Not approved yet. PDFs print with a DRAFT watermark.</p><div class="row" style="flex-wrap:wrap">${reqBtn("Request approval")}${apImportBtn("Import approval file")}</div>`;
+    h = `<p><span class="badge dr">Draft</span> Not approved yet. PDFs print with a DRAFT watermark.</p>`;
   return apMsgHtml() + h + (REQ ? apReqForm(p) : "");
+}
+// Approval actions for the ⋮ menu, by state (read when the menu opens).
+function apMenu(p) {
+  const st = (AP_NOW.get(p.id) || {}).st,
+    req = (t) => `<button data-a="apReq">${t}</button>`,
+    imp = apImportBtn("Import approval file");
+  if (st == "checking" || st == "approved") return "";
+  if (st == "pending")
+    return (
+      imp +
+      req("Request approval again") +
+      (APMAIL ? `<button data-a="apMail">Open the email again</button>` : "")
+    );
+  return (
+    req(
+      st == "rejected" || st == "changed"
+        ? "Request approval again"
+        : "Request approval",
+    ) + imp
+  );
 }
 const apBox = (p) =>
   `<section class="apbox" id="apbox" aria-live="polite">${apBoxInner(p)}</section>`;
@@ -526,6 +545,7 @@ document.addEventListener("change", async (e) => {
   } else if (t.dataset.apfile && t.files[0]) {
     const f = t.files[0];
     t.value = "";
+    MENU = false;
     await importApproval(f);
   } else if (t.name == "apdec" && APR) {
     APR.decision = t.value;

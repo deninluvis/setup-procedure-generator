@@ -5,6 +5,11 @@
 // k = the input's data attribute (hs, xf, lf or af).
 const sbox = (input, k, style = "") =>
   `<span class="sbox"${style ? ` style="${style}"` : ""}>${input}<button type="button" class="sclr" data-a="sClear" data-k="${k}" aria-label="Clear search">✕</button></span>`;
+// Page title with a ⋮ menu on the right. items() builds the menu's buttons
+// when it is open (MENU), so they always match the current state.
+let MENU = false;
+const titleMenu = (title, items) =>
+  `<div class="hrow"><h1>${title}</h1><div class="kebab"><button class="kb" data-a="menu" aria-haspopup="true" aria-expanded="${MENU}" aria-label="More actions">⋮</button>${MENU ? `<div class="kmenu">${items()}</div>` : ""}</div></div>`;
 const add = (ph, a) =>
   `<div class="row"><input id="nw" placeholder="${ph}"><button class="b" data-a="${a}">Add</button></div>`;
 const gal = (arr, k) =>
@@ -257,7 +262,11 @@ function R(keep) {
   } else if (T == "p" && !V.p) {
     const l = L();
     h =
-      `<button class="lk" data-a="home">← All lines</button><h1>${esc(l.name)}</h1><p class="m">Pick a product, or add one.</p>` +
+      `<button class="lk" data-a="home">← All lines</button>${titleMenu(
+        esc(l.name),
+        () =>
+          `<button data-a="renL">Rename line</button><button data-a="exLine">Export this line</button><button class="d" data-a="delL">Delete this line</button>`,
+      )}<p class="m">Pick a product, or add one.</p>` +
       (l.products.length
         ? ""
         : `<p class="empty">No products in this line yet. Type a product name below and press Add.</p>`) +
@@ -267,8 +276,7 @@ function R(keep) {
             `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)} ${apBadge(p)}</b><span class="m">${cardMeta(p)}${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Product name", "addP") +
-      `<div class="row" style="flex-wrap:wrap"><button class="b2" data-a="renL">Rename line</button><button class="b2" data-a="exLine">Export this line</button><button class="b d" data-a="delL">Delete this line</button></div>`;
+      add("Product name", "addP");
   } else {
     const p = P(),
       mm = T == "m";
@@ -276,7 +284,12 @@ function R(keep) {
       (mm
         ? `<button class="lk" data-a="mhome">← All machines</button>`
         : `<button class="lk" data-a="openL" data-id="${V.l}">← ${esc(L().name)}</button>`) +
-      `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>${apBox(p)}${itemHelp(mm)}
+      titleMenu(
+        esc(p.name) || (mm ? "New machine" : "New product"),
+        () =>
+          `<div class="kopt">${wmBox(p)}${psBox()}</div><button data-a="pdf">Download PDF</button><hr>${apMenu(p)}${apMenu(p) ? "<hr>" : ""}<button data-a="dupP">Duplicate</button><button data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="d" data-a="delP">Delete ${mm ? "machine" : "product"}</button>`,
+      ) +
+      `${apBox(p)}${itemHelp(mm)}
 <label class="f">${mm ? "Machine name" : "Product name"}<input data-f="name" value="${esc(p.name)}"></label>
 ${deptSel(p)}
 <div class="two"><label class="f">${mm ? "Machine ID / asset no." : "Product code"}<input data-f="code" value="${esc(p.code)}"></label><label class="f">Revision<input data-f="rev" value="${esc(p.rev)}"></label></div>
@@ -299,8 +312,7 @@ ${toolsHtml(p)}
           : `<span class="m">Filled in when the ${mm ? "machine" : "product"} is approved (see the top of this page).</span>`;
       })()}</p></div></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
-${wmBox(p)}${psBox()}
-<div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="dupP">Duplicate</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
+<p class="m">Download PDF, approval, duplicate, export and delete: in the <b>⋮</b> menu at the top right.</p>`;
   }
   $("#app").innerHTML = userBar() + h;
   document
