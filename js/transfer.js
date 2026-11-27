@@ -468,6 +468,7 @@ const itemHelp = (mm) => {
 <ul>
 <li>Everything is saved automatically as you type. There is no Save button.</li>
 <li><b>Removed something by mistake?</b> Press <b>Undo</b> in the bar at the bottom of the screen, or Ctrl+Z (⌘Z on a Mac) when you are not typing in a field. This works for steps, sub-steps, warnings and notes, photos, products, machines, lines, departments, the logo, imports and clearing all data, until you close or reload the page.</li>
+<li><b>Duplicate</b> makes a copy of this ${it} (steps, photos, tools and safety equipment) named "(copy)", next to it, and opens the copy. The copy starts as a draft: request approval again.</li>
 <li><b>Export this ${it}</b> makes a file to share this one ${it} with a colleague (see <b>Export &amp; import</b> on the home page).</li>
 <li><b>Delete ${it}</b> removes it for good. Export it or make a backup first if you might need it again.</li>
 </ul>`,

@@ -196,6 +196,9 @@ With no codes listed in `js/access.js`, the app opens without asking.
      orange) or **Note** (useful tip, blue). In the PDF it prints in a box with the same
      colour edge, a symbol, and WARNING / CAUTION / NOTE next to it, followed by the
      description.
+   - **Duplicate** (bottom of the page) copies the whole product or machine (steps,
+     photos, tools, safety equipment) as "Name (copy)" and opens the copy, ready to edit
+     for a similar product. The copy is a new draft without the approval.
 8. In **Sign-off**, fill in Time required and Technicians required (or leave them
    empty to write in by pen), then Prepared by and Approved by.
 9. Optionally tick **Add watermark to the PDF**: the company name and the item's
