@@ -501,6 +501,7 @@ test("the ⋮ menu holds the page actions and closes when you tap elsewhere", as
   await page.click("[data-a=openL]");
   await page.click('[data-a=menu][data-m="t"]');
   assert.deepEqual(await page.locator(".kmenu > button").allTextContents(), [
+    "Download all PDFs (ZIP)",
     "Rename line",
     "Export this line",
     "Delete this line",
@@ -561,6 +562,107 @@ test("cleaner pages: step menus, photo viewer, folding sections, badge, help, se
   await page.click("[data-a=addOpen]");
   await page.click("[data-a=addCancel]");
   assert.equal(await page.locator("#nw").count(), 0);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("settings table, photo order, duplicate to a line, merge lines, check before printing, PDFs of a line", async () => {
+  const { Zip } = require("../../js/zip.js");
+  const { ctx, page, errors } = await open();
+  const dialogs = [];
+  page.on("dialog", (d) => dialogs.push(d.message()));
+  await setupCompany(page);
+  await newProduct(page);
+  // Machine settings print as a table.
+  await page.click("[data-a=addSet]");
+  await page.fill('[data-set="0"][data-sk="n"]', "Mould temperature");
+  await page.fill('[data-set="0"][data-sk="v"]', "220");
+  await page.fill('[data-set="0"][data-sk="u"]', "C");
+  // Photo order: move the second photo to the front.
+  await page.setInputFiles('[data-up="step"][data-i="0"]', [PHOTO, PHOTO2]);
+  await page.waitForSelector('[data-a=view][data-n="1"]');
+  const [p1, p2] = await page.evaluate(() => [
+    P().steps[0].img,
+    P().steps[0].more[0],
+  ]);
+  await viewPhoto(page, 0, 1);
+  await page.click("#pv [data-a=phMv][data-d='-1']");
+  assert.deepEqual(
+    await page.evaluate(() => [P().steps[0].img, P().steps[0].more[0]]),
+    [p2, p1],
+  );
+  assert.equal(
+    await page.locator("#pv [data-a=phMv][data-d='1']").count(),
+    1,
+    "viewer follows the photo",
+  );
+  await page.keyboard.press("Escape");
+  // Check before printing: empty step text, no tools, no product photo.
+  await page.fill("[data-f=by]", "Alex");
+  const { bytes } = await download(page, () => menuClick(page, "[data-a=pdf]"));
+  assert.match(
+    dialogs.pop(),
+    /Before printing[\s\S]*There is no product photo[\s\S]*Step 1 has no text/,
+  );
+  const s = pdfText(bytes);
+  assert.ok(
+    s.includes("Machine settings") &&
+      s.includes("Mould temperature") &&
+      s.includes("220"),
+  );
+  // A second line; duplicate the product into it (same name there).
+  await page.click("[data-a=openL]");
+  await page.click("[data-a=home]");
+  await typeNew(page, "Line 2");
+  await page.click("[data-a=addL]");
+  await page.click("[data-a=home]");
+  await page.click("[data-a=openL] >> text=Line 1");
+  await page.click("[data-a=openP]");
+  await menuClick(page, "[data-a=pickLine][data-k=dup]");
+  await page.click(".kmenu [data-a=dupP] >> text=Line 2");
+  assert.match(await page.textContent(".hrow + *, #app"), /Line 2/);
+  assert.deepEqual(
+    await page.evaluate(() =>
+      S.lines.map((l) => [l.name, l.products.map((p) => p.name)]),
+    ),
+    [
+      ["Line 1", ["Widget A"]],
+      ["Line 2", ["Widget A"]],
+    ],
+  );
+  // Merge Line 2 into Line 1: the clash gets the old line's name.
+  await page.click("[data-a=openL]");
+  await menuClick(page, "[data-a=pickLine][data-k=merge]");
+  await page.click(".kmenu [data-a=mergeL] >> text=Line 1");
+  assert.deepEqual(
+    await page.evaluate(() =>
+      S.lines.map((l) => [l.name, l.products.map((p) => p.name)]),
+    ),
+    [["Line 1", ["Widget A", "Widget A (Line 2)"]]],
+  );
+  assert.match(await page.textContent("#toast"), /merged into "Line 1"/);
+  // All PDFs of the line in one .zip.
+  const zip = await download(page, () => menuClick(page, "[data-a=pdfLine]"));
+  assert.match(zip.name, /^Line 1 - PDFs - .*\.zip$/);
+  const names = [
+    ...(
+      await Zip.read(
+        zip.bytes.buffer.slice(
+          zip.bytes.byteOffset,
+          zip.bytes.byteOffset + zip.bytes.length,
+        ),
+      )
+    ).keys(),
+  ].sort();
+  assert.deepEqual(
+    names,
+    ["Widget_A_Line_2__rev1.pdf", "Widget_A_rev1.pdf"].sort(),
+  );
+  assert.equal(
+    await page.evaluate(() => S.log.length),
+    3,
+    "each PDF is in the print log",
+  );
   assert.deepEqual(errors, []);
   await ctx.close();
 });

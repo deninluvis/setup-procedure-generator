@@ -458,25 +458,26 @@ const itemHelp = (mm) => {
 <li><b>Approval.</b> The badge next to the title (tap it for details) shows whether this is a <b>Draft</b>, <b>Waiting for approval</b>, <b>Approved</b> or <b>Rejected</b>. Drafts print with a DRAFT watermark. In the <b>⋮</b> menu (top right), press <b>Request approval</b>, choose the approver and their email, then attach the saved file to the email that opens. When the approver's file comes back, press <b>Import approval file</b> in the same menu. Any change after approval makes it a draft again.</li>
 <li><b>Safety equipment (PPE).</b> Tick what must be worn, such as safety glasses or gloves. Each one prints as a safety sign at the top of the PDF. Anything else goes in <b>Other safety equipment</b>.</li>
 <li><b>Tools required.</b> Press <b>＋ Add tool</b> and enter the tool, its size or specification and the quantity. Press Enter to add the next one. Tool names you used before are suggested. In the PDF they print as a checklist with a box to tick before the procedure.</li>
+<li><b>Machine settings.</b> Press <b>＋ Add setting</b> and enter the parameter (for example "Mould temperature"), its value and unit. Press Enter for the next row. They print as a table after the tools.</li>
 <li><b>Steps.</b> Write one step per action, in order:
 <ul>
 <li>A short <b>headline</b> (optional) is printed in bold, for example "Install the fixture".</li>
 <li>The <b>description</b> says exactly what to do, with values such as torque, speed or program number.</li>
-<li><b>＋ Add photo</b> adds photos to the step or sub-step (up to 3), for example the part and the control panel. You can pick several at once, or press <b>＋ Add another photo</b> later. In the PDF they are printed side by side. Tap a photo to see it full screen, with <b>✎ Mark up</b> and <b>Remove</b>.</li>
+<li><b>＋ Add photo</b> adds photos to the step or sub-step (up to 3), for example the part and the control panel. You can pick several at once, or press <b>＋ Add another photo</b> later. In the PDF they are printed side by side. Tap a photo to see it full screen, with <b>✎ Mark up</b>, <b>Remove</b>, and <b>◀ Move left</b> / <b>Move right ▶</b> to change the order.</li>
 <li>The <b>⋮</b> on a step holds <b>Move up</b>, <b>Move down</b>, <b>Insert step below</b>, <b>Add sub-step</b>, <b>Add warning or note</b> and <b>Delete step</b>. <b>＋ Add step</b> at the bottom adds one at the end. Steps renumber automatically.</li>
 <li><b>Add warning or note</b> (in the step's or sub-step's <b>⋮</b>) adds a box. Choose its type: <b>Warning</b> (serious hazard, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful tip, blue), then describe it. In the PDF it prints in a box with the same colour edge, a symbol and the word WARNING, CAUTION or NOTE next to it. <b>✕</b> in the box removes it.</li>
 <li><b>Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text, photos and <b>⋮</b> (move, note, delete). They print indented under their step.</li>
 <li>Tap a section title (Photos, Safety equipment, Tools, Steps, Sign-off) to fold it away; the count on the right says what is inside. Folded sections stay folded on this computer.</li>
 </ul></li>
 <li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
-<li><b>Download PDF</b> is in the <b>⋮</b> menu at the top right. Tick <b>Add watermark</b> there first if you want the company name and department printed faintly across every page, and pick the <b>Photo size in the PDF</b> (Small, Medium or Large; photos stay sharp when zoomed at any size). The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
+<li><b>Download PDF</b> is in the <b>⋮</b> menu at the top right. Tick <b>Add watermark</b> there first if you want the company name and department printed faintly across every page, and pick the <b>Photo size in the PDF</b> (Small, Medium or Large; photos stay sharp when zoomed at any size). The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end. Before making it, the app lists anything that looks missing (no product photo, no safety equipment or tools, a step without text, an empty note); press <b>OK</b> to make it anyway or <b>Cancel</b> to fix it first.</li>
 </ol>
 <h3>Good to know</h3>
 <ul>
 <li>Everything is saved automatically as you type. There is no Save button.</li>
 <li><b>Removed something by mistake?</b> Press <b>Undo</b> in the bar at the bottom of the screen, or Ctrl+Z (⌘Z on a Mac) when you are not typing in a field. This works for steps, sub-steps, warnings and notes, photos, products, machines, lines, departments, the logo, imports and clearing all data, until you close or reload the page.</li>
 <li><b>Duplicate</b>, <b>Export</b> and <b>Delete</b> are in the <b>⋮</b> menu at the top right of the page.</li>
-<li><b>Duplicate</b> makes a copy of this ${it} (steps, photos, tools and safety equipment) named "(copy)", next to it, and opens the copy. The copy starts as a draft: request approval again.</li>
+<li><b>Duplicate</b> makes a copy of this ${it} (steps, photos, tools and safety equipment) named "(copy)", next to it, and opens the copy. The copy starts as a draft: request approval again. <b>Duplicate to another line…</b> puts the copy in the line you pick (keeping the same name if it is free there).</li>
 <li><b>Export this ${it}</b> makes a file to share this one ${it} with a colleague (see <b>Export &amp; import</b> on the home page).</li>
 <li><b>Delete ${it}</b> removes it for good. Export it or make a backup first if you might need it again.</li>
 </ul>`,

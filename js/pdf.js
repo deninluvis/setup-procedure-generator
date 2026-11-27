@@ -137,9 +137,12 @@ function draftMark(d, W, H) {
 // request) of o = { p, mm, line, coName, dept, logo, review: true }.
 // Only an approval whose signature and content check out prints the
 // approver's name; anything else is a DRAFT.
+// With o.batch (several PDFs at once) it returns { file, blob } instead of
+// downloading, and is logged like a normal PDF.
 async function mkPdf(o) {
-  const own = !o;
-  if (own && !String(P().by || "").trim()) {
+  const batch = !!(o && o.batch),
+    own = !o || batch;
+  if (!o && !String(P().by || "").trim()) {
     alert('Enter "Prepared by" before downloading.');
     return;
   }
@@ -372,6 +375,58 @@ async function mkPdf(o) {
       const bx = M + cols[0] + cols[1] + cols[2] + (cols[3] - 5) / 2;
       d.setLineWidth(0.4);
       d.rect(bx, y + (rh - 5) / 2, 5, 5);
+      y += rh;
+    });
+    y += 4;
+  }
+  // Machine settings: Parameter | Value | Unit.
+  const sets = settingsOf(p);
+  if (sets.length) {
+    sec("Machine settings");
+    const cols = [CW - 75, 50, 25],
+      heads = ["Parameter", "Value", "Unit"],
+      hh = 8;
+    const header = () => {
+      let x = M;
+      d.setDrawColor(...K);
+      d.setLineWidth(0.3);
+      d.setFont("helvetica", "bold");
+      d.setFontSize(9);
+      tc(K);
+      heads.forEach((t, c) => {
+        d.rect(x, y, cols[c], hh);
+        d.text(t, x + 2, y + 5.4);
+        x += cols[c];
+      });
+      y += hh;
+    };
+    need(hh + 9 + 2);
+    header();
+    sets.forEach((r) => {
+      d.setFont("helvetica", "normal");
+      d.setFontSize(10);
+      const cells = [r.n, r.v, r.u].map((v, c) =>
+          d.splitTextToSize(String(v || "").trim(), cols[c] - 4),
+        ),
+        rh = Math.max(
+          9,
+          Math.max(...cells.map((x) => x.length || 1)) * 4.6 + 4.4,
+        );
+      if (y + rh > B) {
+        d.addPage();
+        y = M + 4;
+        header();
+      }
+      let x = M;
+      d.setDrawColor(...K);
+      d.setLineWidth(0.3);
+      tc(K);
+      cells.forEach((lines, c) => {
+        d.rect(x, y, cols[c], rh);
+        d.setFont("helvetica", c == 1 ? "bold" : "normal");
+        lines.forEach((l, k) => d.text(l, x + 2, y + 5.8 + k * 4.6));
+        x += cols[c];
+      });
       y += rh;
     });
     y += 4;
@@ -685,7 +740,46 @@ async function mkPdf(o) {
     "_rev" +
     (p.rev || "1") +
     ".pdf";
-  await dl(file, d.output("blob"));
-  if (own) logPdf(p, file, n, ref, approved ? "Approved" : "Draft");
+  const blob = d.output("blob");
+  if (own) logPdf(p, file, n, ref, approved ? "Approved" : "Draft", mm, c.line);
+  if (batch) return { file, blob };
+  await dl(file, blob);
   toast(`PDF saved: ${file}`, false);
+}
+
+// PDFs of several products or machines in one .zip. list: [{ p, mm, line }].
+async function pdfZip(list, name, btn) {
+  const label = btn.textContent,
+    files = [],
+    used = new Set();
+  btn.disabled = true;
+  try {
+    for (const [k, x] of list.entries()) {
+      btn.textContent = `Making PDFs… ${k + 1} of ${list.length}`;
+      const r = await mkPdf({
+        ...x,
+        coName: S.co.name,
+        dept: deptName(deptOf(x.p, S.co), S.co),
+        logo: S.logo,
+        batch: true,
+      });
+      let f = r.file,
+        n = 2;
+      while (used.has(f.toLowerCase()))
+        f = r.file.replace(/\.pdf$/, `_${n++}.pdf`);
+      used.add(f.toLowerCase());
+      files.push({ name: f, data: new Uint8Array(await r.blob.arrayBuffer()) });
+    }
+    await dl(name, Zip.make(files));
+    logAct(
+      "data",
+      `Downloaded ${count(files.length, "PDF", "PDFs")} in "${name}"`,
+    );
+    toast(`Saved ${count(files.length, "PDF", "PDFs")}: ${name}`, false);
+  } catch (e) {
+    alert("Could not make the PDFs. Reload the page and try again.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
 }

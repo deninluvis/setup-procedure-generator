@@ -627,3 +627,49 @@ test("imported products join a line whose name differs only in spaces or capital
   assert.equal(S.lines.length, 1);
   assert.equal(S.lines[0].products.length, 1);
 });
+
+test("pdfChecks lists what is missing before printing", () => {
+  const { pdfChecks } = require("../js/utils.js");
+  const full = {
+    prod: ["data:image/jpeg;base64,AAAA"],
+    ppe: ["gloves"],
+    tools: [{ n: "Wrench" }],
+    steps: [{ h: "", t: "Do it", subs: [{ t: "Check" }] }],
+  };
+  assert.deepEqual(pdfChecks(full, "product"), []);
+  assert.deepEqual(
+    pdfChecks(
+      {
+        steps: [
+          { t: "", warn: "" },
+          { t: "ok", subs: [{ t: "" }] },
+        ],
+      },
+      "machine",
+    ),
+    [
+      "There is no machine photo.",
+      "No safety equipment is ticked.",
+      "No tools are listed.",
+      "Step 1 has no text.",
+      "Step 1 has an empty warning or note.",
+      "Step 2.1 has no text.",
+    ],
+  );
+  assert.ok(pdfChecks({ steps: [] }, "product").includes("There are no steps."));
+});
+
+test("machine settings count for approvals and change history only when there are some", async () => {
+  const { apFingerprint, itemDiff, settingsOf } = require("../js/utils.js");
+  const p = { name: "W", steps: [{ t: "a", subs: [] }] },
+    co = { depts: [] };
+  assert.equal(
+    await apFingerprint(p, "product", ""),
+    await apFingerprint({ ...p, set: [{ n: " ", v: "", u: "" }] }, "product", ""),
+    "empty rows do not count",
+  );
+  const q = { ...p, set: [{ n: "Temperature", v: "220", u: "°C" }] };
+  assert.notEqual(await apFingerprint(p, "product", ""), await apFingerprint(q, "product", ""));
+  assert.deepEqual(settingsOf(q), q.set);
+  assert.deepEqual(itemDiff(p, q, co, "product"), ["Machine settings"]);
+});

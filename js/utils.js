@@ -84,6 +84,35 @@ const withPhotos = (o, f, g = f) => ({
     : {}),
 });
 
+// Machine settings rows that have a parameter name: p.set = [{ n, v, u }]
+// (parameter, value, unit).
+const settingsOf = (p) =>
+  (p.set || []).filter((x) => x && String(x.n || "").trim());
+
+// Things worth checking before printing a procedure, in plain words ([] = fine).
+// kind = "product" / "machine".
+function pdfChecks(p, kind) {
+  const out = [],
+    s = (x) => String(x ?? "").trim(),
+    steps = p.steps || [];
+  if (!(p.prod || []).length) out.push(`There is no ${kind} photo.`);
+  if (!(p.ppe || []).length && !s(p.ppeo))
+    out.push("No safety equipment is ticked.");
+  if (!(p.tools || []).some((t) => s(t.n))) out.push("No tools are listed.");
+  if (!steps.length) out.push("There are no steps.");
+  steps.forEach((st, i) => {
+    if (!s(st.h) && !s(st.t)) out.push(`Step ${i + 1} has no text.`);
+    if (st.warn !== undefined && !s(st.warn))
+      out.push(`Step ${i + 1} has an empty warning or note.`);
+    (st.subs || []).forEach((u, j) => {
+      if (!s(u.t)) out.push(`Step ${i + 1}.${j + 1} has no text.`);
+      if (u.warn !== undefined && !s(u.warn))
+        out.push(`Step ${i + 1}.${j + 1} has an empty warning or note.`);
+    });
+  });
+  return out;
+}
+
 // Copy of S with every image value passed through fn (product/machine photos,
 // packaging/panel photos, step photos and the logo). test picks which values.
 const mapImgs = (S, test, fn) => {
@@ -765,6 +794,12 @@ const apContent = (p, kind, dept, imgHash) => {
     tools: (p.tools || [])
       .filter((t) => s(t.n))
       .map((t) => ({ n: s(t.n), s: s(t.s), q: s(t.q) })),
+    // Machine settings only when there are some, so older approvals still match.
+    ...(settingsOf(p).length
+      ? {
+          set: settingsOf(p).map((x) => ({ n: s(x.n), v: s(x.v), u: s(x.u) })),
+        }
+      : {}),
     steps: (p.steps || []).map((st) => ({
       h: s(st.h),
       t: s(st.t),
@@ -923,6 +958,7 @@ function itemDiff(a, b, co, kind) {
   const tools = (p) =>
     (p.tools || []).filter((t) => s(t.n) || s(t.s) || s(t.q));
   if (!same(tools(a), tools(b))) out.push("Tools required");
+  if (!same(settingsOf(a), settingsOf(b))) out.push("Machine settings");
   const as = a.steps || [],
     bs = b.steps || [];
   if (as.length != bs.length) out.push(`Steps ${as.length} → ${bs.length}`);
@@ -941,6 +977,8 @@ function itemDiff(a, b, co, kind) {
 
 if (typeof module !== "undefined")
   module.exports = {
+    settingsOf,
+    pdfChecks,
     nameKey,
     photosOf,
     setPhotos,
