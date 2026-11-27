@@ -1396,3 +1396,42 @@ kbd {
   border-radius: 4px;
   padding: 0 5px;
 }
+
+/* Company logo or name in the top bar. */
+.ubt {
+  max-width: 62vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.ubt img {
+  display: block;
+  max-height: 38px;
+  max-width: min(200px, 55vw);
+  object-fit: contain;
+  background: #fff; /* logos are made for white paper, also in dark mode */
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+/* One-line backup reminder on the Home page. */
+.bkbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-left: 4px solid var(--cau);
+  background: color-mix(in srgb, var(--cau) 10%, transparent);
+  border-radius: 6px;
+  padding: 4px 4px 4px 12px;
+  margin: 8px 0 12px;
+  white-space: nowrap;
+}
+.bkbar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bkbar .lk {
+  margin: 0;
+  flex: none;
+}

@@ -159,6 +159,13 @@ Where to find the reference:
 
 With no codes listed in `js/access.js`, the app opens without asking.
 
+## Version
+
+The version number is in **⚙ Settings → About**, for example *Version 1.0.0 · 27 Nov
+2026*. It follows MAJOR.MINOR.PATCH: PATCH for fixes, MINOR for new features, MAJOR for
+changes that need action from users. Each release is listed in
+[`CHANGELOG.md`](CHANGELOG.md).
+
 ## User guide
 
 The full user guide for authors, approvers and admins is in
@@ -171,8 +178,9 @@ panels (**?**). When the app changes, update both.
 1. **First visit:** the Welcome screen asks for your company logo, company name
    and departments (use **+ Add department** for each one). Press **Continue**. (Moving from another computer? Use
    **Import backup** on that screen instead.)
-2. **Home page:** shows your company, a search box and **Products**, **Machines** and
-   **Approvals**. Type in the search box to find a product or machine by name, code,
+2. **Home page:** the top bar shows your company logo (or, without a logo, the company
+   name). The page has a search box and **Products**, **Machines** and **Approvals**.
+   When a backup is due, a one-line reminder with **Back up now** shows at the top. Type in the search box to find a product or machine by name, code,
    product line or department; click a result (or press Enter for the first one) to open it.
    Everything else is in **⚙ Settings** (top bar): **Edit company details** (logo, name,
    departments), **Backup and sharing**, **Appearance** (same as the device, light or

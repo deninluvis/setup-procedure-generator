@@ -142,10 +142,15 @@ const nProducts = () => S.lines.reduce((a, l) => a + l.products.length, 0);
 const waiting = () =>
   allItems().filter((x) => x.p.ap && x.p.ap.st == "pending").length;
 const HomeV = () =>
-  `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1></div></div>
-${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was ${agoText(S.lastBackup)}.` : "You have not exported a backup yet."}</b> Your data is only stored in this browser. Export a backup and keep it somewhere safe.</p><button class="b" data-a="bk">Export backup</button></div>` : ""}
+  `<h1>${S.logo ? esc(S.co.name) : "Setup procedures"}</h1>
+${backupDue(S) ? `<div class="bkbar" role="status"><span>${S.lastBackup ? `Last backup: ${agoText(S.lastBackup)}` : "No backup yet"}</span><button class="lk" data-a="bk">Back up now</button></div>` : ""}
 ${sbox(`<input type="search" data-hs="1" value="${esc(HS)}" placeholder="Search products, machines, lines" aria-label="Find a product or machine" aria-controls="hres">`, "hs")}<div id="hres" aria-live="polite">${homeResults()}</div>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button><button class="opt" data-a="goAp"><b>Approvals</b><span class="m">${waiting() ? `${waiting()} waiting` : "Import approval files"}</span></button></div>`;
+// "2026-11-27" -> "27 Nov 2026".
+const fmtDay = (d) => {
+  const [y, m, dd] = String(d).split("-").map(Number);
+  return `${dd} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[m - 1] || ""} ${y}`;
+};
 // Settings (⚙ in the top bar): company, storage, backup, logs, clear data.
 const SetV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Settings</h1>
@@ -162,6 +167,7 @@ const SetV = () =>
     )
     .join("")}</div>
 <h2 class="kbd-only">Keyboard shortcuts</h2><table class="log kbd-only"><tbody><tr><td><kbd>Ctrl</kbd> + <kbd>P</kbd></td><td>Make the PDF of the open product or machine.</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Add a step after the step you are in (or at the end).</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo the last removal (when you do not type in a box).</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Shows that your work is saved. The app saves automatically.</td></tr><tr><td><kbd>Esc</kbd></td><td>Close a menu, a photo or a question.</td></tr></tbody></table><p class="m kbd-only">On a Mac, use <kbd>⌘</kbd> instead of <kbd>Ctrl</kbd>.</p>
+<h2>About</h2><p>Setup Procedures · Version <b>${esc(APP_VERSION)}</b> · ${esc(fmtDay(APP_DATE))}</p><p class="m">Works offline. Your data stays in this browser.</p>
 <h2>Help</h2><p class="m">Step-by-step instructions for authors, approvers and admins.</p><a class="b2" href="docs/user-guide.pdf" target="_blank" rel="noopener">Open the user guide (PDF)</a>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 ${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}

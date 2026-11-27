@@ -690,3 +690,19 @@ test("pdfName gives a readable PDF file name", () => {
     "REVIEW - Setup procedure - Rev 1 - 2026-11-27.pdf",
   );
 });
+
+test("the app version is the same in js/version.js, package.json and CHANGELOG.md", () => {
+  const fs = require("fs"),
+    path = require("path"),
+    root = path.join(__dirname, ".."),
+    v = fs.readFileSync(path.join(root, "js/version.js"), "utf8"),
+    ver = (v.match(/APP_VERSION = "([^"]+)"/) || [])[1],
+    date = (v.match(/APP_DATE = "([^"]+)"/) || [])[1];
+  assert.match(ver, /^\d+\.\d+\.\d+$/, "MAJOR.MINOR.PATCH");
+  assert.match(date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(require("../package.json").version, ver);
+  assert.ok(
+    fs.readFileSync(path.join(root, "CHANGELOG.md"), "utf8").includes(`## ${ver} · ${date}`),
+    "CHANGELOG.md has an entry for this version",
+  );
+});

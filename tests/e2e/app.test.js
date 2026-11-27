@@ -729,8 +729,15 @@ test("steps can be reordered by drag and drop", async () => {
 test("theme choice, app-styled questions and keyboard shortcuts", async () => {
   const { ctx, page, errors } = await open(APP, { role: "admin" });
   await setupCompany(page);
+  // Top bar: the company name (no logo yet); Settings → About: the version.
+  assert.equal((await page.textContent(".ubt")).trim(), "ACME Ltd");
   // Theme: Dark is kept after a reload of the settings.
   await settings(page);
+  const ver = await page.evaluate(() => APP_VERSION);
+  assert.match(
+    await page.textContent("#app"),
+    new RegExp(`Version ${ver.replace(/\./g, "\\.")}`),
+  );
   await page.check('input[name="theme"][value="dark"]');
   assert.equal(await page.getAttribute("html", "data-theme"), "dark");
   await page.evaluate(() => {
