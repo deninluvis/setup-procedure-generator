@@ -783,14 +783,47 @@ async function dl(name, data) {
   } catch (e) {
     if (e && e.code == "declined") return;
     try {
-      const u = URL.createObjectURL(
-          data instanceof Blob ? data : new Blob([data]),
-        ),
+      const type =
+          (data instanceof Blob && data.type) ||
+          (/\.pdf$/i.test(name)
+            ? "application/pdf"
+            : /\.zip$/i.test(name)
+              ? "application/zip"
+              : /\.json$/i.test(name)
+                ? "application/json"
+                : /\.csv$/i.test(name)
+                  ? "text/csv"
+                  : "application/octet-stream"),
+        file = new File([data], name, { type });
+      // Installed on a phone's home screen, the browser ignores the file name
+      // of a download (iPhones save it under a random name); the share sheet
+      // keeps it ("Save to Files", Drive, email…).
+      const installed =
+        navigator.standalone ||
+        (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+      if (
+        installed &&
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({ files: [file], title: name });
+          return;
+        } catch (x) {
+          if (x && x.name == "AbortError") return; // closed without choosing
+          // Not allowed (for example too long after the tap): download instead.
+        }
+      }
+      const u = URL.createObjectURL(file),
         a = document.createElement("a");
       a.href = u;
       a.download = name;
+      a.style.display = "none";
+      document.body.append(a); // some browsers ignore the name of a detached link
       a.click();
-      setTimeout(() => URL.revokeObjectURL(u), 5000);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 30000);
     } catch (x) {
       alert("Could not save the file.");
     }

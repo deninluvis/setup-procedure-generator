@@ -725,12 +725,7 @@ async function mkPdf(o) {
     );
     d.text("Page " + i + " of " + n, W - M, 289, { align: "right" });
   }
-  const file =
-    (c.review ? "REVIEW_" : "") +
-    (p.name || "setup-procedure").replace(/[^\w-]+/g, "_") +
-    "_rev" +
-    (p.rev || "1") +
-    ".pdf";
+  const file = pdfName(p, approved, c.review);
   const blob = d.output("blob");
   if (own) logPdf(p, file, n, ref, approved ? "Approved" : "Draft", mm, c.line);
   if (batch) return { file, blob };
