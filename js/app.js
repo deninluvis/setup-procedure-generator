@@ -16,16 +16,22 @@
 // the first screen.
 loadView();
 const startApp = () =>
-  Store.load().then((d) => {
-    initState(d);
-    DATA_READY = true;
-    flushActQueue();
-    if (JUST_LOGGED)
-      logAct("login", SESSION.own ? "Logged in (own device)" : "Logged in");
-    if (isApprover()) T = "ap";
-    R();
-    startIdleWatch();
-  });
+  Store.load()
+    .then((d) => {
+      initState(d);
+      DATA_READY = true;
+      flushActQueue();
+      if (JUST_LOGGED)
+        logAct("login", SESSION.own ? "Logged in (own device)" : "Logged in");
+      if (isApprover()) T = "ap";
+      R();
+      startIdleWatch();
+    })
+    .catch(() => {
+      // The saved data could not be opened (e.g. damaged data or blocked storage).
+      $("#app").innerHTML =
+        `<h1>Could not open your saved data</h1><p class="err" role="alert">Something went wrong while opening the data saved in this browser. Nothing was deleted.</p><p class="m">Close other tabs of this app and reload. If it keeps happening, check that the browser is not in private mode and allows site data.</p><button class="b" onclick="location.reload()">Reload</button>`;
+    });
 if (hasAccess()) startApp();
 else showLock(startApp);
 

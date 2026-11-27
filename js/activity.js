@@ -169,8 +169,11 @@ function ActV() {
       )
       .join(
         "",
-      )}</select><input type="search" data-af="1" value="${esc(AF)}" placeholder="Search activity" aria-label="Filter the activity log" style="flex:1;min-width:0"></div>` +
+      )}</select>${sbox(`<input type="search" data-af="1" value="${esc(AF)}" placeholder="Search activity" aria-label="Filter the activity log">`, "af", "flex:1;min-width:0")}</div>` +
     `<p class="m">${AF.trim() || AT ? `${count(list.length, "entry", "entries")} of ${all.length}` : count(all.length, "entry", "entries")}</p>` +
+    (list.length
+      ? ""
+      : `<p class="empty">Nothing matches. <button class="lk" data-a="afClear">Clear filter</button></p>`) +
     `<div class="logw"><table class="log alog"><thead><tr><th>Date and time</th><th>Type</th><th>What</th><th>Who</th></tr></thead><tbody>` +
     list
       .slice(0, 500)

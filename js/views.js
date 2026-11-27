@@ -1,6 +1,10 @@
 // Screens and the HTML they are built from: company setup, home, lists,
 // the product/machine page, R() (re-render), storage meter, home search
 // results and photo shrinking.
+// A search box with a ✕ button that clears it (shown only when there is text).
+// k = the input's data attribute (hs, xf, lf or af).
+const sbox = (input, k, style = "") =>
+  `<span class="sbox"${style ? ` style="${style}"` : ""}>${input}<button type="button" class="sclr" data-a="sClear" data-k="${k}" aria-label="Clear search">✕</button></span>`;
 const add = (ph, a) =>
   `<div class="row"><input id="nw" placeholder="${ph}"><button class="b" data-a="${a}">Add</button></div>`;
 const gal = (arr, k) =>
@@ -33,7 +37,7 @@ const HomeV = () =>
   `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div>
 <button class="lk" data-a="editCo">Edit company details</button>
 ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was ${agoText(S.lastBackup)}.` : "You have not exported a backup yet."}</b> Your data is only stored in this browser. Export a backup and keep it somewhere safe.</p><button class="b" data-a="bk">Export backup</button></div>` : ""}
-<h2>Setup procedures</h2><input type="search" data-hs="1" value="${esc(HS)}" placeholder="Search products, machines, lines" aria-label="Find a product or machine" aria-controls="hres"><div id="hres" aria-live="polite">${homeResults()}</div><p class="m">What do you want to work on?</p>
+<h2>Setup procedures</h2>${sbox(`<input type="search" data-hs="1" value="${esc(HS)}" placeholder="Search products, machines, lines" aria-label="Find a product or machine" aria-controls="hres">`, "hs")}<div id="hres" aria-live="polite">${homeResults()}</div><p class="m">What do you want to work on?</p>
 <div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
@@ -179,6 +183,9 @@ function toolsHtml(p) {
 
 const MV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
+  (S.machines.length
+    ? ""
+    : `<p class="empty">No machines yet. Type a machine name below and press Add.</p>`) +
   S.machines
     .map(
       (m) =>
@@ -216,7 +223,10 @@ function R(keep) {
   let h = "";
   // Approvers only see the Approvals page; the print log is for admins.
   if (isApprover()) T = "ap";
-  else if (T == "log" && !isAdmin()) T = "h";
+  else if (T == "log" && !isAdmin()) {
+    T = "h";
+    toast("Only admins can open the logs.", false);
+  }
   actTrack();
   if (T == "x") {
     h = XV();
@@ -233,6 +243,9 @@ function R(keep) {
   } else if (T == "p" && !V.l) {
     h =
       `<button class="lk" data-a="goHome">← Home</button><h1>Products</h1><p class="m">Pick a product line, or add one.</p>` +
+      (S.lines.length
+        ? ""
+        : `<p class="empty">No product lines yet. Type a name below (for example "Line 1") and press Add.</p>`) +
       S.lines
         .map(
           (l) =>
@@ -245,6 +258,9 @@ function R(keep) {
     const l = L();
     h =
       `<button class="lk" data-a="home">← All lines</button><h1>${esc(l.name)}</h1><p class="m">Pick a product, or add one.</p>` +
+      (l.products.length
+        ? ""
+        : `<p class="empty">No products in this line yet. Type a product name below and press Add.</p>`) +
       l.products
         .map(
           (p) =>
@@ -269,6 +285,9 @@ ${deptSel(p)}
 ${ppeHtml(p)}
 ${toolsHtml(p)}
 <h2>Steps</h2>` +
+      (p.steps.length
+        ? ""
+        : `<p class="empty">No steps yet. Press <b>Add step</b> to write the first one.</p>`) +
       p.steps.map((s, i) => stepHtml(s, i)).join("") +
       `<button class="b2" data-a="addS">＋ Add step</button>
 <h2>Sign-off</h2><div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>

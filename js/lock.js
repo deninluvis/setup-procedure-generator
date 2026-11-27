@@ -166,7 +166,7 @@ function startIdleWatch() {
 // "Logged in: Author · Code 4   Log out", at the top of every page.
 const userBar = () =>
   SESSION && SESSION.name
-    ? `<div class="ubar"><span class="m">Logged in: <b>${esc(SESSION.who || SESSION.name)}</b> · ${ROLE_NAMES[SESSION.r]}${SESSION.who ? ` (${esc(SESSION.name)})` : ""}</span><button class="lk" data-a="logout">Log out</button></div>`
+    ? `<div class="ubar"><span class="m">Logged in: <b>${esc(SESSION.who || SESSION.name)}</b> · ${ROLE_NAMES[SESSION.r]}${SESSION.who ? ` (${esc(SESSION.name)})` : ""}</span><button class="lk" data-a="logout">Log out</button></div>${navigator.onLine ? "" : `<p class="off" role="status">Offline: everything still works. Approval emails wait in your email app until you are back online.</p>`}`
     : "";
 
 // Which code is this? -> { r, id, name } or null. Approver codes are checked
@@ -286,3 +286,7 @@ function askName(s, open) {
     open();
   });
 }
+
+// Show or hide "Offline" in the user bar when the connection changes.
+for (const ev of ["online", "offline"])
+  addEventListener(ev, () => DATA_READY && R(true));

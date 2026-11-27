@@ -3,7 +3,7 @@
 // Every app file is stored on first visit. Online, the newest files are
 // fetched (and stored again); offline, the stored copies are used.
 // Add new app files to FILES and change VERSION when this list changes.
-const VERSION = "v7";
+const VERSION = "v8";
 const CACHE = "setup-procedures-" + VERSION;
 const FILES = [
   "./",
@@ -68,23 +68,25 @@ self.addEventListener("activate", (e) => {
 });
 
 // Network first, so updates show up straight away when online; the stored
-// copy is used when the network fails.
+// copy is used when the network fails, or after 4 seconds on a slow network
+// (the download still finishes in the background and updates the copy).
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method != "GET" || new URL(req.url).origin != location.origin) return;
-  e.respondWith(
-    fetch(req)
-      .then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      })
-      .catch(() =>
-        caches
-          .match(req, { ignoreSearch: true })
-          .then((r) => r || caches.match("index.html")),
-      ),
-  );
+  const stored = () =>
+    caches
+      .match(req, { ignoreSearch: true })
+      .then((r) => r || caches.match("index.html"));
+  const net = fetch(req).then((res) => {
+    if (res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy));
+    }
+    return res;
+  });
+  const slow = new Promise((ok) => setTimeout(ok, 4000))
+    .then(() => caches.match(req, { ignoreSearch: true }))
+    .then((r) => r || net);
+  e.respondWith(Promise.race([net, slow]).catch(stored));
+  e.waitUntil(net.catch(() => {}));
 });

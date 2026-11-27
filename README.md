@@ -73,8 +73,10 @@ the browser can install it like a normal app and it keeps working offline:
 - **Android (Chrome):** menu ⋮ → **Add to Home screen** / **Install app**.
 - **iPhone / iPad (Safari):** Share → **Add to Home Screen**.
 
-After the first visit the app opens with no connection. When online, it picks up
-updates automatically.
+After the first visit the app opens with no connection, and a line under the top bar says
+**Offline: everything still works**. When online, it picks up updates automatically. On a
+slow connection it opens from the stored copy after 4 seconds, and the update is picked
+up in the background.
 
 Data is kept per address: data entered at `file://…/index.html` is not visible at a web
 address, and the other way round. Use **Export backup** and **Import** to move it.
