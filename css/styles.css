@@ -1287,3 +1287,27 @@ body.mkopen {
 a.b2 {
   text-decoration: none;
 }
+
+/* Drag handle on steps: only with a mouse (phones use the step's ⋮). */
+.dh {
+  display: none;
+  cursor: grab;
+  color: var(--mut);
+  font-size: 18px;
+  padding: 0 8px 0 0;
+  user-select: none;
+}
+@media (pointer: fine) {
+  .dh {
+    display: inline-block;
+  }
+}
+.box.dragging {
+  opacity: 0.45;
+}
+.box.drop-b {
+  box-shadow: 0 -3px 0 var(--ac);
+}
+.box.drop-a {
+  box-shadow: 0 3px 0 var(--ac);
+}

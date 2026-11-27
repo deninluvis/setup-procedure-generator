@@ -363,6 +363,9 @@ const helpBox = (id, title, body) =>
 document.addEventListener(
   "toggle",
   (e) => {
+    // A panel already replaced by a re-render can still send a late "toggle"
+    // (from when it was drawn open): ignore it, or it would undo a closing.
+    if (!e.target.isConnected) return;
     const id = e.target.dataset && e.target.dataset.help;
     if (id && id in HELPS) {
       HELPS[id] = e.target.open;
@@ -476,6 +479,7 @@ const itemHelp = (mm) => {
 <li>To see a photo in a large size, select it. Then you can select <b>✎ Mark up</b>, <b>Remove</b>, or <b>◀ Move left</b> / <b>Move right ▶</b>.</li>
 <li>The <b>⋮</b> of a step has <b>Move up</b>, <b>Move down</b>, <b>Insert step below</b>, <b>Add sub-step</b>, <b>Add warning or note</b> and <b>Delete step</b>.</li>
 <li>To add a step at the end, select <b>＋ Add step</b>. The app changes the step numbers automatically.</li>
+<li>On a computer, you can also drag a step by its handle <b>⠿</b> to a different position.</li>
 <li><b>Add warning or note</b> adds a box. Select the type: <b>Warning</b> (risk of injury, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful information, blue). Then type the text. To remove the box, select <b>✕</b> in the box.</li>
 <li>Sub-steps (3.1, 3.2 …) have their own text, photos and <b>⋮</b>. They print below their step.</li>
 <li>Select the title of a section to close it or to open it. The number at the right shows the quantity of items.</li>

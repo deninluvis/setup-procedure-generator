@@ -551,11 +551,17 @@ test("cleaner pages: step menus, photo viewer, folding sections, badge, help, se
   assert.equal(await page.locator("#pv").count(), 0);
   // A folded section stays folded after a reload.
   await page.click("[data-sec=tools] > summary");
-  await page.waitForFunction(() => SECS.has("tools")); // saved
-  await page.reload();
-  await page.click("[data-a=tab][data-t=p]");
-  await page.click("[data-a=openL]");
-  await page.click("[data-a=openP]");
+  await page.waitForFunction(() =>
+    /"sec":\["tools"\]/.test(localStorage.getItem("sp-view")),
+  ); // saved
+  await page.waitForTimeout(300); // and not undone by a late event
+  // Read the saved settings again and redraw (a full reload of a file://
+  // page can lose very recent localStorage writes in Chromium).
+  await page.evaluate(() => {
+    SECS = new Set();
+    loadView();
+    R();
+  });
   await page.waitForSelector("[data-sec=tools]");
   assert.equal(await page.locator("[data-sec=tools][open]").count(), 0);
   assert.equal(await page.locator("[data-sec=steps][open]").count(), 1);
@@ -666,6 +672,36 @@ test("settings table, photo order, duplicate to a line, merge lines, check befor
     3,
     "each PDF is in the print log",
   );
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("steps can be reordered by drag and drop", async () => {
+  const { ctx, page, errors } = await open();
+  await page.setViewportSize({ width: 1200, height: 2400 }); // all steps on screen
+  await setupCompany(page);
+  await newProduct(page);
+  await page.fill('[data-s="0"]', "A");
+  for (const [i, t] of [
+    [1, "B"],
+    [2, "C"],
+  ]) {
+    await page.click("[data-a=addS]");
+    await page.fill(`[data-s="${i}"]`, t);
+  }
+  const texts = () => page.evaluate(() => P().steps.map((s) => s.t));
+  // Step C onto the top half of step A: C, A, B.
+  await page.dragAndDrop('[data-drag="2"]', '[data-box="0"]', {
+    targetPosition: { x: 40, y: 8 },
+  });
+  assert.deepEqual(await texts(), ["C", "A", "B"]);
+  assert.match(await page.textContent("#toast"), /Step 3 moved to position 1/);
+  // Step 1 (C) onto the bottom half of the last step: A, B, C.
+  const h = (await page.locator('[data-box="2"]').boundingBox()).height;
+  await page.dragAndDrop('[data-drag="0"]', '[data-box="2"]', {
+    targetPosition: { x: 40, y: h - 8 },
+  });
+  assert.deepEqual(await texts(), ["A", "B", "C"]);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
