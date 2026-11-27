@@ -147,7 +147,7 @@ function LogsV() {
   const tab = (k, n) =>
     `<button class="tabb${LTAB == k ? " on" : ""}" data-a="ltab" data-t="${k}" aria-pressed="${LTAB == k}">${n}</button>`;
   return (
-    `<button class="lk" data-a="goHome">← Home</button><h1>Logs</h1>` +
+    `<button class="lk" data-a="goSet">← Settings</button><h1>Logs</h1>` +
     `<p class="m">For admins. Kept in this browser only: each computer has its own logs. Download them to keep or combine them.</p>` +
     `<div class="tabs" role="group" aria-label="Log">${tab("act", "Activity")}${tab("print", "Print log")}${tab("codes", "Code usage")}</div>` +
     (LTAB == "print" ? LogV() : LTAB == "codes" ? CodesV() : ActV())

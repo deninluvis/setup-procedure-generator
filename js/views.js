@@ -5,8 +5,37 @@
 // k = the input's data attribute (hs, xf, lf or af).
 const sbox = (input, k, style = "") =>
   `<span class="sbox"${style ? ` style="${style}"` : ""}>${input}<button type="button" class="sclr" data-a="sClear" data-k="${k}" aria-label="Clear search">✕</button></span>`;
-const add = (ph, a) =>
-  `<div class="row"><input id="nw" placeholder="${ph}"><button class="b" data-a="${a}">Add</button></div>`;
+// ⋮ menus. MENU = id of the open one ("" = none): "t" page title, "s:2"
+// step 3, "u:2:0" sub-step 3.1, "user" account. items() builds the options
+// only while it is open, so they always match the current state.
+let MENU = "";
+const kebab = (id, items, label = "More actions", btn = "⋮", cls = "kb") =>
+  `<div class="kebab"><button type="button" class="${cls}" data-a="menu" data-m="${id}" aria-haspopup="true" aria-expanded="${MENU == id}" aria-label="${label}">${btn}</button>${MENU == id ? `<div class="kmenu">${items()}</div>` : ""}</div>`;
+// Page title with its ⋮ menu on the right (extra: buttons before the ⋮).
+const titleMenu = (title, items, extra = "") =>
+  `<div class="hrow"><h1>${title}</h1>${extra}${kebab("t", items)}</div>`;
+// "＋ New line" (product, machine): a button that opens the name box.
+// ADDING = which box is open.
+let ADDING = "";
+const add = (ph, a, label) =>
+  ADDING == a
+    ? `<div class="row"><input id="nw" placeholder="${ph}" aria-label="${ph}"><button class="b" data-a="${a}">Add</button><button class="b2" data-a="addCancel">Cancel</button></div>`
+    : `<button class="b2" data-a="addOpen" data-k="${a}">＋ ${label}</button>`;
+// A section of the product/machine page that can be closed (remembered).
+const sec = (k, title, sum, body) =>
+  `<details class="sec" data-sec="${k}"${SECS.has(k) ? "" : " open"}><summary><span class="stt">${title}</span><span class="m">${sum}</span></summary>${body}</details>`;
+// Full-screen photo of a step or sub-step: VIEW = { k, i, j, n }.
+let VIEW = null;
+function viewerHtml() {
+  if (!VIEW) return "";
+  const { k, i, j, n } = VIEW,
+    st = P().steps[i],
+    o = st && (k == "step" ? st : (st.subs || [])[j]),
+    src = o && photosOf(o)[n];
+  if (!src) return (VIEW = null), "";
+  const at = `data-i="${i}"${k == "sub" ? ` data-j="${j}"` : ""} data-n="${n}"`;
+  return `<div id="pv" role="dialog" aria-modal="true" aria-label="Photo ${n + 1} of ${k == "step" ? `step ${i + 1}` : `sub-step ${i + 1}.${j + 1}`}" data-a="vClose"><img src="${src}" alt=""><div class="pvbar"><button class="b2" data-a="mk" data-k="${k}" ${at}>✎ Mark up</button><button class="b2 d" data-a="${k == "step" ? "rmSI" : "rmSubI"}" ${at}>Remove</button><button class="b" data-a="vClose">Close</button></div></div>`;
+}
 const gal = (arr, k) =>
   `<div class="g">${arr.map((s, i) => `<div class="th"><img src="${s}" alt=""><button data-a="rmPh" data-k="${k}" data-i="${i}" aria-label="Remove photo">✕</button><button class="mk" data-a="mk" data-k="${k}" data-i="${i}" aria-label="Mark up photo" title="Mark up">✎</button></div>`).join("")}</div><label class="b2">＋ Add photo<input type="file" accept="image/*" multiple hidden data-up="${k}"></label>`;
 
@@ -19,7 +48,7 @@ const logoField = () =>
 const CoV = () => {
   const first = !S.co.done;
   return (
-    (first ? "" : `<button class="lk" data-a="goHome">← Home</button>`) +
+    (first ? "" : `<button class="lk" data-a="goSet">← Settings</button>`) +
     `<h1>${first ? "Welcome" : "Company details"}</h1><p class="m">${first ? "Set up your company first. These details appear on every PDF." : "These details appear on every PDF."}</p>
 <h2>Company logo</h2>${logoField()}
 <label class="f">Company name<input data-co="name" value="${esc(S.co.name)}" placeholder="e.g. ACME Manufacturing"></label>
@@ -33,22 +62,21 @@ ${first ? `<p class="m">Moving from another computer? <label class="lk">Import b
 };
 // Home page: company header, then pick Products or Machines.
 const nProducts = () => S.lines.reduce((a, l) => a + l.products.length, 0);
+const waiting = () =>
+  allItems().filter((x) => x.p.ap && x.p.ap.st == "pending").length;
 const HomeV = () =>
-  `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div>
-<button class="lk" data-a="editCo">Edit company details</button>
+  `<div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><h1>${esc(S.co.name)}</h1></div></div>
 ${backupDue(S) ? `<div class="note"><p><b>${S.lastBackup ? `Your last backup was ${agoText(S.lastBackup)}.` : "You have not exported a backup yet."}</b> Your data is only stored in this browser. Export a backup and keep it somewhere safe.</p><button class="b" data-a="bk">Export backup</button></div>` : ""}
-<h2>Setup procedures</h2>${sbox(`<input type="search" data-hs="1" value="${esc(HS)}" placeholder="Search products, machines, lines" aria-label="Find a product or machine" aria-controls="hres">`, "hs")}<div id="hres" aria-live="polite">${homeResults()}</div><p class="m">What do you want to work on?</p>
-<div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>
-<h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
+${sbox(`<input type="search" data-hs="1" value="${esc(HS)}" placeholder="Search products, machines, lines" aria-label="Find a product or machine" aria-controls="hres">`, "hs")}<div id="hres" aria-live="polite">${homeResults()}</div>
+<div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button><button class="opt" data-a="goAp"><b>Approvals</b><span class="m">${waiting() ? `${waiting()} waiting` : "Import approval files"}</span></button></div>`;
+// Settings (⚙ in the top bar): company, storage, backup, logs, clear data.
+const SetV = () =>
+  `<button class="lk" data-a="goHome">← Home</button><h1>Settings</h1>
+<h2>Company</h2><div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><b>${esc(S.co.name)}</b>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div><button class="b2" data-a="editCo">Edit company details</button>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
-<h2>Approvals</h2><p class="m">${(() => {
-    const w = allItems().filter((x) => x.p.ap && x.p.ap.st == "pending").length;
-    return w
-      ? `${count(w, "procedure is", "procedures are")} waiting for approval. `
-      : "";
-  })()}Import an approval file you received from an approver.</p><button class="b2" data-a="goAp">Open approvals</button>
+<h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 ${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}
-${isAdmin() ? `<div style="margin-top:24px"><button class="b d" data-a="clearAll">Clear all saved data</button></div>` : ""}`;
+${isAdmin() ? `<h2>Danger zone</h2><button class="b d" data-a="clearAll">Clear all saved data</button>` : ""}`;
 // "CODE · Department · " prefix for list cards (empty parts skipped).
 const cardMeta = (p) =>
   [p.code, deptName(deptOf(p, S.co), S.co)]
@@ -71,8 +99,8 @@ const deptSel = (p) => {
 const MAX_STEP_PHOTOS = 3;
 // Photos of a step or sub-step (o.img, then o.more): each with Mark up and
 // Remove; "Add photo" takes one or several at once. at = data-i (and data-j).
-// extra: more buttons for the same row (the sub-step's "Add warning or note").
-const photoBtn = (o, rm, k, at, extra = "") => {
+// Tap a photo to open it (Mark up, Remove).
+const photoBtn = (o, rm, k, at) => {
   const list = photosOf(o),
     many = list.length > 1;
   return (
@@ -80,7 +108,7 @@ const photoBtn = (o, rm, k, at, extra = "") => {
       ? `<div class="sph${many ? " many" : ""}">${list
           .map(
             (img, n) =>
-              `<div><img class="simg" src="${img}" alt="${many ? `Photo ${n + 1}` : ""}"><div class="row"><button class="lk" data-a="mk" data-k="${k}" ${at} data-n="${n}">✎ Mark up</button><button class="lk" data-a="${rm}" ${at} data-n="${n}">Remove${many ? "" : " photo"}</button></div></div>`,
+              `<button class="simgb" data-a="view" data-k="${k}" ${at} data-n="${n}" aria-label="Open photo ${n + 1}"><img class="simg" src="${img}" alt=""></button>`,
           )
           .join("")}</div>`
       : "") +
@@ -88,7 +116,7 @@ const photoBtn = (o, rm, k, at, extra = "") => {
       list.length >= MAX_STEP_PHOTOS
         ? `<p class="m">${MAX_STEP_PHOTOS} photos is the most for one step. Remove one to add another.</p>`
         : `<label class="b2">＋ ${list.length ? "Add another photo" : "Add photo"}<input type="file" accept="image/*" multiple hidden data-up="${k}" ${at}></label>`
-    }${extra}</div>`
+    }</div>`
   );
 };
 // Warning, Caution or Note on a step or sub-step (o.warn = text, o.wtype = type).
@@ -133,8 +161,22 @@ function noteHtml(o, i, j, where) {
 const stepOrSub = (i, j) => (isNaN(j) ? P().steps[i] : P().steps[i].subs[j]);
 
 const stepHtml = (s, i) => {
-  const subs = s.subs || [];
-  return `<div class="box"><div class="sh"><span class="n">${i + 1}</span><span class="sp"></span><button class="sm" data-a="up" data-i="${i}" aria-label="Move step ${i + 1} up">↑</button><button class="sm" data-a="dn" data-i="${i}" aria-label="Move step ${i + 1} down">↓</button><button class="sm" data-a="rmS" data-i="${i}" aria-label="Delete step ${i + 1}">✕</button></div>
+  const subs = s.subs || [],
+    n = P().steps.length;
+  return `<div class="box"><div class="sh"><span class="n">${i + 1}</span><span class="sp"></span>${kebab(
+    `s:${i}`,
+    () =>
+      (i > 0 ? `<button data-a="up" data-i="${i}">Move up</button>` : "") +
+      (i < n - 1
+        ? `<button data-a="dn" data-i="${i}">Move down</button>`
+        : "") +
+      `<button data-a="insS" data-i="${i}">Insert step below</button><button data-a="addSub" data-i="${i}">Add sub-step</button>` +
+      (s.warn === undefined
+        ? `<button data-a="addW" data-i="${i}">Add warning or note</button>`
+        : "") +
+      `<button class="d" data-a="rmS" data-i="${i}">Delete step</button>`,
+    `Step ${i + 1} actions`,
+  )}</div>
 <input data-h="${i}" placeholder="Step headline (optional)" value="${esc(s.h)}" style="font-weight:600" aria-label="Step ${i + 1} headline">${noteHtml(
     s,
     i,
@@ -147,12 +189,26 @@ ${subs
     (
       u,
       j,
-    ) => `<div class="sub"><div class="sh"><span class="n2">${i + 1}.${j + 1}</span><span class="sp"></span><button class="sm" data-a="subUp" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} up">↑</button><button class="sm" data-a="subDn" data-i="${i}" data-j="${j}" aria-label="Move sub-step ${i + 1}.${j + 1} down">↓</button><button class="sm" data-a="rmSub" data-i="${i}" data-j="${j}" aria-label="Delete sub-step ${i + 1}.${j + 1}">✕</button></div>
+    ) => `<div class="sub"><div class="sh"><span class="n2">${i + 1}.${j + 1}</span><span class="sp"></span>${kebab(
+      `u:${i}:${j}`,
+      () =>
+        (j > 0
+          ? `<button data-a="subUp" data-i="${i}" data-j="${j}">Move up</button>`
+          : "") +
+        (j < subs.length - 1
+          ? `<button data-a="subDn" data-i="${i}" data-j="${j}">Move down</button>`
+          : "") +
+        (u.warn === undefined
+          ? `<button data-a="addW" data-i="${i}" data-j="${j}">Add warning or note</button>`
+          : "") +
+        `<button class="d" data-a="rmSub" data-i="${i}" data-j="${j}">Delete sub-step</button>`,
+      `Sub-step ${i + 1}.${j + 1} actions`,
+    )}</div>
 ${noteHtml(u, i, j, `sub-step ${i + 1}.${j + 1}`)}<textarea data-ss="${i}" data-sj="${j}" rows="2" placeholder="Describe sub-step ${i + 1}.${j + 1}" aria-label="Sub-step ${i + 1}.${j + 1}">${esc(u.t)}</textarea>
-${photoBtn(u, "rmSubI", "sub", `data-i="${i}" data-j="${j}"`, u.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}" data-j="${j}">⚠ Add warning or note</button>` : "")}</div>`,
+${photoBtn(u, "rmSubI", "sub", `data-i="${i}" data-j="${j}"`)}</div>`,
   )
   .join("")}
-<div class="row acts${subs.length ? " st" : ""}">${s.warn === undefined ? `<button class="b2" data-a="addW" data-i="${i}">⚠ Add warning or note</button>` : ""}<button class="b2" data-a="addSub" data-i="${i}">＋ Add sub-step</button><button class="b2" data-a="insS" data-i="${i}">＋ Insert step below</button></div></div>`;
+</div>`;
 };
 
 // "Tools required" list on the product/machine page. p.tools = [{ n, s, q }]
@@ -167,7 +223,7 @@ function toolsHtml(p) {
       ),
     ].sort();
   return (
-    `<h2>Tools required</h2><p class="m">List the tools needed for this setup. They print as a checklist before the procedure.</p>` +
+    `<p class="m">List the tools needed for this setup. They print as a checklist before the procedure.</p>` +
     (tools.length
       ? `<div class="tl tlh" aria-hidden="true"><span>Tool</span><span>Size / specification</span><span>Qty</span><span></span></div>`
       : "") +
@@ -185,14 +241,14 @@ const MV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
   (S.machines.length
     ? ""
-    : `<p class="empty">No machines yet. Type a machine name below and press Add.</p>`) +
+    : `<p class="empty">No machines yet. Press <b>＋ New machine</b> to add one.</p>`) +
   S.machines
     .map(
       (m) =>
         `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)} ${apBadge(m)}</b><span class="m">${cardMeta(m)}${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
     )
     .join("") +
-  add("Machine name", "addM");
+  add("Machine name", "addM", "New machine");
 // A selector for an element in #app built from its data-* attributes, so the
 // same field can be found again after the page is re-drawn.
 const selectorOf = (el) => {
@@ -238,6 +294,8 @@ function R(keep) {
     h = CoV();
   } else if (T == "h") {
     h = HomeV();
+  } else if (T == "set") {
+    h = SetV();
   } else if (T == "m" && !MID) {
     h = MV();
   } else if (T == "p" && !V.l) {
@@ -245,30 +303,35 @@ function R(keep) {
       `<button class="lk" data-a="goHome">← Home</button><h1>Products</h1><p class="m">Pick a product line, or add one.</p>` +
       (S.lines.length
         ? ""
-        : `<p class="empty">No product lines yet. Type a name below (for example "Line 1") and press Add.</p>`) +
+        : `<p class="empty">No product lines yet. Press <b>＋ New line</b> to add one, for example "Line 1".</p>`) +
       S.lines
         .map(
           (l) =>
             `<div class="card" data-a="openL" data-id="${l.id}"><b>${esc(l.name)}</b><span class="m">${l.products.length} product${l.products.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Line name, e.g. Line 1", "addL") +
-      `<p class="m">Use the same line name on every computer: imported products go into the line with the same name.</p>`;
+      add("Line name, e.g. Line 1", "addL", "New line") +
+      (ADDING == "addL"
+        ? `<p class="m">Use the same line name on every computer: imported products go into the line with the same name.</p>`
+        : "");
   } else if (T == "p" && !V.p) {
     const l = L();
     h =
-      `<button class="lk" data-a="home">← All lines</button><h1>${esc(l.name)}</h1><p class="m">Pick a product, or add one.</p>` +
+      `<button class="lk" data-a="home">← All lines</button>${titleMenu(
+        esc(l.name),
+        () =>
+          `<button data-a="renL">Rename line</button><button data-a="exLine">Export this line</button><button class="d" data-a="delL">Delete this line</button>`,
+      )}<p class="m">Pick a product, or add one.</p>` +
       (l.products.length
         ? ""
-        : `<p class="empty">No products in this line yet. Type a product name below and press Add.</p>`) +
+        : `<p class="empty">No products in this line yet. Press <b>＋ New product</b> to add one.</p>`) +
       l.products
         .map(
           (p) =>
             `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)} ${apBadge(p)}</b><span class="m">${cardMeta(p)}${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Product name", "addP") +
-      `<div class="row" style="flex-wrap:wrap"><button class="b2" data-a="renL">Rename line</button><button class="b2" data-a="exLine">Export this line</button><button class="b d" data-a="delL">Delete this line</button></div>`;
+      add("Product name", "addP", "New product");
   } else {
     const p = P(),
       mm = T == "m";
@@ -276,33 +339,42 @@ function R(keep) {
       (mm
         ? `<button class="lk" data-a="mhome">← All machines</button>`
         : `<button class="lk" data-a="openL" data-id="${V.l}">← ${esc(L().name)}</button>`) +
-      `<h1>${esc(p.name) || (mm ? "New machine" : "New product")}</h1>${apBox(p)}${itemHelp(mm)}
+      titleMenu(
+        esc(p.name) || (mm ? "New machine" : "New product"),
+        () =>
+          `<div class="kopt">${wmBox(p)}${psBox()}</div><button data-a="pdf">Download PDF</button><hr>${apMenu(p)}${apMenu(p) ? "<hr>" : ""}<button data-a="dupP">Duplicate</button><button data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="d" data-a="delP">Delete ${mm ? "machine" : "product"}</button>`,
+        `<button class="apb" id="apbadge" data-a="apInfo" aria-expanded="${AP_OPEN}" aria-controls="apbox" title="Approval status">${apBadgeNow(p)}</button><button class="kb hb" data-a="help" aria-expanded="${HELPS.item}" aria-label="How to fill in this ${mm ? "machine" : "product"}" title="Help">?</button>`,
+      ) +
+      `${apBox(p)}${HELPS.item ? itemHelp(mm) : ""}
 <label class="f">${mm ? "Machine name" : "Product name"}<input data-f="name" value="${esc(p.name)}"></label>
 ${deptSel(p)}
 <div class="two"><label class="f">${mm ? "Machine ID / asset no." : "Product code"}<input data-f="code" value="${esc(p.code)}"></label><label class="f">Revision<input data-f="rev" value="${esc(p.rev)}"></label></div>
-<h2>${mm ? "Machine photos" : "Product photos"}</h2>${gal(p.prod, "prod")}
-<h2>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</h2>${gal(p.pack, "pack")}
-${ppeHtml(p)}
-${toolsHtml(p)}
-<h2>Steps</h2>` +
-      (p.steps.length
-        ? ""
-        : `<p class="empty">No steps yet. Press <b>Add step</b> to write the first one.</p>`) +
-      p.steps.map((s, i) => stepHtml(s, i)).join("") +
-      `<button class="b2" data-a="addS">＋ Add step</button>
-<h2>Sign-off</h2><div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>
-<p class="m">Leave time or technicians empty to write them in by hand on the printed PDF.</p>
+${sec("prod", mm ? "Machine photos" : "Product photos", count(p.prod.length, "photo", "photos"), gal(p.prod, "prod"))}
+${sec("pack", mm ? "Control panel / nameplate photos" : "Packaging photos", count(p.pack.length, "photo", "photos"), gal(p.pack, "pack"))}
+${sec("ppe", "Safety equipment (PPE)", count((p.ppe || []).length + (String(p.ppeo || "").trim() ? 1 : 0), "item", "items"), ppeHtml(p))}
+${sec("tools", "Tools required", count((p.tools || []).filter((t) => String(t.n || "").trim()).length, "tool", "tools"), toolsHtml(p))}
+${sec(
+  "steps",
+  "Steps",
+  count(p.steps.length, "step", "steps"),
+  (p.steps.length
+    ? ""
+    : `<p class="empty">No steps yet. Press <b>Add step</b> to write the first one.</p>`) +
+    p.steps.map((s, i) => stepHtml(s, i)).join("") +
+    `<button class="b2" data-a="addS">＋ Add step</button>`,
+)}
+<details class="sec" data-sec="sign"${SECS.has("sign") ? "" : " open"}><summary><span class="stt">Sign-off</span><span class="m">${esc(p.by ? "Prepared by " + p.by : "")}</span></summary><div class="two"><div><span class="f">Time required</span><div class="hm"><label><input type="number" min="0" inputmode="numeric" data-f="th" aria-label="Time required, hours" value="${esc(p.th)}"><span class="m">Hours</span></label><label><input type="number" min="0" max="59" inputmode="numeric" data-f="tm" aria-label="Time required, minutes" value="${esc(p.tm)}"><span class="m">Minutes</span></label></div></div><label class="f">Technicians required<input type="number" min="0" inputmode="numeric" data-f="tech" value="${esc(p.tech)}"></label></div>
+<p class="m">Leave empty to fill in by hand.</p>
 <div class="two"><label class="f">Prepared by<input data-f="by" value="${esc(p.by)}"></label><div><span class="f">Approved by</span><p class="apby">${(() => {
         const r = AP_NOW.get(p.id);
         return r && r.st == "approved"
           ? `<b>${esc(r.name)}</b> <span class="m">(${apDay(r.at)}, signature checked)</span>`
-          : `<span class="m">Filled in when the ${mm ? "machine" : "product"} is approved (see the top of this page).</span>`;
+          : `<span class="m">Filled in when approved.</span>`;
       })()}</p></div></div>
-<label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
-${wmBox(p)}${psBox()}
-<div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="dupP">Duplicate</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
+<label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label></details>
+<p class="m">Download PDF, approval, duplicate, export and delete: in the <b>⋮</b> menu at the top right.</p>`;
   }
-  $("#app").innerHTML = userBar() + h;
+  $("#app").innerHTML = userBar() + h + (VIEW ? viewerHtml() : "");
   document
     .querySelectorAll("[data-ind]")
     .forEach((e) => (e.indeterminate = true));
@@ -317,7 +389,7 @@ ${wmBox(p)}${psBox()}
         } catch (e) {}
     }
   }
-  if (T == "h") showStorage();
+  if (T == "set") showStorage();
   if ((T == "p" && V.p) || (T == "m" && MID)) apRefresh();
 }
 

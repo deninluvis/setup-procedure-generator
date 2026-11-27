@@ -11,7 +11,28 @@ function needName(msg) {
 // changes, and Enter shortcuts. Each change is saved, then R() redraws.
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-a]");
+  // A click outside the ⋮ menu closes it (clicks on its options inside do not).
+  if (MENU && !e.target.closest(".kebab")) {
+    MENU = "";
+    R(true);
+    if (!t) return;
+  }
   if (!t) return;
+  if (t.dataset.a == "menu") {
+    const m = t.dataset.m;
+    MENU = MENU == m ? "" : m;
+    R(true);
+    const first = $(
+      MENU
+        ? ".kmenu button, .kmenu input, .kmenu label"
+        : `[data-a=menu][data-m="${m}"]`,
+    );
+    if (first) first.focus({ preventScroll: true });
+    return;
+  }
+  if (t.closest(".kmenu")) MENU = ""; // an option was chosen
+  if (VIEW && t.dataset.a != "view") VIEW = null; // the photo viewer closes
+  if (!/^(addOpen|addL|addP|addM)$/.test(t.dataset.a)) ADDING = "";
   const a = t.dataset.a,
     i = +t.dataset.i,
     j = +t.dataset.j,
@@ -244,9 +265,9 @@ document.addEventListener("click", (e) => {
       if (p.dept === undefined) p.dept = deptOf(p, S.co);
     });
     S.co.depts = S.co.depts.filter((d) => d.name.trim());
+    T = S.co.done ? "set" : "h"; // edited from Settings: back there
     S.co.done = true;
     Store.persist();
-    T = "h";
   } else if (a == "mhome") {
     MID = null;
   } else if (a == "openM") {
@@ -289,7 +310,7 @@ document.addEventListener("click", (e) => {
       planItems(list),
       `${safeName(l.name, "Line")} - line - ${dateStamp()}.zip`,
       t,
-    );
+    ).then(() => R(true)); // closes the ⋮ menu once the file is saved
     return;
   } else if (a == "goAp") {
     T = "ap";
@@ -328,7 +349,42 @@ document.addEventListener("click", (e) => {
     if (f) f.focus();
     return;
   } else if (a == "mk") {
+    if ($("#pv")) R(true); // close the photo viewer under the editor
     openMarkup(t.dataset.k, i, j, +t.dataset.n || 0);
+    return;
+  } else if (a == "view") {
+    VIEW = { k: t.dataset.k, i, j, n: +t.dataset.n || 0 };
+    R(true);
+    $("#pv .b").focus();
+    return;
+  } else if (a == "vClose") {
+    R(true);
+    return;
+  } else if (a == "addOpen") {
+    ADDING = t.dataset.k;
+    R(true);
+    $("#nw").focus();
+    return;
+  } else if (a == "addCancel") {
+    R(true);
+    return;
+  } else if (a == "apInfo") {
+    AP_OPEN = !AP_OPEN;
+    R(true);
+    $("#apbadge").focus();
+    return;
+  } else if (a == "help") {
+    HELPS.item = !HELPS.item;
+    saveView();
+    R(true);
+    return;
+  } else if (a == "goSet") {
+    T = "set";
+    MID = null;
+    V = { l: null, p: null };
+  } else if (a == "xtab") {
+    XTAB = t.dataset.t;
+    R(true);
     return;
   } else if (a == "logout") {
     if (!confirm("Log out? The next person logs in with their own code."))
@@ -382,6 +438,7 @@ document.addEventListener("click", (e) => {
     logAct("data", "Print log cleared");
   } else if (a == "goX") {
     T = "x";
+    XTAB = "ex";
     EXS = new Set(allKeys("x"));
     IMP = null;
     XMSG = "";
@@ -433,7 +490,7 @@ document.addEventListener("click", (e) => {
       ]),
       `${safeName(p.name, kind)} - ${kind} - ${dateStamp()}.zip`,
       t,
-    );
+    ).then(() => R(true)); // closes the ⋮ menu once the file is saved
     return;
   } else if (a == "clearAll") {
     if (!isAdmin()) return;
@@ -469,6 +526,7 @@ document.addEventListener("click", (e) => {
       .finally(() => {
         t.disabled = false;
         t.textContent = label;
+        R(true); // closes the ⋮ menu
       });
   }
   save();
@@ -656,6 +714,28 @@ document.addEventListener("change", async (e) => {
     }
   }
   R(true);
+});
+
+// Escape closes the ⋮ menu.
+document.addEventListener("keydown", (e) => {
+  if (e.key == "Escape" && VIEW) {
+    VIEW = null;
+    R(true);
+    return;
+  }
+  // Enter in a "New line / product / machine" box adds it.
+  if (e.key == "Enter" && e.target.id == "nw") {
+    e.preventDefault();
+    e.target.parentElement.querySelector(".b").click();
+    return;
+  }
+  if (e.key == "Escape" && MENU) {
+    const m = MENU;
+    MENU = "";
+    R(true);
+    const b = $(`[data-a=menu][data-m="${m}"]`);
+    if (b) b.focus({ preventScroll: true });
+  }
 });
 
 // Enter in a tool row moves to the next row; in the home search it opens
