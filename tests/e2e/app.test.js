@@ -193,7 +193,10 @@ test("a full product prints to PDF with PPE signs, tools, steps and notes, witho
     menuClick(page, "[data-a=pdf]"),
   );
   const s = pdfText(bytes);
-  assert.equal(name, "Widget_A_rev1.pdf");
+  assert.match(
+    name,
+    /^Widget A - WA-1 - Rev 1 - \d{4}-\d{2}-\d{2} - DRAFT\.pdf$/,
+  );
   assert.ok(s.startsWith("%PDF"));
   for (const t of [
     "Widget A",
@@ -368,7 +371,7 @@ test("empty, validation, success and no-results states", async () => {
   await page.waitForSelector("#toast:not([hidden])");
   assert.match(
     await page.textContent("#toast"),
-    /PDF saved: Widget_A_rev1\.pdf/,
+    /PDF saved: Widget A - Rev 1 - \d{4}-\d{2}-\d{2} - DRAFT\.pdf/,
   );
   // Logs filter with no match.
   await page.evaluate(() => {
@@ -652,6 +655,7 @@ test("settings table, photo order, duplicate to a line, merge lines, check befor
   assert.match(await page.textContent("#toast"), /merged into "Line 1"/);
   // All PDFs of the line in one .zip.
   const zip = await download(page, () => menuClick(page, "[data-a=pdfLine]"));
+  const today = await page.evaluate(() => dateStamp());
   assert.match(zip.name, /^Line 1 - PDFs - .*\.zip$/);
   const names = [
     ...(
@@ -665,7 +669,10 @@ test("settings table, photo order, duplicate to a line, merge lines, check befor
   ].sort();
   assert.deepEqual(
     names,
-    ["Widget_A_Line_2__rev1.pdf", "Widget_A_rev1.pdf"].sort(),
+    [
+      `Widget A (Line 2) - Rev 1 - ${today} - DRAFT.pdf`,
+      `Widget A - Rev 1 - ${today} - DRAFT.pdf`,
+    ].sort(),
   );
   assert.equal(
     await page.evaluate(() => S.log.length),
@@ -1107,7 +1114,7 @@ test("approval: request by email, sign with the approver code, import, and draft
       /Requested by Test User \(alex@example.com\)/,
     );
     const rv = await download(B.page, () => B.page.click("[data-a=apPdf]"));
-    assert.ok(rv.name.startsWith("REVIEW_"));
+    assert.ok(rv.name.startsWith("REVIEW - Widget A - Rev 1 - "), rv.name);
     assert.ok(pdfText(rv.bytes).includes("FOR REVIEW"));
     // Signed with the login code: no code box. The name is required.
     assert.equal(await B.page.locator("#apcode").count(), 0);

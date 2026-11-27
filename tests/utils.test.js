@@ -673,3 +673,20 @@ test("machine settings count for approvals and change history only when there ar
   assert.deepEqual(settingsOf(q), q.set);
   assert.deepEqual(itemDiff(p, q, co, "product"), ["Machine settings"]);
 });
+
+test("pdfName gives a readable PDF file name", () => {
+  const { pdfName } = require("../js/utils.js");
+  const d = new Date(2026, 10, 27);
+  assert.equal(
+    pdfName({ name: "Widget A", code: "WA-100-B", rev: "4" }, true, false, d),
+    "Widget A - WA-100-B - Rev 4 - 2026-11-27.pdf",
+  );
+  assert.equal(
+    pdfName({ name: "Press: 3/4", rev: "" }, false, false, d),
+    "Press 3 4 - Rev 1 - 2026-11-27 - DRAFT.pdf",
+  );
+  assert.equal(
+    pdfName({ name: "", code: " " }, false, true, d),
+    "REVIEW - Setup procedure - Rev 1 - 2026-11-27.pdf",
+  );
+});

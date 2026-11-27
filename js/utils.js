@@ -84,6 +84,21 @@ const withPhotos = (o, f, g = f) => ({
     : {}),
 });
 
+// File name of a PDF: "Widget A - WA-100-B - Rev 4 - 2026-11-27.pdf", with
+// " - DRAFT" when not approved and "REVIEW - " for an approver's review copy.
+const pdfName = (p, approved, review, d = new Date()) =>
+  (review ? "REVIEW - " : "") +
+  [
+    safeName(p.name, "Setup procedure"),
+    String(p.code || "").trim() && safeName(p.code, ""),
+    "Rev " + safeName(p.rev || "1", "1"),
+    dateStamp(d),
+  ]
+    .filter(Boolean)
+    .join(" - ") +
+  (approved || review ? "" : " - DRAFT") +
+  ".pdf";
+
 // Machine settings rows that have a parameter name: p.set = [{ n, v, u }]
 // (parameter, value, unit).
 const settingsOf = (p) =>
@@ -979,6 +994,7 @@ function itemDiff(a, b, co, kind) {
 
 if (typeof module !== "undefined")
   module.exports = {
+    pdfName,
     settingsOf,
     pdfChecks,
     nameKey,
