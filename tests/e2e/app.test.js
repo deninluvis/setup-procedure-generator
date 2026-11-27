@@ -670,6 +670,36 @@ test("settings table, photo order, duplicate to a line, merge lines, check befor
   await ctx.close();
 });
 
+test("steps can be reordered by drag and drop", async () => {
+  const { ctx, page, errors } = await open();
+  await page.setViewportSize({ width: 1200, height: 2400 }); // all steps on screen
+  await setupCompany(page);
+  await newProduct(page);
+  await page.fill('[data-s="0"]', "A");
+  for (const [i, t] of [
+    [1, "B"],
+    [2, "C"],
+  ]) {
+    await page.click("[data-a=addS]");
+    await page.fill(`[data-s="${i}"]`, t);
+  }
+  const texts = () => page.evaluate(() => P().steps.map((s) => s.t));
+  // Step C onto the top half of step A: C, A, B.
+  await page.dragAndDrop('[data-drag="2"]', '[data-box="0"]', {
+    targetPosition: { x: 40, y: 8 },
+  });
+  assert.deepEqual(await texts(), ["C", "A", "B"]);
+  assert.match(await page.textContent("#toast"), /Step 3 moved to position 1/);
+  // Step 1 (C) onto the bottom half of the last step: A, B, C.
+  const h = (await page.locator('[data-box="2"]').boundingBox()).height;
+  await page.dragAndDrop('[data-drag="0"]', '[data-box="2"]', {
+    targetPosition: { x: 40, y: h - 8 },
+  });
+  assert.deepEqual(await texts(), ["A", "B", "C"]);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test("removing a step can be undone", async () => {
   const { ctx, page, errors } = await open();
   await setupCompany(page);

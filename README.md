@@ -209,7 +209,9 @@ panels (**?**). When the app changes, update both.
      **◀ Move left** / **Move right ▶** to change the order the photos print in.
    - The **⋮** on a step holds **Move up**, **Move down**, **Insert step below**,
      **Add sub-step**, **Add warning or note** and **Delete step**. **＋ Add step** adds
-     one at the end. Steps renumber automatically.
+     one at the end. Steps renumber automatically. On a computer you can also drag a
+     step by its **⠿** handle and drop it on another step (top half: before it, bottom
+     half: after it).
    - Sub-steps (2.1, 2.2, …) each have their own text, photos and **⋮** (move, add a
      note, delete). In the PDF they are printed indented under their step, kept on the
      same page where possible.

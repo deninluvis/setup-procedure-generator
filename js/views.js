@@ -178,7 +178,7 @@ const stepOrSub = (i, j) => (isNaN(j) ? P().steps[i] : P().steps[i].subs[j]);
 const stepHtml = (s, i) => {
   const subs = s.subs || [],
     n = P().steps.length;
-  return `<div class="box"><div class="sh"><span class="n">${i + 1}</span><span class="sp"></span>${kebab(
+  return `<div class="box" data-box="${i}"><div class="sh"><span class="dh" draggable="true" data-drag="${i}" title="Drag to move this step" aria-hidden="true">⠿</span><span class="n">${i + 1}</span><span class="sp"></span>${kebab(
     `s:${i}`,
     () =>
       (i > 0 ? `<button data-a="up" data-i="${i}">Move up</button>` : "") +

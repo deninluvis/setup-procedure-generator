@@ -862,3 +862,60 @@ document.addEventListener("keydown", (e) => {
     }
   }
 });
+
+// Drag and drop to reorder steps (computers): drag a step by its ⠿ handle and
+// drop it on another step; the top half puts it before, the bottom half after.
+// Phones and keyboards use Move up / Move down in the step's ⋮.
+let DRAG = null; // index of the step being dragged
+const dropAt = (e) => {
+  const box = e.target.closest && e.target.closest("[data-box]");
+  if (!box) return null;
+  const r = box.getBoundingClientRect();
+  return { box, i: +box.dataset.box, after: e.clientY > r.top + r.height / 2 };
+};
+const clearDrop = () =>
+  document
+    .querySelectorAll(".drop-b, .drop-a, .dragging")
+    .forEach((x) => x.classList.remove("drop-b", "drop-a", "dragging"));
+document.addEventListener("dragstart", (e) => {
+  const h = e.target.closest && e.target.closest("[data-drag]");
+  if (!h) return;
+  DRAG = +h.dataset.drag;
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", String(DRAG));
+  const box = h.closest("[data-box]");
+  e.dataTransfer.setDragImage(box, 20, 20);
+  box.classList.add("dragging");
+});
+document.addEventListener("dragover", (e) => {
+  if (DRAG === null) return;
+  const d = dropAt(e);
+  if (!d) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  document
+    .querySelectorAll(".drop-b, .drop-a")
+    .forEach((x) => x.classList.remove("drop-b", "drop-a"));
+  d.box.classList.add(d.after ? "drop-a" : "drop-b");
+});
+document.addEventListener("drop", (e) => {
+  if (DRAG === null) return;
+  const d = dropAt(e);
+  e.preventDefault();
+  const from = DRAG;
+  DRAG = null;
+  clearDrop();
+  if (!d) return;
+  let to = d.i + (d.after ? 1 : 0);
+  if (from < to) to--; // the list is one shorter once the step is taken out
+  if (to == from) return;
+  const s = P().steps;
+  s.splice(to, 0, s.splice(from, 1)[0]);
+  save();
+  R(true);
+  toast(`Step ${from + 1} moved to position ${to + 1}`, false);
+});
+document.addEventListener("dragend", () => {
+  DRAG = null;
+  clearDrop();
+});
