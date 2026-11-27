@@ -663,6 +663,15 @@ input[type="radio"] {
   gap: 6px;
   align-items: center;
 }
+/* Machine settings: a wider unit column ("strokes/min"). */
+.tl.stl {
+  grid-template-columns: 1.3fr 1fr 120px 34px;
+}
+@media (max-width: 520px) {
+  .tl.stl {
+    grid-template-columns: 1fr 110px 34px;
+  }
+}
 .tl input {
   margin: 2px 0;
   padding: 8px;

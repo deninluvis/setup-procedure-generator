@@ -257,12 +257,12 @@ function settingsHtml(p) {
   return (
     `<p class="m">Settings to enter on the machine, such as temperatures, speeds, pressures or the program number. They print as a table before the procedure.</p>` +
     (rows.length
-      ? `<div class="tl tlh" aria-hidden="true"><span>Parameter</span><span>Value</span><span>Unit</span><span></span></div>`
+      ? `<div class="tl stl tlh" aria-hidden="true"><span>Parameter</span><span>Value</span><span>Unit</span><span></span></div>`
       : "") +
     rows
       .map(
         (x, i) =>
-          `<div class="tl"><input class="tn" data-set="${i}" data-sk="n" value="${esc(x.n)}" placeholder="e.g. Mould temperature" aria-label="Setting ${i + 1}"><input class="ts" data-set="${i}" data-sk="v" value="${esc(x.v)}" placeholder="e.g. 220" aria-label="Setting ${i + 1} value"><input class="tq" data-set="${i}" data-sk="u" value="${esc(x.u)}" placeholder="Unit" aria-label="Setting ${i + 1} unit"><button class="sm tr2" data-a="rmSet" data-i="${i}" aria-label="Remove setting ${i + 1}">✕</button></div>`,
+          `<div class="tl stl"><input class="tn" data-set="${i}" data-sk="n" value="${esc(x.n)}" placeholder="e.g. Mould temperature" aria-label="Setting ${i + 1}"><input class="ts" data-set="${i}" data-sk="v" value="${esc(x.v)}" placeholder="e.g. 220" aria-label="Setting ${i + 1} value"><input class="tq" data-set="${i}" data-sk="u" value="${esc(x.u)}" placeholder="Unit" aria-label="Setting ${i + 1} unit"><button class="sm tr2" data-a="rmSet" data-i="${i}" aria-label="Remove setting ${i + 1}">✕</button></div>`,
       )
       .join("") +
     `<button class="b2" data-a="addSet">＋ Add setting</button>`
