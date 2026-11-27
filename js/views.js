@@ -300,7 +300,7 @@ ${toolsHtml(p)}
       })()}</p></div></div>
 <label class="f">Date<input type="date" data-f="date" value="${esc(p.date)}"></label>
 ${wmBox(p)}${psBox()}
-<div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
+<div class="row" style="flex-wrap:wrap"><button class="b" data-a="pdf">Download PDF</button><button class="b2" data-a="dupP">Duplicate</button><button class="b2" data-a="exItem">Export this ${mm ? "machine" : "product"}</button><button class="b d" data-a="delP">Delete ${mm ? "machine" : "product"}</button></div>`;
   }
   $("#app").innerHTML = userBar() + h;
   document

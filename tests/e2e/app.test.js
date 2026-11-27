@@ -333,6 +333,49 @@ test("damaged saved data shows a message instead of a blank page", async () => {
   await ctx.close();
 });
 
+test("a product and a machine can be duplicated as separate drafts", async () => {
+  const { ctx, page, errors } = await open();
+  await setupCompany(page);
+  await newProduct(page);
+  await page.fill('[data-s="0"]', "Fit the die");
+  await page.setInputFiles('[data-up="step"][data-i="0"]', PHOTO);
+  await page.waitForSelector('[data-a="rmSI"][data-i="0"]');
+  await page.evaluate(() => (P().ap = { st: "pending", to: "Approver 1" }));
+  await page.click("[data-a=dupP]");
+  assert.match(await page.textContent("#toast"), /Widget A \(copy\)/);
+  assert.equal(await page.inputValue("[data-f=name]"), "Widget A (copy)");
+  assert.equal(await page.inputValue('[data-s="0"]'), "Fit the die");
+  const [a, b] = await page.evaluate(() => S.lines[0].products);
+  assert.notEqual(a.id, b.id);
+  assert.equal(b.steps[0].img, a.steps[0].img, "photos copied");
+  assert.equal(b.ap, undefined, "the copy is a new draft");
+  // Editing the copy leaves the original alone; a second copy gets "(copy 2)".
+  await page.fill('[data-s="0"]', "Changed");
+  assert.equal(await page.evaluate(() => S.lines[0].products[0].steps[0].t), "Fit the die");
+  await page.evaluate(() => {
+    V.p = S.lines[0].products[0].id;
+    R();
+  });
+  await page.click("[data-a=dupP]");
+  assert.deepEqual(
+    await page.evaluate(() => S.lines[0].products.map((p) => p.name)),
+    ["Widget A", "Widget A (copy 2)", "Widget A (copy)"],
+  );
+  // Machines too.
+  await page.evaluate(() => {
+    T = "m";
+    MID = null;
+    V = { l: null, p: null };
+    R();
+  });
+  await page.fill("#nw", "Press 1");
+  await page.click("[data-a=addM]");
+  await page.click("[data-a=dupP]");
+  assert.deepEqual(await page.evaluate(() => S.machines.map((m) => m.name)), ["Press 1", "Press 1 (copy)"]);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
 test("removing a step can be undone", async () => {
   const { ctx, page, errors } = await open();
   await setupCompany(page);

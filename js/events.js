@@ -100,6 +100,28 @@ document.addEventListener("click", (e) => {
       l.products = l.products.filter((x) => x.id != V.p);
       V.p = null;
     }
+  } else if (a == "dupP") {
+    // A copy in the same line (or with the machines), as a new draft:
+    // no approval, first free name "X (copy)", "X (copy 2)" …
+    flushItem(true);
+    const p = P(),
+      mm = T == "m",
+      list = mm ? S.machines : L().products,
+      taken = (n) => list.some((x) => nameKey(x.name) == nameKey(n));
+    let name = `${p.name} (copy)`;
+    for (let n = 2; taken(name); n++) name = `${p.name} (copy ${n})`;
+    const c = { ...copyData(p), id: id(), name };
+    delete c.ap;
+    c.appr = "";
+    list.splice(list.indexOf(p) + 1, 0, c);
+    logAct(
+      "change",
+      `Duplicated ${itemLabel(p, mm ? "machine" : "product", mm ? null : L())} as "${name}"`,
+    );
+    if (mm) MID = c.id;
+    else V.p = c.id;
+    toast(`Duplicated: you are now editing "${name}"`, false);
+    window.scrollTo(0, 0);
   } else if (a == "rmPh") {
     remember("Photo removed");
     P()[t.dataset.k].splice(i, 1);
