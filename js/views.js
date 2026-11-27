@@ -88,6 +88,7 @@ const SetV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Settings</h1>
 <h2>Company</h2><div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><b>${esc(S.co.name)}</b>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div><button class="b2" data-a="editCo">Edit company details</button>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
+<h2>Help</h2><p class="m">Step-by-step instructions for authors, approvers and admins.</p><a class="b2" href="docs/user-guide.pdf" target="_blank" rel="noopener">Open the user guide (PDF)</a>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 ${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}
 ${isAdmin() ? `<h2>Danger zone</h2><button class="b d" data-a="clearAll">Clear all saved data</button>` : ""}`;

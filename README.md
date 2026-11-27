@@ -159,6 +159,13 @@ Where to find the reference:
 
 With no codes listed in `js/access.js`, the app opens without asking.
 
+## User guide
+
+The full user guide for authors, approvers and admins is in
+[`docs/user-guide.pdf`](docs/user-guide.pdf) (also under **⚙ Settings → Help** in the
+app). It is written in ASD-STE100 Simplified Technical English, like the in-app help
+panels (**?**). When the app changes, update both.
+
 ## How to use
 
 1. **First visit:** the Welcome screen asks for your company logo, company name

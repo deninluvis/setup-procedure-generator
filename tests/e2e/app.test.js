@@ -521,6 +521,9 @@ test("cleaner pages: step menus, photo viewer, folding sections, badge, help, se
   await page.keyboard.press("Escape");
   await settings(page);
   await page.waitForSelector("#stor .m");
+  // The user guide is linked from Settings and is in the repo.
+  assert.equal(await page.locator('a[href="docs/user-guide.pdf"]').count(), 1);
+  assert.ok(fs.statSync(path.join(ROOT, "docs/user-guide.pdf")).size > 100000);
   await page.click("[data-a=goX]");
   assert.equal(await page.locator("[data-a=xExport]").count(), 1);
   await page.click("[data-a=xtab][data-t=im]");
