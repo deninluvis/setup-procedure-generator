@@ -320,12 +320,12 @@ async function mkPdf(o) {
     sec(mm ? "Control panel / nameplate photos" : "Packaging photos");
     gal(p.pack);
   }
-  // Tools required: a table with an empty box to tick for each tool.
+  // Tools required: a table of Tool | Size / specification.
   const tools = (p.tools || []).filter((t) => String(t.n || "").trim());
   if (tools.length) {
     sec("Tools required");
-    const cols = [CW - 90, 60, 16, 14],
-      heads = ["Tool", "Size / specification", "Qty", "Ready"],
+    const cols = [CW - 70, 70],
+      heads = ["Tool", "Size / specification"],
       hh = 8;
     const header = () => {
       let x = M;
@@ -366,15 +366,6 @@ async function mkPdf(o) {
       tc(K);
       a.forEach((l, k) => d.text(l, M + 2, y + 5.8 + k * 4.6));
       b.forEach((l, k) => d.text(l, M + cols[0] + 2, y + 5.8 + k * 4.6));
-      const q = String(t.q || "").trim();
-      if (q)
-        d.text(q, M + cols[0] + cols[1] + cols[2] / 2, y + 5.8, {
-          align: "center",
-        });
-      // empty box to tick by pen
-      const bx = M + cols[0] + cols[1] + cols[2] + (cols[3] - 5) / 2;
-      d.setLineWidth(0.4);
-      d.rect(bx, y + (rh - 5) / 2, 5, 5);
       y += rh;
     });
     y += 4;

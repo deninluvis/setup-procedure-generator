@@ -659,7 +659,7 @@ input[type="radio"] {
 }
 .tl {
   display: grid;
-  grid-template-columns: 1fr 1fr 64px 34px;
+  grid-template-columns: 1fr 1fr 34px;
   gap: 6px;
   align-items: center;
 }
@@ -683,7 +683,7 @@ input[type="radio"] {
 @media (max-width: 520px) {
   /* Name on its own line, then size, quantity and remove. */
   .tl {
-    grid-template-columns: 1fr 64px 34px;
+    grid-template-columns: 1fr 34px;
     margin-bottom: 8px;
   }
   .tl .tn {
@@ -1310,4 +1310,22 @@ a.b2 {
 }
 .box.drop-a {
   box-shadow: 0 3px 0 var(--ac);
+}
+
+/* Line icons drawn in the page colour (light and dark mode). */
+.ic {
+  display: inline-block;
+  vertical-align: -0.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.ub .ic {
+  display: block;
+  margin: auto;
+}
+.wi .ic {
+  stroke-width: 2;
 }

@@ -189,7 +189,7 @@ function userBar() {
   return (
     `<div class="ubar">${isApprover() ? `<span class="ubt">Setup Procedures</span>` : `<button class="ubt" data-a="goHome">Setup Procedures</button>`}<span class="sp"></span>` +
     (gear
-      ? `<button class="kb ub${T == "set" ? " on" : ""}" data-a="goSet" aria-label="Settings" title="Settings">⚙</button>`
+      ? `<button class="kb ub${T == "set" ? " on" : ""}" data-a="goSet" aria-label="Settings" title="Settings">${IC.gear.replace('width="1em" height="1em"', 'width="22" height="22"')}</button>`
       : "") +
     (user
       ? `<span class="vh">Logged in: ${esc(who)} · ${info}</span>` +
