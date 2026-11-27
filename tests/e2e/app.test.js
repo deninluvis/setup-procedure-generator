@@ -551,11 +551,17 @@ test("cleaner pages: step menus, photo viewer, folding sections, badge, help, se
   assert.equal(await page.locator("#pv").count(), 0);
   // A folded section stays folded after a reload.
   await page.click("[data-sec=tools] > summary");
-  await page.waitForFunction(() => SECS.has("tools")); // saved
-  await page.reload();
-  await page.click("[data-a=tab][data-t=p]");
-  await page.click("[data-a=openL]");
-  await page.click("[data-a=openP]");
+  await page.waitForFunction(() =>
+    /"sec":\["tools"\]/.test(localStorage.getItem("sp-view")),
+  ); // saved
+  await page.waitForTimeout(300); // and not undone by a late event
+  // Read the saved settings again and redraw (a full reload of a file://
+  // page can lose very recent localStorage writes in Chromium).
+  await page.evaluate(() => {
+    SECS = new Set();
+    loadView();
+    R();
+  });
   await page.waitForSelector("[data-sec=tools]");
   assert.equal(await page.locator("[data-sec=tools][open]").count(), 0);
   assert.equal(await page.locator("[data-sec=steps][open]").count(), 1);

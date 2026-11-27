@@ -363,6 +363,9 @@ const helpBox = (id, title, body) =>
 document.addEventListener(
   "toggle",
   (e) => {
+    // A panel already replaced by a re-render can still send a late "toggle"
+    // (from when it was drawn open): ignore it, or it would undo a closing.
+    if (!e.target.isConnected) return;
     const id = e.target.dataset && e.target.dataset.help;
     if (id && id in HELPS) {
       HELPS[id] = e.target.open;
