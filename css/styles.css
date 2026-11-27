@@ -247,10 +247,6 @@ textarea {
   .row.acts > .m {
     grid-column: 1 / -1;
   }
-  .row.acts.st {
-    border-top: 1px solid var(--bd);
-    padding-top: 10px;
-  }
 }
 /* Several photos on a step: side by side, smaller. */
 .sph.many {
@@ -258,7 +254,7 @@ textarea {
   flex-wrap: wrap;
   gap: 4px 12px;
 }
-.sph.many > div {
+.sph.many > .simgb {
   max-width: calc(50% - 6px);
 }
 .sph.many .simg {
@@ -910,6 +906,9 @@ body.mkopen {
   padding: 4px 14px 10px;
   margin: 8px 0 14px;
 }
+.apbox:empty {
+  display: none;
+}
 .apform {
   border-top: 1px solid var(--bd);
   margin-top: 10px;
@@ -929,10 +928,8 @@ body.mkopen {
 /* "Logged in: … · Log out" at the top of every page. */
 .ubar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
   border-bottom: 1px solid var(--bd);
   padding-bottom: 6px;
   margin-bottom: 10px;
@@ -1125,4 +1122,156 @@ body.mkopen {
 }
 .apbox > p:last-child {
   margin-bottom: 0;
+}
+
+/* Top bar: app name (Home), ⚙ Settings, initials (account menu). */
+.ubt {
+  font: inherit;
+  font-weight: 700;
+  color: var(--tx);
+  background: none;
+  border: 0;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.ubar .sp {
+  flex: 1;
+}
+.ub {
+  font-size: 20px;
+  margin: 0;
+}
+.ub.on {
+  border-color: var(--ac);
+}
+.av {
+  margin: 0;
+  border-radius: 50%;
+  font-size: 15px;
+  background: var(--ac);
+  color: var(--act);
+  border-color: var(--ac);
+}
+.av[aria-expanded="true"] {
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+}
+.kinfo {
+  padding: 8px 16px 4px;
+}
+.kinfo b,
+.kinfo .m {
+  display: block;
+}
+/* Text only for screen readers. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* Approval badge and help button next to the page title. */
+.hrow .apb {
+  flex: none;
+  margin-top: 12px;
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  cursor: pointer;
+  color: var(--tx);
+}
+.hrow .apb .badge {
+  font-size: 13px;
+  padding: 4px 10px;
+}
+.apcar {
+  font-size: 12px;
+  margin-left: 2px;
+  color: var(--mut);
+}
+.hb {
+  font-size: 20px;
+}
+/* Sections of the product/machine page that can be closed. */
+.sec {
+  border-top: 1px solid var(--bd);
+  margin: 8px 0;
+}
+.sec > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 0 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.sec > summary::-webkit-details-marker {
+  display: none;
+}
+.sec > summary::before {
+  content: "▸";
+  color: var(--mut);
+  width: 12px;
+}
+.sec[open] > summary::before {
+  content: "▾";
+}
+.stt {
+  font-size: 18px;
+  font-weight: 700;
+}
+.sec > summary .m {
+  margin-left: auto;
+  font-size: 14px;
+}
+/* Step photos open full screen when tapped. */
+.simgb {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+.simgb .simg {
+  display: block;
+}
+#pv {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  gap: 16px;
+}
+#pv img {
+  max-width: 100%;
+  max-height: calc(100vh - 120px);
+  object-fit: contain;
+  border-radius: 6px;
+}
+.pvbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+#pv .b2 {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+#pv .b2.d {
+  color: #b00020;
+}
+#pv .b {
+  background: #000;
+  color: #fff;
+  border-color: #fff;
 }

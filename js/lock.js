@@ -163,11 +163,48 @@ function startIdleWatch() {
   idleTimer = setInterval(checkIdle, Math.min(5000, IDLE_MS / 4));
 }
 
-// "Logged in: Author · Code 4   Log out", at the top of every page.
-const userBar = () =>
-  SESSION && SESSION.name
-    ? `<div class="ubar"><span class="m">Logged in: <b>${esc(SESSION.who || SESSION.name)}</b> · ${ROLE_NAMES[SESSION.r]}${SESSION.who ? ` (${esc(SESSION.name)})` : ""}</span><button class="lk" data-a="logout">Log out</button></div>${navigator.onLine ? "" : `<p class="off" role="status">Offline: everything still works. Approval emails wait in your email app until you are back online.</p>`}`
-    : "";
+// Top bar of every page: app name (back to Home), ⚙ Settings, and a round
+// button with the person's initials that opens the account menu (Log out).
+// The full "Logged in: …" text is kept for screen readers.
+const initials = (n) =>
+  String(n || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase() || "?";
+function userBar() {
+  const user = SESSION && SESSION.name,
+    gear = S.co.done && !isApprover();
+  if (!user && !gear) return "";
+  const who = user ? SESSION.who || SESSION.name : "",
+    info = user
+      ? `${ROLE_NAMES[SESSION.r]}${SESSION.who ? ` (${esc(SESSION.name)})` : ""}`
+      : "",
+    off = navigator.onLine
+      ? ""
+      : `<p class="off" role="status">Offline: everything still works. Approval emails wait in your email app until you are back online.</p>`;
+  return (
+    `<div class="ubar">${isApprover() ? `<span class="ubt">Setup Procedures</span>` : `<button class="ubt" data-a="goHome">Setup Procedures</button>`}<span class="sp"></span>` +
+    (gear
+      ? `<button class="kb ub${T == "set" ? " on" : ""}" data-a="goSet" aria-label="Settings" title="Settings">⚙</button>`
+      : "") +
+    (user
+      ? `<span class="vh">Logged in: ${esc(who)} · ${info}</span>` +
+        kebab(
+          "user",
+          () =>
+            `<div class="kinfo"><b>${esc(who)}</b><span class="m">${info}${SESSION.own ? " · own device" : ""}</span></div><hr><button data-a="logout">Log out</button>`,
+          `Account: ${esc(who)}`,
+          esc(initials(who)),
+          "kb av",
+        )
+      : "") +
+    `</div>${off}`
+  );
+}
 
 // Which code is this? -> { r, id, name } or null. Approver codes are checked
 // through their signing key (see apKeys).

@@ -133,10 +133,10 @@ function apBoxInner(p) {
       (r.comment ? `<p class="apc">“${esc(r.comment)}”</p>` : "") +
       `<p class="m">Any change to this ${itemKind(p)} makes it a draft again.</p>`;
   else if (r.st == "changed")
-    h = `<p><span class="badge dr">Draft</span> Changed after it was approved by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p><p class="m">PDFs print with a DRAFT watermark. Undo the change, or request approval again.</p>`;
+    h = `<p><span class="badge dr">Draft</span>. Changed after it was approved by <b>${esc(r.name)}</b>${apSlot(r)} on ${apDay(r.at)}.</p><p class="m">PDFs print with a DRAFT watermark. Undo the change, or request approval again.</p>`;
   else if (r.st == "pending")
     h =
-      `<p><span class="badge wait">Waiting for approval</span> Sent to <b>${esc(r.to)}</b> on ${apDay(r.at)}.</p>` +
+      `<p><span class="badge wait">Waiting for approval</span>. Sent to <b>${esc(r.to)}</b> on ${apDay(r.at)}.</p>` +
       (r.changed
         ? `<p class="err">You changed it after asking for approval, so the approval will not match. Request approval again.</p>`
         : `<p class="m">When the approval file arrives by email, import it here. Until then PDFs print with a DRAFT watermark.</p>`) +
@@ -147,8 +147,34 @@ function apBoxInner(p) {
       (r.comment ? `<p class="apc">“${esc(r.comment)}”</p>` : "") +
       `<p class="m">Make the changes, then request approval again. PDFs print with a DRAFT watermark.</p>`;
   else
-    h = `<p><span class="badge dr">Draft</span> Not approved yet. PDFs print with a DRAFT watermark.</p>`;
-  return apMsgHtml() + h + (REQ ? apReqForm(p) : "");
+    h = `<p><span class="badge dr">Draft</span>: not approved yet. PDFs print with a DRAFT watermark.</p>`;
+  // Details show when the badge next to the title is tapped (AP_OPEN), and
+  // by themselves for news (a message) and warnings (changed after approval).
+  const show =
+    AP_OPEN || APMSG || r.st == "changed" || (r.st == "pending" && r.changed);
+  return (
+    apMsgHtml() +
+    (show
+      ? h.replace(/<span class="badge \w+">([^<]*)<\/span>/, "<b>$1</b>")
+      : "") +
+    (REQ ? apReqForm(p) : "")
+  );
+}
+let AP_OPEN = false; // approval details open (tap the badge)
+// The badge next to the title, from the checked state.
+function apBadgeNow(p) {
+  const st = (AP_NOW.get(p.id) || { st: "checking" }).st,
+    [cls, txt] =
+      st == "checking"
+        ? ["", "…"]
+        : st == "approved"
+          ? ["ok", "Approved"]
+          : st == "pending"
+            ? ["wait", "Waiting"]
+            : st == "rejected"
+              ? ["no", "Rejected"]
+              : ["dr", "Draft"];
+  return `<span class="badge ${cls}">${txt}</span><span class="apcar" aria-hidden="true">▾</span>`;
 }
 // Approval actions for the ⋮ menu, by state (read when the menu opens).
 function apMenu(p) {
@@ -515,8 +541,10 @@ async function apRefresh() {
   if (P() !== p) return;
   const key = (x) => x && [x.st, x.name, x.at, x.changed].join("|");
   if (key(old) != key(r)) {
-    const el = $("#apbox");
+    const el = $("#apbox"),
+      b = $("#apbadge");
     if (el) el.innerHTML = apBoxInner(p);
+    if (b) b.innerHTML = apBadgeNow(p);
   }
   // Remember "changed after approval" for the list badges.
   if (p.ap && p.ap.st == "approved" && !!p.ap.chg != (r.st == "changed")) {
@@ -545,7 +573,7 @@ document.addEventListener("change", async (e) => {
   } else if (t.dataset.apfile && t.files[0]) {
     const f = t.files[0];
     t.value = "";
-    MENU = false;
+    MENU = "";
     await importApproval(f);
   } else if (t.name == "apdec" && APR) {
     APR.decision = t.value;

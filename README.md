@@ -6,7 +6,7 @@ Browser-based tool for writing work setup procedures, per product (grouped by li
 - Step-by-step guides, each with an optional headline and photos (kept together on one PDF page)
 - Clean black-and-white PDF with a Time required / Technicians required table and Prepared by / Approved by sign-off (empty fields are left blank to fill in by pen)
 - Company logo, company name and departments, set once on first visit; each product or machine picks its department, printed on its PDF
-- Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter on the home page shows space used and free; export and import backups as .zip files with photos as normal image files
+- Data is stored in the browser (IndexedDB, typically hundreds of MB or more); a storage meter in Settings shows space used and free; export and import backups as .zip files with photos as normal image files
 - Export & import page: tick exactly what to export or import in a tree (everything, company details, lines, products, machines)
 - Backup reminder after 7 days without a backup
 - High-quality photos (up to 2000 px) so the PDF can be zoomed on a phone or computer
@@ -93,7 +93,7 @@ the code decides what they can do:
 | Code | Opens | Can do |
 |---|---|---|
 | **Access code** (author) | Home page | Products, machines, PDFs, approval requests, backups |
-| **Admin code** | Home page | Everything an author can do, plus the **Logs** and **Clear all saved data** |
+| **Admin code** | Home page (Logs and Clear all in ⚙ Settings) | Everything an author can do, plus the **Logs** and **Clear all saved data** |
 | **Approver code** | Approvals page only | Review approval requests and sign decisions |
 
 After the code, the app asks **Who are you?**: type your name (it is suggested next
@@ -102,7 +102,9 @@ by** on new products and machines and the approver's signing name, and is record
 the logs together with the code. The name is not checked: the code is the proof of who
 logged in.
 
-The top of every page shows who is logged in, with a **Log out** button. On a shared
+The top bar of every page shows **Setup Procedures** (tap it to go Home), **⚙**
+(Settings) and a round button with your initials: tap it to see who is logged in and to
+**Log out**. On a shared
 computer, log out when you finish; the next person logs in with their own code. A login
 is remembered in that browser until Log out, or until **30 minutes without activity**
 (no click, key press, touch or scroll, also with the browser closed): then it ends by
@@ -162,18 +164,25 @@ With no codes listed in `js/access.js`, the app opens without asking.
 1. **First visit:** the Welcome screen asks for your company logo, company name
    and departments (use **+ Add department** for each one). Press **Continue**. (Moving from another computer? Use
    **Import backup** on that screen instead.)
-2. **Home page:** shows your company and two options, **Products** and **Machines**.
-   Type in the search box to find a product or machine by name, code, product line or
-   department; click a result (or press Enter for the first one) to open it.
-   Use **Edit company details** to change the logo or name, or to add, rename or
-   remove departments later.
-3. **Products:** add a product line (for example "Line 1"), then add a product to it.
+2. **Home page:** shows your company, a search box and **Products**, **Machines** and
+   **Approvals**. Type in the search box to find a product or machine by name, code,
+   product line or department; click a result (or press Enter for the first one) to open it.
+   Everything else is in **⚙ Settings** (top bar): **Edit company details** (logo, name,
+   departments), **Backup and sharing**, **Storage**, and for admins **Logs** and
+   **Clear all saved data**.
+3. **Products:** press **＋ New line** (for example "Line 1"), then **＋ New product** in
+   that line. Type the name and press **Add** or Enter. (In an empty list the name box is
+   already open.)
    Use the same line name on every computer, so imported products go into that line.
    To change a line's name, open the line, press **⋮** (top right) and choose
    **Rename line** (Undo works). Export this line and Delete this line are in the same menu.
-   **Machines:** add a machine.
-4. On a product or machine page, the **How to fill in this product/machine** panel
-   explains each part (closed at first: click it to open; it stays as you left it).
+   **Machines:** press **＋ New machine**.
+4. On a product or machine page, the title row shows the approval **badge** (Draft,
+   Waiting, Approved or Rejected: tap it for details), **?** (how to fill in this
+   product or machine) and **⋮** (PDF, approval, duplicate, export, delete). The page is
+   in sections (photos, safety equipment, tools, steps, sign-off): tap a section title
+   to fold it away; the number on the right says what is inside, and folded sections
+   stay folded on this computer.
    Pick the **Department**, then fill in the code or asset number, the revision and photos.
 5. Under **Safety equipment (PPE)**, tick what must be worn: safety glasses, gloves,
    ear protection, safety shoes, hard hat, hi-vis vest, face shield or dust mask. Each one
@@ -185,14 +194,15 @@ With no codes listed in `js/access.js`, the app opens without asking.
    tick for each tool.
 7. Add steps. Each step has an optional headline, a description and up to 3 photos
    (pick several at once, or press **＋ Add another photo**; in the PDF they print side by side).
-   - **＋ Insert step below** adds a step right after that one; **＋ Add step** adds one
-     at the end. Steps renumber automatically.
-   - **↑ ↓** move a step up or down.
-   - **＋ Add sub-step** adds numbered sub-steps (2.1, 2.2, …) inside a step, each with
-     its own text and optional photos, and ↑ ↓ ✕ to arrange them. In the PDF they are
-     printed indented under their step, kept on the same page where possible.
+   - Tap a photo to see it full screen, with **✎ Mark up** and **Remove**.
+   - The **⋮** on a step holds **Move up**, **Move down**, **Insert step below**,
+     **Add sub-step**, **Add warning or note** and **Delete step**. **＋ Add step** adds
+     one at the end. Steps renumber automatically.
+   - Sub-steps (2.1, 2.2, …) each have their own text, photos and **⋮** (move, add a
+     note, delete). In the PDF they are printed indented under their step, kept on the
+     same page where possible.
    - Deleting a step that has sub-steps asks first.
-   - **⚠ Add warning or note** on a step or sub-step adds a box with a type and a
+   - **Add warning or note** (in a step's or sub-step's **⋮**) adds a box with a type and a
      description: **Warning** (serious hazard, red), **Caution** (risk of damage,
      orange) or **Note** (useful tip, blue). In the PDF it prints in a box with the same
      colour edge, a symbol, and WARNING / CAUTION / NOTE next to it, followed by the
@@ -210,7 +220,7 @@ With no codes listed in `js/access.js`, the app opens without asking.
    Choose the **Photo size in the PDF**: Small, Medium (default) or Large. Photos keep
    their full resolution, so they stay sharp when zoomed at any size.
 10. Press **Download PDF**. Each PDF is added to the **Print log**.
-11. Use **Export backup** on the home page regularly. Data lives only in this browser.
+11. Use **⚙ Settings → Quick full backup** regularly. Data lives only in this browser.
 
 **Approval:** every product and machine starts as a **Draft**: its PDF has a large red
 DRAFT watermark and "Not approved: draft" in the Approved by box. The status box at the
@@ -256,8 +266,8 @@ them with:
 - `npm run approver -- list`: names with their approver references
 - `npm run approver -- find 06DB68`: which approver code a reference belongs to
 
-**Mark up a photo:** press **✎** on a product or packaging photo, or **✎ Mark up** under
-a step or sub-step photo. A full-screen editor opens:
+**Mark up a photo:** press **✎** on a product or packaging photo, or tap a step or
+sub-step photo and press **✎ Mark up**. A full-screen editor opens:
 
 1. Pick a tool: **Arrow** (drag from where the arrow starts to the point it shows),
    **Circle** (drag across the part) or **Number** (tap; numbers go 1, 2, 3…).
@@ -268,7 +278,7 @@ a step or sub-step photo. A full-screen editor opens:
    **Cancel** (or Esc) leaves the photo as it was. After saving, **Undo** in the bar
    at the bottom brings back the photo without marks.
 
-**Logs (admins only):** home page → **Open logs**. Three tabs, each with a filter and a
+**Logs (admins only):** **⚙ Settings** → **Open logs**. Three tabs, each with a filter and a
 **Download (Excel / CSV)** button:
 
 - **Activity:** who did what, and when (name and code), newest first:
@@ -302,19 +312,19 @@ later work.
 ## Storage
 
 - Data is saved in the browser's IndexedDB storage. The amount allowed depends on the
-  browser and free disk space, usually hundreds of MB or more. The home page shows
+  browser and free disk space, usually hundreds of MB or more. **⚙ Settings** shows
   how much is used and free.
 - Each photo is about 0.3–1 MB, so expect roughly 1–3 MB per procedure with photos.
 - Where IndexedDB is not available, the app falls back to localStorage (about 5 MB)
-  and says so on the home page.
+  and says so in Settings.
 - Data saved by older versions is moved over automatically on first load.
 - Clearing the browser's site data deletes everything, so export backups regularly.
 
 ## Backup and sharing
 
-Everything is on the **Export & import** page (home page → **Backup and sharing** →
-**Export & import**). A **How export and import work** panel at the top of the page
-explains the steps (closed at first: click it to open; it stays as you left it). **Quick full backup** on the home page exports everything in
+Everything is on the **Export & import** page (**⚙ Settings** → **Backup and sharing** →
+**Export & import**), with an **Export** tab and an **Import** tab. A **How export and import work** panel at the top of the page
+explains the steps (closed at first: click it to open; it stays as you left it). **Quick full backup** in Settings exports everything in
 one click.
 
 ### Export

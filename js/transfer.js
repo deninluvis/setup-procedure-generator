@@ -367,6 +367,13 @@ document.addEventListener(
     if (id && id in HELPS) {
       HELPS[id] = e.target.open;
       saveView();
+      if (id == "item" && !e.target.open) R(true); // shown only while open
+    }
+    const k = e.target.dataset && e.target.dataset.sec;
+    if (k) {
+      if (e.target.open) SECS.delete(k);
+      else SECS.add(k);
+      saveView();
     }
   },
   true,
@@ -447,19 +454,19 @@ const itemHelp = (mm) => {
     `How to fill in this ${it}`,
     `<ol>
 <li><b>Details.</b> Enter the ${it} name, pick the <b>Department</b>, and fill in the ${mm ? "machine ID / asset number" : "product code"}. Raise the <b>Revision</b> number whenever you change the procedure, so printed copies can be told apart.</li>
-<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it. <b>✎</b> (or <b>✎ Mark up</b> on a step photo) lets you draw arrows, circles and numbers on it to point at the exact part.</li>
-<li><b>Approval.</b> The box at the top shows whether this is a <b>Draft</b>, <b>Waiting for approval</b>, <b>Approved</b> or <b>Rejected</b>. Drafts print with a DRAFT watermark. In the <b>⋮</b> menu (top right), press <b>Request approval</b>, choose the approver and their email, then attach the saved file to the email that opens. When the approver's file comes back, press <b>Import approval file</b> in the same menu. Any change after approval makes it a draft again.</li>
+<li><b>Photos.</b> Under <b>${mm ? "Machine photos" : "Product photos"}</b> and <b>${mm ? "Control panel / nameplate photos" : "Packaging photos"}</b>, press <b>＋ Add photo</b>. You can pick several at once. Photos are kept in high quality so they can be zoomed in the PDF. <b>✕</b> on a photo removes it. <b>✎</b> (or tap a step photo, then <b>✎ Mark up</b>) lets you draw arrows, circles and numbers on it to point at the exact part.</li>
+<li><b>Approval.</b> The badge next to the title (tap it for details) shows whether this is a <b>Draft</b>, <b>Waiting for approval</b>, <b>Approved</b> or <b>Rejected</b>. Drafts print with a DRAFT watermark. In the <b>⋮</b> menu (top right), press <b>Request approval</b>, choose the approver and their email, then attach the saved file to the email that opens. When the approver's file comes back, press <b>Import approval file</b> in the same menu. Any change after approval makes it a draft again.</li>
 <li><b>Safety equipment (PPE).</b> Tick what must be worn, such as safety glasses or gloves. Each one prints as a safety sign at the top of the PDF. Anything else goes in <b>Other safety equipment</b>.</li>
 <li><b>Tools required.</b> Press <b>＋ Add tool</b> and enter the tool, its size or specification and the quantity. Press Enter to add the next one. Tool names you used before are suggested. In the PDF they print as a checklist with a box to tick before the procedure.</li>
 <li><b>Steps.</b> Write one step per action, in order:
 <ul>
 <li>A short <b>headline</b> (optional) is printed in bold, for example "Install the fixture".</li>
 <li>The <b>description</b> says exactly what to do, with values such as torque, speed or program number.</li>
-<li><b>＋ Add photo</b> adds photos to the step or sub-step (up to 3), for example the part and the control panel. You can pick several at once, or press <b>＋ Add another photo</b> later. In the PDF they are printed side by side. <b>Remove</b> under a photo removes just that one.</li>
-<li><b>↑ ↓</b> move a step up or down, and <b>✕</b> deletes it.</li>
-<li><b>＋ Insert step below</b> adds a new step right after that step; <b>＋ Add step</b> at the bottom adds one at the end. Steps renumber automatically.</li>
-<li><b>⚠ Add warning or note</b> on a step or sub-step adds a box. Choose its type: <b>Warning</b> (serious hazard, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful tip, blue), then describe it. In the PDF it prints in a box with the same colour edge, a symbol and the word WARNING, CAUTION or NOTE next to it. <b>✕</b> in the box removes it.</li>
-<li><b>＋ Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text and optional photo. They print indented under their step.</li>
+<li><b>＋ Add photo</b> adds photos to the step or sub-step (up to 3), for example the part and the control panel. You can pick several at once, or press <b>＋ Add another photo</b> later. In the PDF they are printed side by side. Tap a photo to see it full screen, with <b>✎ Mark up</b> and <b>Remove</b>.</li>
+<li>The <b>⋮</b> on a step holds <b>Move up</b>, <b>Move down</b>, <b>Insert step below</b>, <b>Add sub-step</b>, <b>Add warning or note</b> and <b>Delete step</b>. <b>＋ Add step</b> at the bottom adds one at the end. Steps renumber automatically.</li>
+<li><b>Add warning or note</b> (in the step's or sub-step's <b>⋮</b>) adds a box. Choose its type: <b>Warning</b> (serious hazard, red), <b>Caution</b> (risk of damage, orange) or <b>Note</b> (useful tip, blue), then describe it. In the PDF it prints in a box with the same colour edge, a symbol and the word WARNING, CAUTION or NOTE next to it. <b>✕</b> in the box removes it.</li>
+<li><b>Add sub-step</b> adds numbered sub-steps (3.1, 3.2, …) inside a step, each with its own text, photos and <b>⋮</b> (move, note, delete). They print indented under their step.</li>
+<li>Tap a section title (Photos, Safety equipment, Tools, Steps, Sign-off) to fold it away; the count on the right says what is inside. Folded sections stay folded on this computer.</li>
 </ul></li>
 <li><b>Sign-off.</b> Fill in <b>Time required</b> (hours and minutes) and <b>Technicians required</b>, or leave them empty to write them in by pen on the printed PDF. <b>Prepared by</b> and <b>Approved by</b> are needed to download the PDF.</li>
 <li><b>Download PDF</b> is in the <b>⋮</b> menu at the top right. Tick <b>Add watermark</b> there first if you want the company name and department printed faintly across every page, and pick the <b>Photo size in the PDF</b> (Small, Medium or Large; photos stay sharp when zoomed at any size). The PDF has your logo, company and department at the top, the photos, every step with its photo kept on one page, and the approval table with signature lines at the end.</li>
@@ -531,20 +538,33 @@ function XV() {
       co && "company details",
     ].filter(Boolean);
   let h =
-    `<button class="lk" data-a="goHome">← Home</button><h1>Export &amp; import</h1>` +
+    `<button class="lk" data-a="goSet">← Settings</button><h1>Export &amp; import</h1>` +
     xHelp() +
     (XMSG
       ? `<p class="ok" role="status">${XMSG}</p>` + missingHtml(LASTMISS, true)
       : "") +
-    `<h2>Export</h2><p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
-    toolbar() +
-    (tree(treeNodes("x"), "x", EXS, exGroup, false) ||
-      `<p class="m">Nothing matches the filter.</p>`) +
-    `<p class="m" role="status">${picked.length ? `Selected: ${picked.join(", ")}${all ? " (full backup)" : ""} · about ${fmtBytes(bytes + 2048)}` : "Nothing selected."}</p>
+    `<div class="tabs" role="group" aria-label="Export or import">${[
+      ["ex", "Export"],
+      ["im", "Import"],
+    ]
+      .map(
+        ([k, n]) =>
+          `<button class="tabb${XTAB == k ? " on" : ""}" data-a="xtab" data-t="${k}" aria-pressed="${XTAB == k}">${n}</button>`,
+      )
+      .join("")}</div>`;
+  if (XTAB == "ex")
+    return (
+      h +
+      `<p class="m">Tick what to export. With everything ticked you get a full backup.</p>` +
+      toolbar() +
+      (tree(treeNodes("x"), "x", EXS, exGroup, false) ||
+        `<p class="m">Nothing matches the filter.</p>`) +
+      `<p class="m" role="status">${picked.length ? `Selected: ${picked.join(", ")}${all ? " (full backup)" : ""} · about ${fmtBytes(bytes + 2048)}` : "Nothing selected."}</p>
 <div class="row"><button class="b" data-a="xExport"${picked.length ? "" : " disabled"}>${all ? "Export full backup" : "Export selected"}</button></div>
-<p class="warn"><b>Keep the exported file as it is.</b> Do not rename, move or delete files or folders inside the .zip, and do not edit <code>data.json</code>: the app finds every photo by its exact folder and file name. Each export also contains a <code>READ ME.txt</code> with these rules.</p>`;
+<p class="warn"><b>Keep the exported file as it is.</b> Do not rename, move or delete files or folders inside the .zip, and do not edit <code>data.json</code>: the app finds every photo by its exact folder and file name. Each export also contains a <code>READ ME.txt</code> with these rules.</p>`
+    );
 
-  h += `<h2 id="imp">Import</h2>`;
+  h += `<span id="imp"></span>`;
   if (!IMP) {
     h += `<p class="m">Choose one or more .zip files (or older .json backups). You will see what is inside and can tick what to import.</p><label class="b2">Choose files<input type="file" accept="${ACCEPT_IMP}" multiple hidden data-imp="1"></label>`;
     return h;
@@ -622,6 +642,7 @@ async function exportSelected(btn) {
   );
 }
 
+let XTAB = "ex"; // Export & import page tab: "ex" or "im"
 // Read the chosen files and show what is in them on the Export & import page.
 async function loadImport(files) {
   document.body.style.cursor = "progress";
@@ -669,6 +690,7 @@ async function loadImport(files) {
   XMSG = "";
   LASTMISS = [];
   T = "x";
+  XTAB = "im";
   R(true);
   const el = $("#imp");
   if (el) el.scrollIntoView({ block: "start" });

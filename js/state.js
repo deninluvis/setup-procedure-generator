@@ -9,6 +9,7 @@ let S = { lines: [], machines: [] },
   GRP = "line",
   XF = "",
   HS = "", // home page search text
+  SECS = new Set(), // product/machine page sections the person closed
   HELPS = { x: false, item: false }, // help panels open? x = Export & import, item = product/machine page (closed at first)
   LASTMISS = [], // photos missing in the last import, shown with the result
   WM = false, // add a company/department watermark to downloaded PDFs
@@ -91,6 +92,8 @@ function loadView() {
     if (v.helps && typeof v.helps == "object")
       for (const k in HELPS)
         if (typeof v.helps[k] == "boolean") HELPS[k] = v.helps[k];
+    if (Array.isArray(v.sec))
+      SECS = new Set(v.sec.filter((x) => typeof x == "string").slice(0, 20));
     if (Array.isArray(v.col))
       COL = new Set(v.col.filter((x) => typeof x == "string").slice(0, 500));
   } catch (e) {}
@@ -99,7 +102,14 @@ function saveView() {
   try {
     localStorage.setItem(
       VIEW_KEY,
-      JSON.stringify({ grp: GRP, col: [...COL], helps: HELPS, wm: WM, ps: PS }),
+      JSON.stringify({
+        grp: GRP,
+        col: [...COL],
+        sec: [...SECS],
+        helps: HELPS,
+        wm: WM,
+        ps: PS,
+      }),
     );
   } catch (e) {}
 }

@@ -57,7 +57,7 @@ const ppeSvg = (x) =>
 function ppeHtml(p) {
   const on = new Set(p.ppe || []);
   return (
-    `<h2>Safety equipment (PPE)</h2><p class="m">Tick what must be worn. It prints as safety signs at the top of the PDF.</p><div class="ppe">` +
+    `<p class="m">Tick what must be worn. It prints as safety signs at the top of the PDF.</p><div class="ppe">` +
     PPE.map(
       (x) =>
         `<label class="pp${on.has(x.k) ? " on" : ""}"><input type="checkbox" data-ppe="${x.k}"${on.has(x.k) ? " checked" : ""}>${ppeSvg(x)}<span>${x.n}</span></label>`,
