@@ -23,9 +23,10 @@ async function undo() {
   // changed since (more than the removal itself), say so first.
   if (
     EDITS - u.e > 1 &&
-    !confirm(
-      `Undo "${u.msg}"? Changes made after it will be undone too. To keep them, press Cancel.`,
-    )
+    !(await ask(
+      `Changes made after "${u.msg}" will be undone too. To keep them, select Cancel.`,
+      { title: "Undo?", ok: "Undo" },
+    ))
   )
     return;
   UNDO.pop();

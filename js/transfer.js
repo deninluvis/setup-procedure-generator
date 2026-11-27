@@ -716,9 +716,10 @@ async function applyImport() {
   let msg;
   if (IMP.mode == "replace" && IMP.full) {
     if (
-      !confirm(
-        "Replace ALL current data with this backup? You can undo this until you close or reload the page.",
-      )
+      !(await ask(
+        "All current data is replaced with the backup. You can undo this until you close or reload the page.",
+        { title: "Replace all data?", ok: "Replace all", danger: true },
+      ))
     )
       return;
     remember("All data replaced with the backup");

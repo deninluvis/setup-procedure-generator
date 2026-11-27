@@ -2,8 +2,10 @@
 // (http or https); opening index.html as a file works offline anyway.
 // Every app file is stored on first visit. Online, the newest files are
 // fetched (and stored again); offline, the stored copies are used.
-// Add new app files to FILES and change VERSION when this list changes.
-const VERSION = "v8";
+// Add new app files to FILES. The offline copy is named after the app version
+// (js/version.js), so each new version replaces the stored files.
+importScripts("js/version.js");
+const VERSION = "v" + APP_VERSION;
 const CACHE = "setup-procedures-" + VERSION;
 const FILES = [
   "./",
@@ -18,6 +20,7 @@ const FILES = [
   "vendor/fonts/ibm-plex-sans-latin-ext-600-normal.woff2",
   "vendor/fonts/ibm-plex-sans-latin-ext-700-normal.woff2",
   "vendor/jspdf/jspdf.umd.min.js",
+  "js/version.js",
   "js/utils.js",
   "js/storage.js",
   "js/zip.js",

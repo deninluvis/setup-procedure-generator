@@ -163,7 +163,7 @@ function startIdleWatch() {
   idleTimer = setInterval(checkIdle, Math.min(5000, IDLE_MS / 4));
 }
 
-// Top bar of every page: app name (back to Home), ⚙ Settings, and a round
+// Top bar of every page: company logo or name (back to Home), ⚙ Settings, and a round
 // button with the person's initials that opens the account menu (Log out).
 // The full "Logged in: …" text is kept for screen readers.
 const initials = (n) =>
@@ -183,11 +183,15 @@ function userBar() {
     info = user
       ? `${ROLE_NAMES[SESSION.r]}${SESSION.who ? ` (${esc(SESSION.name)})` : ""}`
       : "",
+    // The company logo, or else its name, or else the app name.
+    brand = S.logo
+      ? `<img src="${S.logo}" alt="${esc(S.co.name || "Company logo")}">`
+      : esc(String(S.co.name || "").trim() || "Setup Procedures"),
     off = navigator.onLine
       ? ""
       : `<p class="off" role="status">Offline: everything still works. Approval emails wait in your email app until you are back online.</p>`;
   return (
-    `<div class="ubar">${isApprover() ? `<span class="ubt">Setup Procedures</span>` : `<button class="ubt" data-a="goHome">Setup Procedures</button>`}<span class="sp"></span>` +
+    `<div class="ubar">${isApprover() ? `<span class="ubt">${brand}</span>` : `<button class="ubt" data-a="goHome" aria-label="Home">${brand}</button>`}<span class="sp"></span>` +
     (gear
       ? `<button class="kb ub${T == "set" ? " on" : ""}" data-a="goSet" aria-label="Settings" title="Settings">${IC.gear.replace('width="1em" height="1em"', 'width="22" height="22"')}</button>`
       : "") +

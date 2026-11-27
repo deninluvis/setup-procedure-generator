@@ -159,6 +159,13 @@ Where to find the reference:
 
 With no codes listed in `js/access.js`, the app opens without asking.
 
+## Version
+
+The version number is in **⚙ Settings → About**, for example *Version 1.0.0 · 27 Nov
+2026*. It follows MAJOR.MINOR.PATCH: PATCH for fixes, MINOR for new features, MAJOR for
+changes that need action from users. Each release is listed in
+[`CHANGELOG.md`](CHANGELOG.md).
+
 ## User guide
 
 The full user guide for authors, approvers and admins is in
@@ -171,12 +178,23 @@ panels (**?**). When the app changes, update both.
 1. **First visit:** the Welcome screen asks for your company logo, company name
    and departments (use **+ Add department** for each one). Press **Continue**. (Moving from another computer? Use
    **Import backup** on that screen instead.)
-2. **Home page:** shows your company, a search box and **Products**, **Machines** and
-   **Approvals**. Type in the search box to find a product or machine by name, code,
+2. **Home page:** the top bar shows your company logo (or, without a logo, the company
+   name). The page has a search box and **Products**, **Machines** and **Approvals**.
+   When a backup is due, a one-line reminder with **Back up now** shows at the top. Type in the search box to find a product or machine by name, code,
    product line or department; click a result (or press Enter for the first one) to open it.
    Everything else is in **⚙ Settings** (top bar): **Edit company details** (logo, name,
-   departments), **Backup and sharing**, **Storage**, and for admins **Logs** and
-   **Clear all saved data**.
+   departments), **Backup and sharing**, **Appearance** (same as the device, light or
+   dark), the **keyboard shortcuts** (on a computer), **Help**, **Storage**, and for
+   admins **Logs** and **Clear all saved data**.
+
+   **Keyboard shortcuts (computer):** Ctrl+P makes the PDF of the open product or
+   machine, Ctrl+Enter adds a step after the one you are in, Ctrl+Z undoes the last
+   removal, Ctrl+S confirms that everything is saved (it saves automatically), Esc
+   closes a menu, photo or question. On a Mac use ⌘.
+
+   Questions such as "Delete this product?" open in the app's own box: the main
+   button (red when something is deleted) confirms; **Cancel**, Esc or a tap outside
+   the box cancels.
 3. **Products:** press **＋ New line** (for example "Line 1"), then **＋ New product** in
    that line. Type the name and press **Add** or Enter.
    Use the same line name on every computer, so imported products go into that line.

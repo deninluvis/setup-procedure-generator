@@ -14,6 +14,7 @@ let S = { lines: [], machines: [] },
   LASTMISS = [], // photos missing in the last import, shown with the result
   WM = false, // add a company/department watermark to downloaded PDFs
   PS = "medium", // photo size in the PDF: "small", "medium" or "large"
+  THEME = "auto", // "auto" (follow the device), "light" or "dark"
   V = { l: null, p: null },
   // Export & import page: export ticks, pending import, collapsed tree groups, result message
   EXS = new Set(),
@@ -89,6 +90,7 @@ function loadView() {
     if (typeof v.help == "boolean") HELPS.x = v.help; // older setting
     if (typeof v.wm == "boolean") WM = v.wm;
     if (PHOTO_SIZES[v.ps]) PS = v.ps;
+    if (["auto", "light", "dark"].includes(v.theme)) THEME = v.theme;
     if (v.helps && typeof v.helps == "object")
       for (const k in HELPS)
         if (typeof v.helps[k] == "boolean") HELPS[k] = v.helps[k];
@@ -97,6 +99,12 @@ function loadView() {
     if (Array.isArray(v.col))
       COL = new Set(v.col.filter((x) => typeof x == "string").slice(0, 500));
   } catch (e) {}
+  applyTheme();
+}
+// Light or dark look: data-theme on <html> overrides the device setting.
+function applyTheme() {
+  if (THEME == "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = THEME;
 }
 function saveView() {
   try {
@@ -109,6 +117,7 @@ function saveView() {
         helps: HELPS,
         wm: WM,
         ps: PS,
+        theme: THEME,
       }),
     );
   } catch (e) {}
