@@ -295,6 +295,16 @@ document.addEventListener("click", (e) => {
   } else if (a == "apMail") {
     if (APMAIL) openMail(APMAIL.to, APMAIL.subject, APMAIL.body);
     return;
+  } else if (a == "sClear") {
+    const k = t.dataset.k;
+    if (k == "hs") HS = "";
+    else if (k == "xf") XF = "";
+    else if (k == "lf") LF = "";
+    else AF = "";
+    R(true);
+    const f = $(`[data-${k}]`);
+    if (f) f.focus();
+    return;
   } else if (a == "mk") {
     openMarkup(t.dataset.k, i, j, +t.dataset.n || 0);
     return;

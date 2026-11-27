@@ -301,6 +301,19 @@ test("empty, validation, success and no-results states", async () => {
   assert.match(await page.textContent(".empty"), /Nothing matches/);
   await page.click("[data-a=afClear]");
   assert.equal(await page.locator(".empty").count(), 0);
+  // The ✕ in a search box clears it.
+  await page.fill("[data-af]", "zzz");
+  await page.click('[data-a=sClear][data-k="af"]');
+  assert.equal(await page.inputValue("[data-af]"), "");
+  assert.equal(await page.locator(".empty").count(), 0);
+  // A product with no steps says how to add one.
+  await page.evaluate(() => {
+    T = "p";
+    V.p = S.lines[0].products[0].id;
+    R();
+  });
+  await page.click('[data-a=rmS][data-i="0"]');
+  assert.match(await page.textContent(".empty"), /No steps yet/);
   assert.deepEqual(errors, []);
   await ctx.close();
 });

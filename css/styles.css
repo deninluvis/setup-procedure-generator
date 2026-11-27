@@ -442,8 +442,37 @@ input[type="radio"] {
   gap: 4px 16px;
   margin: 8px 0;
 }
-.xbar input[type="search"] {
+.xbar .sbox {
   flex: 1 1 260px;
+}
+/* Search boxes: our own ✕ (the browser's own one is not on every phone). */
+.sbox {
+  position: relative;
+  display: block;
+}
+.sbox input {
+  padding-right: 44px;
+}
+.sbox input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  display: none;
+}
+.sclr {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: none;
+  color: var(--mut);
+  font: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+.sbox input:placeholder-shown + .sclr {
+  display: none;
 }
 .seg {
   display: flex;

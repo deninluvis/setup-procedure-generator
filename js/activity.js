@@ -169,7 +169,7 @@ function ActV() {
       )
       .join(
         "",
-      )}</select><input type="search" data-af="1" value="${esc(AF)}" placeholder="Search activity" aria-label="Filter the activity log" style="flex:1;min-width:0"></div>` +
+      )}</select>${sbox(`<input type="search" data-af="1" value="${esc(AF)}" placeholder="Search activity" aria-label="Filter the activity log">`, "af", "flex:1;min-width:0")}</div>` +
     `<p class="m">${AF.trim() || AT ? `${count(list.length, "entry", "entries")} of ${all.length}` : count(all.length, "entry", "entries")}</p>` +
     (list.length
       ? ""
