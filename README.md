@@ -171,8 +171,7 @@ With no codes listed in `js/access.js`, the app opens without asking.
    departments), **Backup and sharing**, **Storage**, and for admins **Logs** and
    **Clear all saved data**.
 3. **Products:** press **＋ New line** (for example "Line 1"), then **＋ New product** in
-   that line. Type the name and press **Add** or Enter. (In an empty list the name box is
-   already open.)
+   that line. Type the name and press **Add** or Enter.
    Use the same line name on every computer, so imported products go into that line.
    To change a line's name, open the line, press **⋮** (top right) and choose
    **Rename line** (Undo works). Export this line and Delete this line are in the same menu.

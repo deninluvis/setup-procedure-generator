@@ -80,9 +80,9 @@ async function setupCompany(page) {
 
 async function newProduct(page, name = "Widget A") {
   await page.click("[data-a=tab][data-t=p]");
-  await page.fill("#nw", "Line 1");
+  await typeNew(page, "Line 1");
   await page.click("[data-a=addL]");
-  await page.fill("#nw", name);
+  await typeNew(page, name);
   await page.click("[data-a=addP]");
 }
 
@@ -127,6 +127,13 @@ async function logoutClick(page) {
 async function settings(page, sel) {
   await page.click("[data-a=goSet]");
   if (sel) await page.click(sel);
+}
+
+// Type a name into the "＋ New line / product / machine" box (opens it first).
+async function typeNew(page, name) {
+  if (!(await page.locator("#nw").count()))
+    await page.click("[data-a=addOpen]");
+  await page.fill("#nw", name);
 }
 
 const pdfText = (bytes) => bytes.toString("latin1");
@@ -323,7 +330,7 @@ test("a line can be renamed, and a second line with the same name is not made", 
     /Use the same line name on every computer/,
   );
   page.once("dialog", (d) => d.accept());
-  await page.fill("#nw", " press  LINE ");
+  await typeNew(page, " press  LINE ");
   await page.click("[data-a=addL]");
   assert.equal(await page.evaluate(() => S.lines.length), 1);
   assert.equal(
@@ -341,19 +348,20 @@ test("empty, validation, success and no-results states", async () => {
   await page.click("[data-a=tab][data-t=p]");
   assert.match(await page.textContent(".empty"), /No product lines yet/);
   // An empty name is not added, and says why.
+  await page.click("[data-a=addOpen]");
   await page.click("[data-a=addL]");
   assert.equal(
     await page.$eval("#nw", (el) => el.validationMessage),
     "Enter a line name.",
   );
   assert.equal(await page.evaluate(() => S.lines.length), 0);
-  await page.fill("#nw", "Line 1");
+  await typeNew(page, "Line 1");
   await page.click("[data-a=addL]");
   assert.match(
     await page.textContent(".empty"),
     /No products in this line yet/,
   );
-  await page.fill("#nw", "Widget A");
+  await typeNew(page, "Widget A");
   await page.click("[data-a=addP]");
   await page.fill("[data-f=by]", "Alex");
   await download(page, () => menuClick(page, "[data-a=pdf]"));
@@ -444,7 +452,7 @@ test("a product and a machine can be duplicated as separate drafts", async () =>
     V = { l: null, p: null };
     R();
   });
-  await page.fill("#nw", "Press 1");
+  await typeNew(page, "Press 1");
   await page.click("[data-a=addM]");
   await menuClick(page, "[data-a=dupP]");
   assert.deepEqual(await page.evaluate(() => S.machines.map((m) => m.name)), [
@@ -592,7 +600,7 @@ test("a machine prints to PDF", async () => {
   const { ctx, page, errors } = await open();
   await setupCompany(page);
   await page.click("[data-a=tab][data-t=m]");
-  await page.fill("#nw", "Press 3");
+  await typeNew(page, "Press 3");
   await page.click("[data-a=addM]");
   await page.check('[data-ppe="helmet"]');
   await page.fill('[data-s="0"]', "Switch off the main power.");
@@ -1267,7 +1275,7 @@ test("admins see activity, print log and code usage; authors' names fill in Prep
     );
     await download(page, () => page.click("[data-a=bk]"));
     await page.click("[data-a=tab][data-t=m]");
-    await page.fill("#nw", "Press 3");
+    await typeNew(page, "Press 3");
     await page.click("[data-a=addM]");
     await menuClick(page, "[data-a=delP]");
     await logoutClick(page);

@@ -14,12 +14,12 @@ const kebab = (id, items, label = "More actions", btn = "⋮", cls = "kb") =>
 // Page title with its ⋮ menu on the right (extra: buttons before the ⋮).
 const titleMenu = (title, items, extra = "") =>
   `<div class="hrow"><h1>${title}</h1>${extra}${kebab("t", items)}</div>`;
-// "＋ New line" (product, machine): a button that opens the name box, which
-// is open straight away when the list is empty. ADDING = which box is open.
+// "＋ New line" (product, machine): a button that opens the name box.
+// ADDING = which box is open.
 let ADDING = "";
-const add = (ph, a, label, empty) =>
-  ADDING == a || empty
-    ? `<div class="row"><input id="nw" placeholder="${ph}" aria-label="${ph}"><button class="b" data-a="${a}">Add</button>${empty ? "" : `<button class="b2" data-a="addCancel">Cancel</button>`}</div>`
+const add = (ph, a, label) =>
+  ADDING == a
+    ? `<div class="row"><input id="nw" placeholder="${ph}" aria-label="${ph}"><button class="b" data-a="${a}">Add</button><button class="b2" data-a="addCancel">Cancel</button></div>`
     : `<button class="b2" data-a="addOpen" data-k="${a}">＋ ${label}</button>`;
 // A section of the product/machine page that can be closed (remembered).
 const sec = (k, title, sum, body) =>
@@ -241,14 +241,14 @@ const MV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Machines</h1><p class="m">Pick a machine, or add one.</p>` +
   (S.machines.length
     ? ""
-    : `<p class="empty">No machines yet. Type a machine name below and press Add.</p>`) +
+    : `<p class="empty">No machines yet. Press <b>＋ New machine</b> to add one.</p>`) +
   S.machines
     .map(
       (m) =>
         `<div class="card" data-a="openM" data-id="${m.id}"><b>${esc(m.name)} ${apBadge(m)}</b><span class="m">${cardMeta(m)}${m.steps.length} step${m.steps.length == 1 ? "" : "s"}</span></div>`,
     )
     .join("") +
-  add("Machine name", "addM", "New machine", !S.machines.length);
+  add("Machine name", "addM", "New machine");
 // A selector for an element in #app built from its data-* attributes, so the
 // same field can be found again after the page is re-drawn.
 const selectorOf = (el) => {
@@ -303,15 +303,15 @@ function R(keep) {
       `<button class="lk" data-a="goHome">← Home</button><h1>Products</h1><p class="m">Pick a product line, or add one.</p>` +
       (S.lines.length
         ? ""
-        : `<p class="empty">No product lines yet. Type a name below (for example "Line 1") and press Add.</p>`) +
+        : `<p class="empty">No product lines yet. Press <b>＋ New line</b> to add one, for example "Line 1".</p>`) +
       S.lines
         .map(
           (l) =>
             `<div class="card" data-a="openL" data-id="${l.id}"><b>${esc(l.name)}</b><span class="m">${l.products.length} product${l.products.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Line name, e.g. Line 1", "addL", "New line", !S.lines.length) +
-      (ADDING == "addL" || !S.lines.length
+      add("Line name, e.g. Line 1", "addL", "New line") +
+      (ADDING == "addL"
         ? `<p class="m">Use the same line name on every computer: imported products go into the line with the same name.</p>`
         : "");
   } else if (T == "p" && !V.p) {
@@ -324,14 +324,14 @@ function R(keep) {
       )}<p class="m">Pick a product, or add one.</p>` +
       (l.products.length
         ? ""
-        : `<p class="empty">No products in this line yet. Type a product name below and press Add.</p>`) +
+        : `<p class="empty">No products in this line yet. Press <b>＋ New product</b> to add one.</p>`) +
       l.products
         .map(
           (p) =>
             `<div class="card" data-a="openP" data-id="${p.id}"><b>${esc(p.name)} ${apBadge(p)}</b><span class="m">${cardMeta(p)}${p.steps.length} step${p.steps.length == 1 ? "" : "s"}</span></div>`,
         )
         .join("") +
-      add("Product name", "addP", "New product", !l.products.length);
+      add("Product name", "addP", "New product");
   } else {
     const p = P(),
       mm = T == "m";
