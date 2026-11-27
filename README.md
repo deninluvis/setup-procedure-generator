@@ -175,8 +175,18 @@ panels (**?**). When the app changes, update both.
    **Approvals**. Type in the search box to find a product or machine by name, code,
    product line or department; click a result (or press Enter for the first one) to open it.
    Everything else is in **⚙ Settings** (top bar): **Edit company details** (logo, name,
-   departments), **Backup and sharing**, **Storage**, and for admins **Logs** and
-   **Clear all saved data**.
+   departments), **Backup and sharing**, **Appearance** (same as the device, light or
+   dark), the **keyboard shortcuts** (on a computer), **Help**, **Storage**, and for
+   admins **Logs** and **Clear all saved data**.
+
+   **Keyboard shortcuts (computer):** Ctrl+P makes the PDF of the open product or
+   machine, Ctrl+Enter adds a step after the one you are in, Ctrl+Z undoes the last
+   removal, Ctrl+S confirms that everything is saved (it saves automatically), Esc
+   closes a menu, photo or question. On a Mac use ⌘.
+
+   Questions such as "Delete this product?" open in the app's own box: the main
+   button (red when something is deleted) confirms; **Cancel**, Esc or a tap outside
+   the box cancels.
 3. **Products:** press **＋ New line** (for example "Line 1"), then **＋ New product** in
    that line. Type the name and press **Add** or Enter.
    Use the same line name on every computer, so imported products go into that line.

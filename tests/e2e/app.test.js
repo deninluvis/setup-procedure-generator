@@ -53,6 +53,19 @@ async function open(url = APP, opts = {}) {
           : { r: "author", id: ACCESS, who: "Test User" },
       ),
     );
+  // App-styled questions (ask() in views.js): answer them like the browser's
+  // dialogs were, and keep what was asked in ASKED. ASK_ANSWER = "0" cancels.
+  await ctx.addInitScript(() => {
+    window.ASKED = [];
+    new MutationObserver(() => {
+      const box = document.querySelector("#ask");
+      if (!box || box.dataset.seen || window.ASK_MANUAL) return;
+      box.dataset.seen = 1;
+      window.ASKED.push(box.querySelector("#askt").textContent);
+      const b = box.querySelector(`[data-ask="${window.ASK_ANSWER || "1"}"]`);
+      b.click(); // right away, like an accepted browser dialog
+    }).observe(document, { childList: true, subtree: true });
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -613,8 +626,8 @@ test("settings table, photo order, duplicate to a line, merge lines, check befor
   await page.fill("[data-f=by]", "Alex");
   const { bytes } = await download(page, () => menuClick(page, "[data-a=pdf]"));
   assert.match(
-    dialogs.pop(),
-    /Before printing[\s\S]*There is no product photo[\s\S]*Step 1 has no text/,
+    await page.evaluate(() => ASKED.pop()),
+    /look missing[\s\S]*There is no product photo[\s\S]*Step 1 has no text/,
   );
   const s = pdfText(bytes);
   assert.ok(
@@ -709,6 +722,59 @@ test("steps can be reordered by drag and drop", async () => {
     targetPosition: { x: 40, y: h - 8 },
   });
   assert.deepEqual(await texts(), ["A", "B", "C"]);
+  assert.deepEqual(errors, []);
+  await ctx.close();
+});
+
+test("theme choice, app-styled questions and keyboard shortcuts", async () => {
+  const { ctx, page, errors } = await open(APP, { role: "admin" });
+  await setupCompany(page);
+  // Theme: Dark is kept after a reload of the settings.
+  await settings(page);
+  await page.check('input[name="theme"][value="dark"]');
+  assert.equal(await page.getAttribute("html", "data-theme"), "dark");
+  await page.evaluate(() => {
+    THEME = "auto";
+    loadView();
+  });
+  assert.equal(await page.getAttribute("html", "data-theme"), "dark");
+  await page.check('input[name="theme"][value="auto"]');
+  assert.equal(await page.getAttribute("html", "data-theme"), null);
+  await page.click("[data-a=goHome]");
+  await newProduct(page);
+  // Question box: Cancel (and Esc) keep the product; the red button deletes.
+  await page.evaluate(() => (ASK_MANUAL = true));
+  await menuClick(page, "[data-a=delP]");
+  await page.waitForSelector("#ask");
+  assert.match(await page.textContent("#ask"), /Delete this product\?/);
+  assert.equal(
+    await page.getAttribute('#ask [data-ask="1"]', "class"),
+    "b dng",
+  );
+  await page.click('#ask [data-ask="0"]');
+  assert.equal(await page.locator("#ask").count(), 0);
+  await menuClick(page, "[data-a=delP]");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator("#ask").count(), 0);
+  assert.equal(await page.evaluate(() => S.lines[0].products.length), 1);
+  await page.evaluate(() => (ASK_MANUAL = false));
+  // Shortcuts: Ctrl+Enter adds a step after the one being edited.
+  await page.fill('[data-s="0"]', "First");
+  await page.click('[data-s="0"]');
+  await page.keyboard.press("Control+Enter");
+  assert.equal(await page.evaluate(() => P().steps.length), 2);
+  assert.equal(
+    await page.evaluate(() => document.activeElement.dataset.h),
+    "1",
+  );
+  await page.keyboard.press("Control+s");
+  assert.match(
+    await page.textContent("#toast"),
+    /saves your work automatically/,
+  );
+  await page.fill("[data-f=by]", "Alex");
+  const { name } = await download(page, () => page.keyboard.press("Control+p"));
+  assert.match(name, /^Widget A - Rev 1 - .* - DRAFT\.pdf$/);
   assert.deepEqual(errors, []);
   await ctx.close();
 });
@@ -1505,21 +1571,20 @@ test("undo warns before also undoing later changes", async () => {
   await page.keyboard.type("Wrench");
   await page.click('[data-a=rmTool][data-i="0"]');
   // Undo straight away: no question.
-  let asked = 0;
-  page.removeAllListeners("dialog");
-  page.on("dialog", (d) => {
-    asked++;
-    d.dismiss();
-  });
+  await page.evaluate(() => (ASK_ANSWER = "0")); // Cancel
+  const asked = () => page.evaluate(() => ASKED.length);
   await page.click("#toast [data-undo]");
-  assert.equal(asked, 0);
+  assert.equal(await asked(), 0);
   assert.equal(await page.inputValue('[data-tool="0"][data-tk="n"]'), "Wrench");
   // Remove again, then keep working: Ctrl+Z asks, and Cancel keeps the work.
   await page.click('[data-a=rmTool][data-i="0"]');
   await page.fill('[data-s="0"]', "Later work");
   await page.click("h1");
   await page.keyboard.press("Control+z");
-  assert.equal(asked, 1);
+  await page.waitForFunction(
+    () => ASKED.length == 1 && !document.querySelector("#ask"),
+  );
+  assert.equal(await asked(), 1);
   assert.equal(await page.inputValue('[data-s="0"]'), "Later work");
   assert.equal(await page.locator("[data-tool]").count(), 0);
   assert.deepEqual(errors, []);

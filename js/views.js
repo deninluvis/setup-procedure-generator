@@ -17,6 +17,53 @@ const IC = {
     '<path d="M19.2 9.4 L21.9 9.7 L21.9 14.3 L19.2 14.6 L18.9 15.2 L20.6 17.4 L17.4 20.6 L15.2 18.9 L14.6 19.2 L14.3 21.9 L9.7 21.9 L9.4 19.2 L8.8 18.9 L6.6 20.6 L3.4 17.4 L5.1 15.2 L4.8 14.6 L2.1 14.3 L2.1 9.7 L4.8 9.4 L5.1 8.8 L3.4 6.6 L6.6 3.4 L8.8 5.1 L9.4 4.8 L9.7 2.1 L14.3 2.1 L14.6 4.8 L15.2 5.1 L17.4 3.4 L20.6 6.6 L18.9 8.8Z"/><circle cx="12" cy="12" r="3.2"/>',
   ),
 };
+// A question in an app-styled box (instead of the browser's confirm()).
+// Resolves true for the main button, false for Cancel, Esc or a tap outside.
+// o: { title, ok: "Delete", danger: true (red main button), cancel, html }
+function ask(msg, o = {}) {
+  return new Promise((done) => {
+    const old = $("#ask");
+    if (old) old.remove();
+    if ($(".kmenu")) {
+      MENU = ""; // close a ⋮ menu still showing under the question
+      R(true);
+    }
+    const prev = document.activeElement,
+      el = document.createElement("div");
+    el.id = "ask";
+    el.setAttribute("role", "alertdialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-labelledby", "askt");
+    el.innerHTML = `<div class="askbox">${o.title ? `<h2>${esc(o.title)}</h2>` : ""}<div id="askt">${o.html ? msg : `<p>${esc(msg)}</p>`}</div><div class="row"><button class="b2" data-ask="0">${esc(o.cancel || "Cancel")}</button><button class="b${o.danger ? " dng" : ""}" data-ask="1">${esc(o.ok || "OK")}</button></div></div>`;
+    const end = (v) => {
+      document.removeEventListener("keydown", key, true);
+      el.remove();
+      if (prev && prev.isConnected) prev.focus({ preventScroll: true });
+      done(v);
+    };
+    const key = (e) => {
+      if (e.key == "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        end(false);
+      } else if (e.key == "Tab") {
+        // keep the focus on the two buttons
+        const b = [...el.querySelectorAll("button")],
+          k = b.indexOf(document.activeElement);
+        e.preventDefault();
+        b[(k + (e.shiftKey ? b.length - 1 : 1)) % b.length].focus();
+      }
+    };
+    el.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ask]");
+      if (b) end(b.dataset.ask == "1");
+      else if (e.target == el) end(false);
+    });
+    document.addEventListener("keydown", key, true);
+    document.body.append(el);
+    el.querySelector('[data-ask="1"]').focus();
+  });
+}
 // A search box with a ✕ button that clears it (shown only when there is text).
 // k = the input's data attribute (hs, xf, lf or af).
 const sbox = (input, k, style = "") =>
@@ -104,6 +151,17 @@ const SetV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Settings</h1>
 <h2>Company</h2><div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><b>${esc(S.co.name)}</b>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div><button class="b2" data-a="editCo">Edit company details</button>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
+<h2>Appearance</h2><div class="radios seg" role="radiogroup" aria-label="Appearance">${[
+    ["auto", "Same as the device"],
+    ["light", "Light"],
+    ["dark", "Dark"],
+  ]
+    .map(
+      ([k, n]) =>
+        `<label><input type="radio" name="theme" value="${k}"${THEME == k ? " checked" : ""}> ${n}</label>`,
+    )
+    .join("")}</div>
+<h2 class="kbd-only">Keyboard shortcuts</h2><table class="log kbd-only"><tbody><tr><td><kbd>Ctrl</kbd> + <kbd>P</kbd></td><td>Make the PDF of the open product or machine.</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Add a step after the step you are in (or at the end).</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo the last removal (when you do not type in a box).</td></tr><tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Shows that your work is saved. The app saves automatically.</td></tr><tr><td><kbd>Esc</kbd></td><td>Close a menu, a photo or a question.</td></tr></tbody></table><p class="m kbd-only">On a Mac, use <kbd>⌘</kbd> instead of <kbd>Ctrl</kbd>.</p>
 <h2>Help</h2><p class="m">Step-by-step instructions for authors, approvers and admins.</p><a class="b2" href="docs/user-guide.pdf" target="_blank" rel="noopener">Open the user guide (PDF)</a>
 <h2>Storage</h2><div id="stor"><p class="m">Checking storage…</p></div>
 ${isAdmin() ? `<h2>Logs</h2><p class="m">For admins: activity (logins, changes, approvals, deletions, exports and imports), the print log (${count((S.log || []).length, "PDF", "PDFs")}) and code usage on this computer.</p><button class="b2" data-a="goLog">Open logs</button>` : ""}

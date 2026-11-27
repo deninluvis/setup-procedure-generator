@@ -1,5 +1,42 @@
 // The line with this name, matched the way imports match it.
 const lineNamed = (n) => S.lines.find((l) => nameKey(l.name) == nameKey(n));
+// Download PDF (⋮ menu or Ctrl+P): first the check of missing items, then
+// the PDF. btn (optional) shows "Making PDF…" while it works.
+async function pdfAction(btn) {
+  flushItem(true); // record changes up to this PDF
+  const issues = pdfChecks(P(), T == "m" ? "machine" : "product");
+  if (
+    issues.length &&
+    String(P().by || "").trim() &&
+    !(await ask(
+      `<p>These items look missing:</p><ul>${issues.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p>Make the PDF anyway?</p>`,
+      {
+        title: "Before printing, please check",
+        ok: "Make PDF",
+        cancel: "Fix first",
+        html: true,
+      },
+    ))
+  )
+    return R(true);
+  const label = btn && btn.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Making PDF…";
+  }
+  return mkPdf()
+    .catch(() =>
+      alert("Could not make the PDF. Reload the page and try again."),
+    )
+    .finally(() => {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+      R(true); // closes the ⋮ menu
+    });
+}
+
 // An empty name box: say so next to it (cleared when typing).
 function needName(msg) {
   const el = $("#nw");
@@ -9,7 +46,8 @@ function needName(msg) {
 }
 // User actions: clicks (data-a), typing (input), file/select/tick-box
 // changes, and Enter shortcuts. Each change is saved, then R() redraws.
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
+  if (e.target.closest("#ask")) return; // the question box handles its own clicks
   const t = e.target.closest("[data-a]");
   // A click outside the ⋮ menu closes it (clicks on its options inside do not).
   if (MENU && !e.target.closest(".kebab")) {
@@ -92,7 +130,13 @@ document.addEventListener("click", (e) => {
     logAct("change", `Created ${itemLabel(p, "product", L())}`);
     V.p = p.id;
   } else if (a == "delL") {
-    if (!confirm("Delete this line and all its products?")) return;
+    if (
+      !(await ask(
+        `"${L().name}" and its ${count(L().products.length, "product", "products")} will be deleted. You can undo this until you close or reload the page.`,
+        { title: "Delete this line?", ok: "Delete line", danger: true },
+      ))
+    )
+      return R(true);
     remember(`Line "${L().name}" deleted`);
     logAct(
       "delete",
@@ -108,8 +152,17 @@ document.addEventListener("click", (e) => {
     S.lines = S.lines.filter((x) => x.id != V.l);
     V = { l: null, p: null };
   } else if (a == "delP") {
-    if (!confirm("Delete this " + (T == "m" ? "machine" : "product") + "?"))
-      return;
+    if (
+      !(await ask(
+        `"${P().name || "Untitled"}" will be deleted. You can undo this until you close or reload the page.`,
+        {
+          title: `Delete this ${T == "m" ? "machine" : "product"}?`,
+          ok: "Delete",
+          danger: true,
+        },
+      ))
+    )
+      return R(true);
     remember(`${T == "m" ? "Machine" : "Product"} "${P().name}" deleted`);
     flushItem(); // record edits made before deleting
     logAct(
@@ -166,9 +219,10 @@ document.addEventListener("click", (e) => {
       dst = S.lines.find((x) => x.id == t.dataset.l);
     if (!dst) return;
     if (
-      !confirm(
-        `Move all ${count(src.products.length, "product", "products")} from "${src.name}" into "${dst.name}" and remove the line "${src.name}"?`,
-      )
+      !(await ask(
+        `All ${count(src.products.length, "product", "products")} of "${src.name}" move into "${dst.name}", and the line "${src.name}" is removed. Undo is available.`,
+        { title: "Merge the lines?", ok: "Merge" },
+      ))
     )
       return R(true);
     remember(`Line "${src.name}" merged into "${dst.name}"`);
@@ -465,7 +519,12 @@ document.addEventListener("click", (e) => {
     R(true);
     return;
   } else if (a == "logout") {
-    if (!confirm("Log out? The next person logs in with their own code."))
+    if (
+      !(await ask("The next person logs in with their own code.", {
+        title: "Log out?",
+        ok: "Log out",
+      }))
+    )
       return;
     logout();
     return;
@@ -483,9 +542,10 @@ document.addEventListener("click", (e) => {
   } else if (a == "actClear") {
     if (!isAdmin()) return;
     if (
-      !confirm(
-        "Clear the whole activity log? This cannot be undone after you close the page.",
-      )
+      !(await ask(
+        "All entries are removed. You can undo this until you close or reload the page.",
+        { title: "Clear the activity log?", ok: "Clear log", danger: true },
+      ))
     )
       return;
     remember("Activity log cleared");
@@ -506,9 +566,10 @@ document.addEventListener("click", (e) => {
     LF = "";
   } else if (a == "logClear") {
     if (
-      !confirm(
-        "Clear the whole print log? This cannot be undone after you close the page.",
-      )
+      !(await ask(
+        "All entries are removed. You can undo this until you close or reload the page.",
+        { title: "Clear the print log?", ok: "Clear log", danger: true },
+      ))
     )
       return;
     remember("Print log cleared");
@@ -573,9 +634,14 @@ document.addEventListener("click", (e) => {
   } else if (a == "clearAll") {
     if (!isAdmin()) return;
     if (
-      !confirm(
-        "Delete ALL lines, products, steps and photos saved in this browser? You can undo this until you close or reload the page.",
-      )
+      !(await ask(
+        "All lines, products, machines, steps and photos in this browser are deleted. The logs stay. You can undo this until you close or reload the page.",
+        {
+          title: "Clear all saved data?",
+          ok: "Delete everything",
+          danger: true,
+        },
+      ))
     )
       return;
     remember("All data cleared");
@@ -593,28 +659,7 @@ document.addEventListener("click", (e) => {
     MID = null;
     V = { l: null, p: null };
   } else if (a == "pdf") {
-    flushItem(true); // record changes up to this PDF
-    const issues = pdfChecks(P(), T == "m" ? "machine" : "product");
-    if (
-      issues.length &&
-      String(P().by || "").trim() &&
-      !confirm(
-        `Before printing, please check:\n\n• ${issues.join("\n• ")}\n\nMake the PDF anyway?`,
-      )
-    )
-      return R(true);
-    const label = t.textContent;
-    t.disabled = true;
-    t.textContent = "Making PDF…";
-    return mkPdf()
-      .catch(() =>
-        alert("Could not make the PDF. Reload the page and try again."),
-      )
-      .finally(() => {
-        t.disabled = false;
-        t.textContent = label;
-        R(true); // closes the ⋮ menu
-      });
+    return pdfAction(t);
   }
   save();
   R(
@@ -753,6 +798,12 @@ document.addEventListener("change", async (e) => {
     R(true);
     const el = $(`[data-ppe="${t.dataset.ppe}"]`);
     if (el) el.focus();
+    return;
+  }
+  if (t.name == "theme") {
+    THEME = t.value;
+    applyTheme();
+    saveView();
     return;
   }
   if (t.name == "grp") {
@@ -934,4 +985,38 @@ document.addEventListener("drop", (e) => {
 document.addEventListener("dragend", () => {
   DRAG = null;
   clearDrop();
+});
+
+// Keyboard shortcuts on a computer (listed in Settings): Ctrl/⌘+P makes the
+// PDF of the open procedure, Ctrl/⌘+Enter adds a step after the step being
+// edited (or at the end), Ctrl/⌘+S says that work is saved automatically.
+document.addEventListener("keydown", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || $("#ask") || $("#mk")) return;
+  const k = e.key.toLowerCase(),
+    item = (T == "p" && V.p) || (T == "m" && MID);
+  if (k == "s") {
+    e.preventDefault();
+    toast("Saved. The app saves your work automatically.", false);
+  } else if (k == "p" && item) {
+    e.preventDefault(); // not the browser's print
+    MENU = "";
+    pdfAction(null);
+  } else if (e.key == "Enter" && item) {
+    e.preventDefault();
+    const box =
+        document.activeElement &&
+        document.activeElement.closest &&
+        document.activeElement.closest("[data-box]"),
+      steps = P().steps,
+      at = box ? +box.dataset.box + 1 : steps.length;
+    steps.splice(at, 0, { t: "", img: "" });
+    SECS.delete("steps"); // make sure the new step can be seen
+    save();
+    R(true);
+    const h = $(`[data-h="${at}"]`);
+    if (h) {
+      h.focus();
+      h.scrollIntoView({ block: "center" });
+    }
+  }
 });
