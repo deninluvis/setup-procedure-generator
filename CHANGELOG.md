@@ -7,6 +7,12 @@ Version numbers are `MAJOR.MINOR.PATCH` (shown in Settings → About):
 - **MAJOR** (1.x → 2.0.0): changes that need action from users (for example a new
   backup format, or approvals that no longer match).
 
+## 1.0.1 · 2026-11-27
+
+User guide updated for version 1.0.0: new screenshots (company logo in the top bar,
+line icons, question boxes, two-column tools table), a new Settings section
+(appearance, keyboard shortcuts, About), and the new PDF file names.
+
 ## 1.0.0 · 2026-11-27
 
 First numbered version. It includes everything built so far: products by line and
