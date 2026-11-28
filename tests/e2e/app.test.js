@@ -531,7 +531,11 @@ test("cleaner pages: step menus, photo viewer, folding sections, badge, help, se
   await setupCompany(page);
   // Home: no storage or backup sections; they are in Settings.
   assert.equal(await page.locator("#stor").count(), 0);
-  assert.equal(await page.locator("[data-a=goAp].opt").count(), 1);
+  assert.equal(
+    await page.locator("[data-a=goAp]").count(),
+    0,
+    "no Approvals card on Home",
+  );
   await openMenu(page, "user");
   assert.match(await page.textContent(".kmenu"), /Test User.*Admin/);
   await page.keyboard.press("Escape");
@@ -1173,6 +1177,21 @@ test("approval: request by email, sign with the approver code, import, and draft
       /Waiting for approval.*Test Approver/,
     );
     assert.match(await A.page.textContent(".card, #app"), /Widget A/);
+    // Home shows a one-line note that opens Approvals (back link returns Home).
+    await A.page.click("[data-a=goHome]");
+    assert.match(await A.page.textContent(".bkbar"), /1 waiting/);
+    await A.page.click(".bkbar [data-a=goAp]");
+    assert.match(await A.page.textContent("h1"), /Approvals/);
+    await A.page.click("[data-a=goHome]");
+    // Settings also opens it, and its back link returns to Settings.
+    await settings(A.page, "[data-a=goAp]");
+    await A.page.click("button.lk[data-a=goSet]");
+    assert.match(await A.page.textContent("h1"), /Settings/);
+    await A.page.evaluate(() => {
+      T = "p";
+      V = { l: S.lines[0].id, p: S.lines[0].products[0].id };
+      R();
+    });
 
     // Approver: opens the request, reviews, signs.
     // Approver: logs in with the approver code and lands on Approvals.
@@ -1328,6 +1347,7 @@ test("each code opens its own pages, and Log out lets the next person log in", a
       R();
     });
     assert.doesNotMatch(await page.textContent("h1"), /Print log/);
+    await settings(page);
     await page.click("[data-a=goAp]");
     assert.equal(
       await page.locator("[data-apreq]").count(),

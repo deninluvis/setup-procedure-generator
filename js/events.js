@@ -445,6 +445,7 @@ document.addEventListener("click", async (e) => {
     ).then(() => R(true)); // closes the ⋮ menu once the file is saved
     return;
   } else if (a == "goAp") {
+    APBACK = T == "h" ? "h" : "set";
     T = "ap";
     APR = null;
   } else if (a == "apReq") {

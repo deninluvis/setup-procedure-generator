@@ -7,6 +7,12 @@ Version numbers are `MAJOR.MINOR.PATCH` (shown in Settings → About):
 - **MAJOR** (1.x → 2.0.0): changes that need action from users (for example a new
   backup format, or approvals that no longer match).
 
+## 1.1.0 · 2026-11-28
+
+- Home is cleaner: the Approvals card is gone.
+- Approvals now open from ⚙ Settings → Approvals.
+- When procedures wait for approval or were rejected, Home shows a one-line note with **Open approvals**.
+
 ## 1.0.1 · 2026-11-27
 
 User guide updated for version 1.0.0: new screenshots (company logo in the top bar,
