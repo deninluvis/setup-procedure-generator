@@ -141,21 +141,30 @@ ${first ? `<p class="m">Moving from another computer? <label class="lk">Import b
 const nProducts = () => S.lines.reduce((a, l) => a + l.products.length, 0);
 const waiting = () =>
   allItems().filter((x) => x.p.ap && x.p.ap.st == "pending").length;
+// "2 waiting · 1 rejected", empty when nothing needs action.
+const apNeeds = () => {
+  const r = allItems().filter((x) => x.p.ap && x.p.ap.st == "rejected").length;
+  return [waiting() && `${waiting()} waiting`, r && `${r} rejected`]
+    .filter(Boolean)
+    .join(" · ");
+};
 const HomeV = () =>
   `<h1>${S.logo ? esc(S.co.name) : "Setup procedures"}</h1>
+${apNeeds() ? `<div class="bkbar" role="status"><span>${apNeeds()}</span><button class="lk" data-a="goAp">Open approvals</button></div>` : ""}
 ${backupDue(S) ? `<div class="bkbar" role="status"><span>${S.lastBackup ? `Last backup: ${agoText(S.lastBackup)}` : "No backup yet"}</span><button class="lk" data-a="bk">Back up now</button></div>` : ""}
 ${sbox(`<input type="search" data-hs="1" value="${esc(HS)}" placeholder="Search products, machines, lines" aria-label="Find a product or machine" aria-controls="hres">`, "hs")}<div id="hres" aria-live="polite">${homeResults()}</div>
-<div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button><button class="opt" data-a="goAp"><b>Approvals</b><span class="m">${waiting() ? `${waiting()} waiting` : "Import approval files"}</span></button></div>`;
+<div class="opts"><button class="opt" data-a="tab" data-t="p"><b>Products</b><span class="m">${S.lines.length} line${S.lines.length == 1 ? "" : "s"} · ${nProducts()} product${nProducts() == 1 ? "" : "s"}</span></button><button class="opt" data-a="tab" data-t="m"><b>Machines</b><span class="m">${S.machines.length} machine${S.machines.length == 1 ? "" : "s"}</span></button></div>`;
 // "2026-11-27" -> "27 Nov 2026".
 const fmtDay = (d) => {
   const [y, m, dd] = String(d).split("-").map(Number);
   return `${dd} ${"Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ")[m - 1] || ""} ${y}`;
 };
-// Settings (⚙ in the top bar): company, storage, backup, logs, clear data.
+// Settings (⚙ in the top bar): company, backup, approvals, storage, logs, clear data.
 const SetV = () =>
   `<button class="lk" data-a="goHome">← Home</button><h1>Settings</h1>
 <h2>Company</h2><div class="cohead">${S.logo ? `<img class="logo" src="${S.logo}" alt="Company logo">` : ""}<div><b>${esc(S.co.name)}</b>${S.co.depts.length ? `<p class="m">${S.co.depts.map((d) => esc(d.name)).join(" · ")}</p>` : ""}</div></div><button class="b2" data-a="editCo">Edit company details</button>
 <h2>Backup and sharing</h2><p class="m">Last backup: <b>${agoText(S.lastBackup)}</b>. Choose exactly what to export or import, including single products, lines, machines or a full backup.</p><div class="row" style="flex-wrap:wrap"><button class="b" data-a="goX">Export &amp; import</button><button class="b2" data-a="bk">Quick full backup</button></div>
+<h2>Approvals</h2><p class="m">${waiting() ? `${count(waiting(), "procedure", "procedures")} waiting for approval. ` : ""}Import the approval files (.json) that approvers send you.</p><button class="b2" data-a="goAp">Open approvals</button>
 <h2>Appearance</h2><div class="radios seg" role="radiogroup" aria-label="Appearance">${[
     ["auto", "Same as the device"],
     ["light", "Light"],

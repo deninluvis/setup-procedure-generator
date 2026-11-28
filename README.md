@@ -179,11 +179,12 @@ panels (**?**). When the app changes, update both.
    and departments (use **+ Add department** for each one). Press **Continue**. (Moving from another computer? Use
    **Import backup** on that screen instead.)
 2. **Home page:** the top bar shows your company logo (or, without a logo, the company
-   name). The page has a search box and **Products**, **Machines** and **Approvals**.
+   name). The page has a search box and **Products** and **Machines**.
+   When procedures wait for approval or were rejected, a one-line note with **Open approvals** shows at the top.
    When a backup is due, a one-line reminder with **Back up now** shows at the top. Type in the search box to find a product or machine by name, code,
    product line or department; click a result (or press Enter for the first one) to open it.
    Everything else is in **⚙ Settings** (top bar): **Edit company details** (logo, name,
-   departments), **Backup and sharing**, **Appearance** (same as the device, light or
+   departments), **Backup and sharing**, **Approvals**, **Appearance** (same as the device, light or
    dark), the **keyboard shortcuts** (on a computer), **Help**, **Storage**, and for
    admins **Logs** and **Clear all saved data**.
 
@@ -280,7 +281,7 @@ top of its page shows where it is.
    `Approval - <name> - rev <n> - approved.json` (or `rejected`) and opens a reply email:
    attach the file and send it.
 3. **Author: import the decision.** Press **⋮** → **Import approval file** on the product's page
-   (or Home → Approvals) and choose the .json. The app checks that it was signed with a
+   (or ⚙ Settings → **Approvals**) and choose the .json. The app checks that it was signed with a
    listed approver's code, that the file was not changed, and that the procedure is
    exactly what was approved. It then shows **Approved** (or **Rejected** with the
    comment), for example "Approved by Sam Lee (Approver 1)". Approved PDFs have no

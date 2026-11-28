@@ -13,6 +13,7 @@ const AP_IMG = new Map(); // photo -> hash, so photos are hashed once
 const AP_NOW = new Map(); // item id -> checked state (see apState)
 let REQ = false, // request form open on the item page
   APR = null, // Approvals page: the request being reviewed
+  APBACK = "set", // screen the Approvals page's back link returns to
   APMSG = null, // { text, err } shown on the Approvals page and item page
   APMAIL = null; // last email opened, to open it again
 const AP_KEY = "sp-ap"; // remembered names and email addresses (this browser)
@@ -293,7 +294,11 @@ async function requestApproval(btn) {
 function ApV() {
   const rev = isApprover();
   let h =
-    (rev ? "" : `<button class="lk" data-a="goHome">← Home</button>`) +
+    (rev
+      ? ""
+      : APBACK == "h"
+        ? `<button class="lk" data-a="goHome">← Home</button>`
+        : `<button class="lk" data-a="goSet">← Settings</button>`) +
     `<h1>Approvals</h1>${apMsgHtml()}`;
   if (rev)
     h += `
@@ -442,7 +447,7 @@ async function signApproval(btn) {
           ? `I have approved "${p.name}" revision ${p.rev || "1"}.`
           : `I have not approved "${p.name}" revision ${p.rev || "1"}.`) +
         (comment ? `\n\nComment: ${comment}` : "") +
-        `\n\nImport the attached file "${name}" in the Setup Procedures app: Home → Approvals → Import approval file (or on the ${pack.kind}'s page).\n\n${signer}`,
+        `\n\nImport the attached file "${name}" in the Setup Procedures app: ⚙ Settings → Approvals → Import approval file (or on the ${pack.kind}'s page).\n\n${signer}`,
     );
   } finally {
     btn.disabled = false;
